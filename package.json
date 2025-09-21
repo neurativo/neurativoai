@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build --turbopack --no-lint",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint"
   },
+  
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "2.57.4",

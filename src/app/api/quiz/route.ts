@@ -1,0 +1,446 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { URLContentExtractor } from "@/app/lib/urlContentExtractor";
+
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+function getSupabaseService() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+export async function POST(req: NextRequest) {
+	const formData = await req.formData().catch(() => null);
+	const searchParams = new URL(req.url).searchParams;
+	const action = formData?.get("action")?.toString() || searchParams.get("action") || "";
+
+	if (action === "test_api" || action === "debug_api") {
+		const configured = !!process.env.OPENAI_API_KEY;
+		return NextResponse.json({ success: true, data: { api_key_configured: configured, model: MODEL, timestamp: new Date().toISOString() } });
+	}
+
+        if (action === "generate_quiz") {
+            const source = (formData?.get("source")?.toString() || "text").toLowerCase();
+            const content = formData?.get("content")?.toString() || "";
+            const url = formData?.get("url")?.toString() || "";
+            
+            let finalContent = content;
+            let contentTitle = "Quiz Content";
+            
+            // Handle URL content extraction
+            if (source === "url" && url) {
+                try {
+                    const extractedContent = await URLContentExtractor.extractContent(url);
+                    
+                    if (extractedContent.error) {
+                        return NextResponse.json({ 
+                            success: false, 
+                            error: `Failed to extract content from URL: ${extractedContent.error}` 
+                        }, { status: 400 });
+                    }
+                    
+                    if (!extractedContent.content || extractedContent.content.trim().length < 10) {
+                        return NextResponse.json({ 
+                            success: false, 
+                            error: "No meaningful content found in the URL. Please try a different URL or use text input instead." 
+                        }, { status: 400 });
+                    }
+                    
+                    // Clean and summarize content if too long
+                    finalContent = URLContentExtractor.cleanContent(extractedContent.content);
+                    finalContent = URLContentExtractor.summarizeContent(finalContent, 8000);
+                    contentTitle = extractedContent.title;
+                    
+                } catch (error) {
+                    console.error("URL extraction error:", error);
+                    return NextResponse.json({ 
+                        success: false, 
+                        error: `Failed to process URL: ${error instanceof Error ? error.message : 'Unknown error'}` 
+                    }, { status: 400 });
+                }
+            } else if (source === "text") {
+                if (!content || content.trim().length < 10) {
+                    return NextResponse.json({ success: false, error: "Please provide more content (at least 10 characters)" }, { status: 400 });
+                }
+            } else {
+                return NextResponse.json({ success: false, error: "Only 'By Text' and 'By URL' are supported right now" }, { status: 400 });
+            }
+
+		if (!process.env.OPENAI_API_KEY) {
+			return NextResponse.json({ success: false, error: "OPENAI_API_KEY is not set" }, { status: 500 });
+		}
+
+		// Check user authentication via Authorization header
+		const authHeader = req.headers.get('authorization');
+		if (!authHeader || !authHeader.startsWith('Bearer ')) {
+			return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 });
+		}
+
+		const token = authHeader.split(' ')[1];
+		const supabase = getSupabaseService();
+		
+		// Check if service role key is configured
+		if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+			return NextResponse.json({ success: false, error: "Service role key not configured" }, { status: 500 });
+		}
+		
+		// Verify the JWT token
+		const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+		
+		if (authError) {
+			console.error("Auth error:", authError);
+			return NextResponse.json({ success: false, error: "Invalid authentication token" }, { status: 401 });
+		}
+		
+		if (!user) {
+			return NextResponse.json({ success: false, error: "User not found" }, { status: 401 });
+		}
+
+		// Get user's current plan and usage
+		const { data: subscription, error: subError } = await supabase
+			.from("subscriptions")
+			.select("plan")
+			.eq("user_id", user.id)
+			.eq("status", "active")
+			.single();
+
+		if (subError) {
+			console.error("Subscription error:", subError);
+		}
+
+		const currentPlan = subscription?.plan || "free";
+
+		// Get plan limits
+		const { data: planData, error: planError } = await supabase
+			.from("plans")
+			.select("monthly_quiz_generations, max_questions_per_quiz")
+			.eq("key", currentPlan)
+			.single();
+
+		if (planError) {
+			console.error("Plan error:", planError);
+			return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
+		}
+
+		if (!planData) {
+			return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
+		}
+
+		// Set default daily limits based on plan
+		const dailyLimits = {
+			free: 5,
+			plus: 20,
+			premium: 50,
+			pro: 100
+		};
+		
+		planData.daily_quiz_generations = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
+
+		// Check daily usage limit
+		const today = new Date().toISOString().split('T')[0];
+		const { data: dailyUsage, error: dailyError } = await supabase
+			.from("usage_counters")
+			.select("count")
+			.eq("user_id", user.id)
+			.eq("counter_type", "daily_quiz_generations")
+			.eq("date", today)
+			.single();
+
+		const dailyCount = dailyUsage?.count || 0;
+		const dailyLimit = planData.daily_quiz_generations || 5;
+
+		if (dailyCount >= dailyLimit) {
+			return NextResponse.json({ 
+				success: false, 
+				error: `Daily quiz limit reached (${dailyLimit}/day). Upgrade your plan for more quizzes.` 
+			}, { status: 429 });
+		}
+
+		// Check monthly usage limit
+		const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+		const { data: monthlyUsage, error: monthlyError } = await supabase
+			.from("usage_counters")
+			.select("count")
+			.eq("user_id", user.id)
+			.eq("counter_type", "monthly_quiz_generations")
+			.eq("date", currentMonth)
+			.single();
+
+		const monthlyCount = monthlyUsage?.count || 0;
+		const monthlyLimit = planData.monthly_quiz_generations || 20;
+
+		if (monthlyCount >= monthlyLimit) {
+			return NextResponse.json({ 
+				success: false, 
+				error: `Monthly quiz limit reached (${monthlyLimit}/month). Upgrade your plan for more quizzes.` 
+			}, { status: 429 });
+		}
+
+		// Enforce plan-based question limit
+		const requestedQuestions = Math.max(1, Math.min(20, Number(formData?.get("num_questions") || 10)));
+		const maxQuestions = planData.max_questions_per_quiz || 8;
+		const numQuestions = Math.min(requestedQuestions, maxQuestions);
+
+		const difficulty = (formData?.get("difficulty")?.toString() || "medium").toLowerCase();
+		let types: string[] = [];
+		try {
+			types = JSON.parse(formData?.get("question_types")?.toString() || "[]");
+		} catch {}
+		const focus = formData?.get("focus_areas")?.toString() || "";
+		const topic = formData?.get("topic")?.toString() || "";
+
+            const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
+
+		try {
+			const data = await requestOpenAIWithRetry({
+				url: OPENAI_URL,
+				apiKey: process.env.OPENAI_API_KEY!,
+				payload: {
+					model: MODEL,
+					messages: [{ role: "user", content: prompt }],
+					temperature: 0.7,
+					max_tokens: 2000,
+				},
+				attempts: 3,
+				initialDelayMs: 600,
+				timeoutMs: 30000,
+			});
+			const raw = data?.choices?.[0]?.message?.content || "";
+			const parsed = extractJson(raw);
+			if (!parsed) {
+				return NextResponse.json({ success: false, error: "Failed to parse AI response as JSON" }, { status: 502 });
+			}
+
+			// Increment usage counters
+			await incrementUsageCounters(supabase, user.id, today, currentMonth);
+
+			// Save to ephemeral store with unique id
+			const saved = saveQuiz(parsed);
+			return NextResponse.json({ success: true, data: saved });
+		} catch (err: any) {
+			return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
+		}
+	}
+
+	return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
+}
+
+export async function GET(req: NextRequest) {
+	const { searchParams } = new URL(req.url);
+	const action = searchParams.get("action");
+	if (action === "debug_api") {
+		return NextResponse.json({ success: true, data: { message: "Debug endpoint working", timestamp: new Date().toISOString() } });
+	}
+
+	// Fetch quiz by id
+	const id = searchParams.get("id");
+	if (id) {
+		const quiz = getQuiz(id);
+		if (!quiz) return NextResponse.json({ success: false, error: "Quiz not found" }, { status: 404 });
+		return NextResponse.json({ success: true, data: quiz });
+	}
+	return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
+}
+
+function buildQuizPrompt({ content, numQuestions, difficulty, types, focus, topic }: { content: string; numQuestions: number; difficulty: string; types: string[]; focus: string; topic: string; }) {
+	const questionTypes = types && types.length ? types.join(", ") : "multiple_choice, true_false";
+	const focusText = focus ? `Focus on: ${focus}` : "Cover the main concepts and key points";
+	
+	// If only one question type is selected, generate only that type
+	const typeInstruction = types.length === 1 
+		? `Generate ALL ${numQuestions} questions as ${types[0]} type only.`
+		: `Distribute the ${numQuestions} questions across these types: ${questionTypes}`;
+	
+	return `Generate ${numQuestions} quiz questions from the following content.
+
+Content:
+${content}
+
+Requirements:
+- Difficulty level: ${difficulty}
+- Question types: ${questionTypes}
+- ${typeInstruction}
+- ${focusText}
+- Topic: ${topic}
+
+Return ONLY valid JSON matching exactly this shape:
+{
+  "quiz": {
+    "title": "Quiz Title",
+    "description": "Brief description",
+    "difficulty": "${difficulty}",
+    "questions": [
+      {
+        "id": 1,
+        "type": "multiple_choice",
+        "question": "Question text",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correct_answer": 0,
+        "explanation": "Why this answer is correct",
+        "hint": "A helpful hint for this question",
+        "wrong_answer_feedback": {
+          "0": "Why Option A is incorrect",
+          "1": "Why Option B is incorrect", 
+          "2": "Why Option C is incorrect",
+          "3": "Why Option D is incorrect"
+        }
+      },
+      {
+        "id": 2,
+        "type": "short_answer",
+        "question": "What is the main concept?",
+        "correct_answers": ["Expected answer 1", "Expected answer 2", "Alternative phrasing"],
+        "explanation": "Why this answer is correct",
+        "hint": "Think about the key characteristics",
+        "wrong_answer_feedback": "Common mistakes include: confusing with similar concepts, missing key details, or using incorrect terminology. Focus on the core definition and main characteristics."
+      },
+      {
+        "id": 3,
+        "type": "true_false",
+        "question": "Statement to evaluate",
+        "correct_answer": true,
+        "explanation": "Why this statement is true/false",
+        "hint": "Consider the specific details",
+        "wrong_answer_feedback": "If you chose false, you might have misunderstood the concept or missed a key detail. If you chose true, you might have been confused by similar but different concepts."
+      },
+      {
+        "id": 4,
+        "type": "fill_blank",
+        "question": "Complete the sentence: The main purpose of ___ is to ___.",
+        "blanks": [
+          {
+            "position": 1,
+            "correct_answers": ["concept1", "concept2"],
+            "hint": "Think about the primary function"
+          },
+          {
+            "position": 2,
+            "correct_answers": ["achieve goal", "solve problem"],
+            "hint": "Consider the intended outcome"
+          }
+        ],
+        "explanation": "Why these answers are correct",
+        "hint": "Focus on the main purpose and benefits",
+        "wrong_answer_feedback": "Common mistakes include: using incorrect terminology, missing the main purpose, or confusing with related but different concepts. Focus on the core function and intended outcome."
+      }
+    ]
+  }
+}
+
+Question Type Guidelines:
+- multiple_choice: 4 options, one correct answer
+- short_answer: Accept multiple correct phrasings
+- true_false: Simple true/false statements
+- fill_blank: Multiple blanks with specific correct answers
+- Always include explanation and hint for each question
+- Make hints helpful but not giving away the answer
+- Ensure explanations are educational and detailed`;
+}
+
+function extractJson(text: string): any | null {
+	try {
+		const start = text.indexOf("{");
+		const end = text.lastIndexOf("}");
+		if (start === -1 || end === -1) return null;
+		return JSON.parse(text.slice(start, end + 1));
+	} catch {
+		return null;
+	}
+}
+
+async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialDelayMs, timeoutMs }: { url: string; apiKey: string; payload: any; attempts: number; initialDelayMs: number; timeoutMs: number; }) {
+	let errorText = "";
+	for (let i = 0; i < attempts; i++) {
+		try {
+			const controller = new AbortController();
+			const timer = setTimeout(() => controller.abort(), timeoutMs);
+			const res = await fetch(url, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+				body: JSON.stringify(payload),
+				signal: controller.signal,
+			});
+			clearTimeout(timer);
+			if (res.ok) return await res.json();
+			// Read text once for diagnostics
+			errorText = await res.text();
+			// Retry on transient 5xx (including 520/522 via Cloudflare)
+			if (res.status >= 500) {
+				await new Promise(r => setTimeout(r, initialDelayMs * Math.pow(2, i)));
+				continue;
+			}
+			throw new Error(`OpenAI HTTP ${res.status}: ${errorText || res.statusText}`);
+		} catch (err: any) {
+			// AbortError or network errors: retry
+			if (i < attempts - 1) {
+				await new Promise(r => setTimeout(r, initialDelayMs * Math.pow(2, i)));
+				continue;
+			}
+			throw new Error(err?.message || errorText || "OpenAI request failed");
+		}
+	}
+	throw new Error(errorText || "OpenAI request failed after retries");
+}
+
+// Ephemeral in-memory store (OK for dev; replace with DB in production)
+type SavedQuiz = { id: string; quiz: any; metadata: any };
+const memoryStore = new Map<string, SavedQuiz>();
+
+function saveQuiz(parsed: any): SavedQuiz {
+	const id = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+	const saved = {
+		id,
+		quiz: parsed.quiz,
+		metadata: { ...(parsed.metadata || {}), id, generated_at: new Date().toISOString() },
+	};
+	memoryStore.set(id, saved);
+	return saved;
+}
+
+function getQuiz(id: string): SavedQuiz | undefined {
+	return memoryStore.get(id);
+}
+
+async function incrementUsageCounters(supabase: any, userId: string, today: string, currentMonth: string) {
+	// Increment daily counter
+	const { data: dailyData } = await supabase
+		.from("usage_counters")
+		.select("count")
+		.eq("user_id", userId)
+		.eq("counter_type", "daily_quiz_generations")
+		.eq("date", today)
+		.single();
+
+	const dailyCount = dailyData?.count || 0;
+	await supabase
+		.from("usage_counters")
+		.upsert({
+			user_id: userId,
+			counter_type: "daily_quiz_generations",
+			date: today,
+			count: dailyCount + 1
+		});
+
+	// Increment monthly counter
+	const { data: monthlyData } = await supabase
+		.from("usage_counters")
+		.select("count")
+		.eq("user_id", userId)
+		.eq("counter_type", "monthly_quiz_generations")
+		.eq("date", currentMonth)
+		.single();
+
+	const monthlyCount = monthlyData?.count || 0;
+	await supabase
+		.from("usage_counters")
+		.upsert({
+			user_id: userId,
+			counter_type: "monthly_quiz_generations",
+			date: currentMonth,
+			count: monthlyCount + 1
+		});
+}
+

@@ -1,0 +1,145 @@
+"use client";
+import { useEffect, useState } from "react";
+import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
+import Link from "next/link";
+
+type Usage = {
+  plan: string;
+  monthly_quiz_generations: number;
+  used: number;
+  daily_used: number;
+  daily_limit: number;
+  max_questions_per_quiz: number;
+};
+
+export default function DashboardPage() {
+  const [email, setEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState<Usage | null>(null);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    async function load() {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      setEmail(user.email);
+
+      // Get user's subscription
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("plan")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .single();
+
+      const currentPlan = subscription?.plan || "free";
+
+      // Get plan details
+      const { data: planData } = await supabase
+        .from("plans")
+        .select("monthly_quiz_generations, max_questions_per_quiz")
+        .eq("key", currentPlan)
+        .single();
+
+      // Set default daily limits based on plan
+      const dailyLimits = {
+        free: 5,
+        plus: 20,
+        premium: 50,
+        pro: 100
+      };
+      
+      const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
+
+      // Get current month usage
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const { data: monthlyUsage } = await supabase
+        .from("usage_counters")
+        .select("count")
+        .eq("user_id", user.id)
+        .eq("counter_type", "monthly_quiz_generations")
+        .eq("date", currentMonth)
+        .single();
+
+      // Get today's usage
+      const today = new Date().toISOString().split('T')[0];
+      const { data: dailyUsage } = await supabase
+        .from("usage_counters")
+        .select("count")
+        .eq("user_id", user.id)
+        .eq("counter_type", "daily_quiz_generations")
+        .eq("date", today)
+        .single();
+
+      setUsage({
+        plan: currentPlan,
+        monthly_quiz_generations: planData?.monthly_quiz_generations || 20,
+        used: monthlyUsage?.count || 0,
+        daily_used: dailyUsage?.count || 0,
+        daily_limit: dailyLimit,
+        max_questions_per_quiz: planData?.max_questions_per_quiz || 8
+      });
+      
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  if (loading) return <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center text-white">Loading...</div>;
+  if (!email) return (
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-white">
+      <p className="mb-4">You must be signed in to view your dashboard.</p>
+      <button className="auth-btn" onClick={() => (window.location.href = "/")}>Go Home</button>
+    </div>
+  );
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
+      <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
+      <p className="text-gray-300 mb-6">{email}</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="stat-card">
+          <div className="stat-number">{usage?.plan?.toUpperCase()}</div>
+          <div className="stat-label">Current Plan</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-number">{usage?.used}/{usage?.monthly_quiz_generations}</div>
+          <div className="stat-label">Quizzes this month</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-number">{usage?.daily_used}/{usage?.daily_limit}</div>
+          <div className="stat-label">Quizzes today</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-number">{usage?.max_questions_per_quiz}</div>
+          <div className="stat-label">Max questions/quiz</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="feature-card text-left">
+          <h2 className="text-xl font-semibold mb-2">Quick actions</h2>
+          <div className="flex gap-3 mt-3">
+            <Link href="/quiz" className="cta-button">Create quiz</Link>
+            <Link href="/pricing" className="secondary-button">Upgrade</Link>
+          </div>
+        </div>
+        <div className="feature-card text-left">
+          <h2 className="text-xl font-semibold mb-2">Account</h2>
+          <ul className="space-y-2 text-gray-300">
+            <li><Link href="/profile" className="footer-link">Edit profile</Link></li>
+            <li><Link href="/settings" className="footer-link">Settings</Link></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

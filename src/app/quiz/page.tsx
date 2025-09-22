@@ -2,6 +2,9 @@
 import { useMemo, useState } from "react";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 
+type PreviewQuestion = { id?: string | number; question?: string; type?: string };
+type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
+
 export default function QuizPage() {
 	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document">("text");
 	const [aiContent, setAiContent] = useState("");
@@ -10,8 +13,8 @@ export default function QuizPage() {
 	const [aiDifficulty, setAiDifficulty] = useState("medium");
 	const [aiCount, setAiCount] = useState(10);
 	const [aiTypes, setAiTypes] = useState<string[]>(["multiple_choice", "true_false"]);
-	const [aiFocus, setAiFocus] = useState("");
-	const [aiTopic, setAiTopic] = useState("");
+    const [aiFocus] = useState("");
+    const [aiTopic] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [urlLoading, setUrlLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -41,7 +44,7 @@ export default function QuizPage() {
 		});
 	}
 
-	async function generateQuiz() {
+    async function generateQuiz() {
 		// Validation
 		if (sourceTab === "text" && (!aiContent || aiContent.trim().length < 10)) {
 			setError("Please provide more content (at least 10 characters)");
@@ -132,11 +135,12 @@ export default function QuizPage() {
 			
 			setPreviewData(json.data);
 			setPreviewOpen(true);
-		} catch (e: any) { 
-			if (e.name === 'TypeError' && e.message.includes('fetch')) {
+        } catch (e: unknown) { 
+            const err = e as { name?: string; message?: string } | undefined;
+            if (err?.name === 'TypeError' && (err?.message || '').includes('fetch')) {
 				setError("Network error. Please check your connection and try again.");
 			} else {
-				setError(e?.message ?? "Generation failed");
+                setError(err?.message ?? "Generation failed");
 			}
 		}
 		finally { 
@@ -203,10 +207,10 @@ export default function QuizPage() {
 										<div className="md:col-span-2">
 											<label className="text-white font-semibold mb-2 block">Public URL</label>
 											<input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} type="url" placeholder="https://example.com/article" className="input input-bordered w-full bg-white/5 text-white placeholder-gray-400" />
-											<div className="mt-2 space-y-1">
-												<p className="text-gray-400 text-sm">✅ Supported: Articles, YouTube videos, GitHub repos, Wikipedia, Medium, Dev.to, Stack Overflow, Reddit, News sites, Blogs, Documentation</p>
-												<p className="text-gray-400 text-sm">⚠️ Note: YouTube videos need captions enabled. PDF extraction is limited. Some sites may block content extraction. If extraction fails, try using the "By Text" option instead.</p>
-											</div>
+                                            <div className="mt-2 space-y-1">
+                                                <p className="text-gray-400 text-sm">✅ Supported: Articles, YouTube videos, GitHub repos, Wikipedia, Medium, Dev.to, Stack Overflow, Reddit, News sites, Blogs, Documentation</p>
+                                                <p className="text-gray-400 text-sm">⚠️ Note: YouTube videos need captions enabled. PDF extraction is limited. Some sites may block content extraction. If extraction fails, try using the By Text option instead.</p>
+                                            </div>
 										</div>
 									)}
 
@@ -304,8 +308,8 @@ export default function QuizPage() {
 								<p className="text-gray-300 mb-4">{previewData.quiz.description}</p>
 							)}
 							<div id="quizPreviewContent" className="max-h-[60vh] overflow-auto space-y-3 pr-1">
-								{Array.isArray(previewData?.quiz?.questions) && previewData.quiz.questions.length > 0 ? (
-									previewData.quiz.questions.map((q: any, idx: number) => (
+                                {Array.isArray(previewData?.quiz?.questions) && previewData.quiz.questions.length > 0 ? (
+                                    previewData.quiz.questions.map((q: PreviewQuestion, idx: number) => (
 										<div key={q.id ?? idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
 											<div className="flex items-start justify-between gap-3">
 												<h4 className="text-white font-semibold">{idx + 1}. {q.question}</h4>

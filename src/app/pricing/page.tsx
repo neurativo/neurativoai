@@ -1,10 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { useSearchParams } from "next/navigation";
 
 export default function PricingPage() {
+    return (
+        <Suspense fallback={<section className="py-20 text-center text-white">Loading…</section>}>
+            <PricingPageInner />
+        </Suspense>
+    );
+}
+
+function PricingPageInner() {
     const supabase = getSupabaseBrowser();
     const sp = useSearchParams();
     const [userId, setUserId] = useState<string | null>(null);

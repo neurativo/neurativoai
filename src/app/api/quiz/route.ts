@@ -113,31 +113,40 @@ export async function POST(req: NextRequest) {
 
 		const currentPlan = subscription?.plan || "free";
 
-		// Get plan limits
-		const { data: planData, error: planError } = await supabase
-			.from("plans")
-			.select("monthly_quiz_generations, max_questions_per_quiz")
-			.eq("key", currentPlan)
-			.single();
-
-		if (planError) {
-			console.error("Plan error:", planError);
-			return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
-		}
-
-		if (!planData) {
-			return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
-		}
-
-		// Set default daily limits based on plan
-		const dailyLimits = {
-			free: 5,
-			plus: 20,
-			premium: 50,
-			pro: 100
-		};
-		
-		planData.daily_quiz_generations = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
+// Define the plan data type
+type PlanData = {
+	monthly_quiz_generations: number;
+	max_questions_per_quiz: number;
+	daily_quiz_generations?: number; // 👈 allow daily_quiz_generations
+  };
+  
+  // Get plan limits
+  const { data: planData, error: planError } = await supabase
+	.from("plans")
+	.select("monthly_quiz_generations, max_questions_per_quiz")
+	.eq("key", currentPlan)
+	.single<PlanData>(); // 👈 cast as PlanData
+  
+  if (planError) {
+	console.error("Plan error:", planError);
+	return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
+  }
+  
+  if (!planData) {
+	return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
+  }
+  
+  // Set default daily limits based on plan
+  const dailyLimits = {
+	free: 5,
+	plus: 20,
+	premium: 50,
+	pro: 100
+  };
+  
+  // ✅ Now TypeScript won’t complain
+  planData.daily_quiz_generations = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
+  
 
 		// Check daily usage limit
 		const today = new Date().toISOString().split('T')[0];

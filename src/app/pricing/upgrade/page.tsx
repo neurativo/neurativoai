@@ -1,10 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
 export default function UpgradePage() {
+  return (
+    <Suspense fallback={<div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-white">Loading…</div>}>
+      <UpgradePageInner />
+    </Suspense>
+  );
+}
+
+function UpgradePageInner() {
   const supabase = getSupabaseBrowser();
   const params = useSearchParams();
   const router = useRouter();

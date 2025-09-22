@@ -64,7 +64,7 @@ export default function QuizPlayerPage() {
 		}
 	}
 
-	function chooseOption(idx: number) {
+    function chooseOption(idx: number | boolean) {
 		if (showFeedback) return;
 		setAnswers((prev) => ({ ...prev, [currentQuestion.id]: idx }));
 	}
@@ -352,11 +352,11 @@ export default function QuizPlayerPage() {
 								)}
 
 								{currentQuestion?.type === "true_false" && (
-									<div className="grid grid-cols-2 gap-3 mt-4">
-										<button onClick={() => chooseOption(true)} className={`btn ${answers[currentQuestion.id] === true ? (showFeedback ? (true === currentQuestion.correct_answer ? "btn-success" : "btn-error") : "btn-primary") : (showFeedback && true === currentQuestion.correct_answer ? "btn-success" : "btn-outline")}`}>
+                                    <div className="grid grid-cols-2 gap-3 mt-4">
+                                        <button onClick={() => setAnswers(prev => ({ ...prev, [currentQuestion.id]: true }))} className={`btn ${answers[currentQuestion.id] === true ? (showFeedback ? (true === currentQuestion.correct_answer ? "btn-success" : "btn-error") : "btn-primary") : (showFeedback && true === currentQuestion.correct_answer ? "btn-success" : "btn-outline")}`}>
 											True
 										</button>
-										<button onClick={() => chooseOption(false)} className={`btn ${answers[currentQuestion.id] === false ? (showFeedback ? (false === currentQuestion.correct_answer ? "btn-success" : "btn-error") : "btn-primary") : (showFeedback && false === currentQuestion.correct_answer ? "btn-success" : "btn-outline")}`}>
+                                        <button onClick={() => setAnswers(prev => ({ ...prev, [currentQuestion.id]: false }))} className={`btn ${answers[currentQuestion.id] === false ? (showFeedback ? (false === currentQuestion.correct_answer ? "btn-success" : "btn-error") : "btn-primary") : (showFeedback && false === currentQuestion.correct_answer ? "btn-success" : "btn-outline")}`}>
 											False
 										</button>
 									</div>
@@ -364,8 +364,8 @@ export default function QuizPlayerPage() {
 
 								{currentQuestion?.type === "short_answer" && (
 									<div className="mt-4">
-										<textarea
-											value={answers[currentQuestion.id] || ""}
+                                        <textarea
+                                            value={String(answers[currentQuestion.id] ?? "")}
 											onChange={(e) => setAnswers(prev => ({ ...prev, [currentQuestion.id]: e.target.value }))}
 											placeholder="Type your answer here..."
 											className="textarea textarea-bordered w-full bg-white/5 text-white placeholder-gray-400 min-h-[100px]"
@@ -380,9 +380,9 @@ export default function QuizPlayerPage() {
 												<label className="text-gray-300 text-sm">
 													Blank {blank.position}: {blank.hint && <span className="text-blue-300">({blank.hint})</span>}
 												</label>
-												<input
+                                                <input
 													type="text"
-													value={answers[`${currentQuestion.id}_${blank.position}`] || ""}
+                                                    value={String(answers[`${currentQuestion.id}_${blank.position}`] ?? "")}
 													onChange={(e) => setAnswers(prev => ({ ...prev, [`${currentQuestion.id}_${blank.position}`]: e.target.value }))}
 													placeholder="Your answer..."
 													className="input input-bordered w-full bg-white/5 text-white placeholder-gray-400"
@@ -397,8 +397,8 @@ export default function QuizPlayerPage() {
 									<div className="mt-6 space-y-4">
 										{/* Correct/Incorrect Status */}
 										{(() => {
-											const isCorrect = currentQuestion?.type === "short_answer" 
-												? checkShortAnswerCorrect(currentQuestion, currentChosen)
+                                            const isCorrect = currentQuestion?.type === "short_answer" 
+                                                ? checkShortAnswerCorrect(currentQuestion, typeof currentChosen === "string" ? currentChosen : String(currentChosen ?? ""))
 												: currentQuestion?.type === "fill_blank"
 												? checkFillBlankCorrect(currentQuestion, answers)
 												: currentChosen === currentQuestion?.correct_answer;
@@ -435,8 +435,8 @@ export default function QuizPlayerPage() {
 
 										{/* Wrong Answer Feedback */}
 										{(() => {
-											const isCorrect = currentQuestion?.type === "short_answer" 
-												? checkShortAnswerCorrect(currentQuestion, currentChosen as string)
+                                            const isCorrect = currentQuestion?.type === "short_answer" 
+                                                ? checkShortAnswerCorrect(currentQuestion, typeof currentChosen === "string" ? currentChosen : String(currentChosen ?? ""))
 												: currentQuestion?.type === "fill_blank"
 												? checkFillBlankCorrect(currentQuestion, answers)
 												: currentChosen === currentQuestion?.correct_answer;

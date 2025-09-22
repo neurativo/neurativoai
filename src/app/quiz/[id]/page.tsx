@@ -151,19 +151,19 @@ export default function QuizPlayerPage() {
 	}
 
 	// Helper functions for checking different question types
-	function checkShortAnswerCorrect(question: any, answer: string | undefined): boolean {
+    function checkShortAnswerCorrect(question: any, answer: string | undefined): boolean {
 		if (!answer || !question.correct_answers) return false;
 		const normalizedAnswer = answer.toLowerCase().trim();
-		return question.correct_answers.some((correct: string) => 
+        return question.correct_answers.some((correct: string) => 
 			correct.toLowerCase().trim() === normalizedAnswer ||
 			normalizedAnswer.includes(correct.toLowerCase().trim()) ||
 			correct.toLowerCase().trim().includes(normalizedAnswer)
 		);
 	}
 
-	function checkFillBlankCorrect(question: any, answers: Record<number | string, number | string | boolean>): boolean {
+    function checkFillBlankCorrect(question: any, answers: Record<number | string, number | string | boolean>): boolean {
 		if (!question.blanks) return false;
-		return question.blanks.every((blank: any) => {
+        return question.blanks.every((blank: any) => {
 			const userAnswer = answers[`${question.id}_${blank.position}`];
 			if (!userAnswer) return false;
 			const normalizedAnswer = String(userAnswer).toLowerCase().trim();

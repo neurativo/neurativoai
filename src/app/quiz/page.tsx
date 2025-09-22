@@ -16,7 +16,8 @@ export default function QuizPage() {
 	const [urlLoading, setUrlLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [previewOpen, setPreviewOpen] = useState(false);
-	const [previewData, setPreviewData] = useState<any>(null);
+    type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: Array<{ id?: string | number; question?: string; type?: string }>; } };
+    const [previewData, setPreviewData] = useState<PreviewQuiz | null>(null);
 
 	const characters = useMemo(() => aiContent.length, [aiContent]);
 

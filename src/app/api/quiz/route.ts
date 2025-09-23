@@ -12,7 +12,29 @@ function getSupabaseService() {
   );
 }
 
-export async function POST(req: NextRequest) {
+export const runtime = 'nodejs';
+
+export async function POST(req: Request) {
+	// Basic payload size guard (Vercel default limits apply, this is additional)
+	const contentLength = req.headers.get('content-length');
+	if (contentLength && Number(contentLength) > 1024 * 200) { // ~200KB
+		return new Response(JSON.stringify({ error: 'Request too large' }), { status: 413 });
+	}
+	let body: any;
+	try {
+		body = await req.json();
+	} catch {
+		return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+	}
+	// Validate minimal fields
+	if (!body || (!body.text && !body.url)) {
+		return new Response(JSON.stringify({ error: 'Provide either text or url' }), { status: 400 });
+	}
+	if (body.questionTypes && !Array.isArray(body.questionTypes)) {
+		return new Response(JSON.stringify({ error: 'questionTypes must be an array' }), { status: 400 });
+	}
+	// Reconstruct the Request with parsed JSON if needed by downstream code
+	// From here, rely on existing logic
 	const formData = await req.formData().catch(() => null);
 	const searchParams = new URL(req.url).searchParams;
 	const action = formData?.get("action")?.toString() || searchParams.get("action") || "";

@@ -113,9 +113,6 @@ export default function Navbar() {
 						<Link href="/" className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-blue-300">
 							<i className="fas fa-brain mr-2 text-white" />Neurativo
 						</Link>
-						<button className="btn btn-ghost md:hidden ml-2" onClick={() => setIsMobileOpen(!isMobileOpen)} aria-label="Toggle menu">
-							<i className="fas fa-bars text-white" />
-						</button>
 					</div>
 					<div className="navbar-center hidden md:flex">
 						<ul className="menu menu-horizontal gap-2">
@@ -127,6 +124,10 @@ export default function Navbar() {
 						</ul>
 					</div>
 				<div className="navbar-end">
+					{/* Mobile menu toggle moved to right side */}
+					<button className="btn btn-ghost md:hidden mr-1" onClick={() => setIsMobileOpen(!isMobileOpen)} aria-label="Toggle menu">
+						<i className="fas fa-bars-staggered text-white" />
+					</button>
 					{userEmail ? (
 						<div ref={dropdownRef} className="relative">
 							<button

@@ -93,6 +93,8 @@ function PricingPageInner() {
                         </ul>
                         {currentPlan === 'plus' ? (
                           <button className="btn btn-outline w-full rounded-full" disabled>Current plan</button>
+                        ) : !userId ? (
+                          <Link href="/signup" className="btn w-full rounded-full bg-white/10 border border-white/20 text-white">Sign in to upgrade</Link>
                         ) : pendingPlans.has('plus') ? (
                           <button className="btn w-full rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-200" disabled>In verification…</button>
                         ) : (
@@ -114,6 +116,8 @@ function PricingPageInner() {
                         </ul>
                         {currentPlan === 'premium' ? (
                           <button className="btn btn-outline w-full rounded-full" disabled>Current plan</button>
+                        ) : !userId ? (
+                          <Link href="/signup" className="btn w-full rounded-full bg-white/10 border border-white/20 text-white">Sign in to upgrade</Link>
                         ) : pendingPlans.has('premium') ? (
                           <button className="btn w-full rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-200" disabled>In verification…</button>
                         ) : (

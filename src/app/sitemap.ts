@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 function getWwwBase(): string {
-	const raw = process.env.NEXT_PUBLIC_SITE_URL || "https://neurativo.ai";
+	const raw = process.env.NEXT_PUBLIC_SITE_URL || "https://www.neurativo.com";
 	try {
 		const u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
 		// Ensure www. prefix
@@ -12,7 +12,7 @@ function getWwwBase(): string {
 		u.pathname = "/";
 		return u.toString().replace(/\/$/, "");
 	} catch {
-		return "https://www.neurativo.ai";
+		return "https://www.neurativo.com";
 	}
 }
 

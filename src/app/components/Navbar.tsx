@@ -124,10 +124,6 @@ export default function Navbar() {
 						</ul>
 					</div>
 				<div className="navbar-end">
-					{/* Mobile menu toggle moved to right side */}
-					<button className="btn btn-ghost md:hidden mr-1" onClick={() => setIsMobileOpen(!isMobileOpen)} aria-label="Toggle menu">
-						<i className="fas fa-bars-staggered text-white" />
-					</button>
 					{userEmail ? (
 						<div ref={dropdownRef} className="relative">
 							<button
@@ -168,6 +164,10 @@ export default function Navbar() {
 							<i className="fas fa-user-circle mr-2" />Sign In
 						</button>
 					)}
+					{/* Mobile menu toggle as last item to stick to the far right */}
+					<button className="btn btn-ghost md:hidden order-last ml-2" onClick={() => setIsMobileOpen(!isMobileOpen)} aria-label="Toggle menu">
+						<i className="fas fa-bars-staggered text-white" />
+					</button>
 				</div>
 				</div>
 				{isMobileOpen && (

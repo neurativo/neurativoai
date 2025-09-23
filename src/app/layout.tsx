@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
 	title: "Neurativo - AI-Powered Learning Platform",
 	description: "Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
-	metadataBase: new URL("https://neurativo.ai"),
+	metadataBase: new URL("https://www.neurativo.com"),
 	alternates: {
 		canonical: "/",
 	},
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 		title: "Neurativo - AI-Powered Learning Platform",
 		description:
 			"Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
-		url: "https://neurativo.ai/",
+		url: "https://www.neurativo.com/",
 		siteName: "Neurativo",
 		images: [
 			{

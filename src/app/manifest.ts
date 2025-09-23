@@ -11,17 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
 		background_color: "#0f172a",
 		theme_color: "#7c3aed",
 		icons: [
-			{
-				src: "/icons/icon-192.png",
-				sizes: "192x192",
-				type: "image/png",
-			},
-			// Fallback generic icon to avoid 404s if others are missing
-			{
-				src: "/file.svg",
-				sizes: "any",
-				type: "image/svg+xml",
-			},
+			// Single SVG to avoid 404s while assets are being prepared
+			{ src: "/file.svg", sizes: "any", type: "image/svg+xml" },
 		],
 	};
 }

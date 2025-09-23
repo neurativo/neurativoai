@@ -38,12 +38,7 @@ export const metadata: Metadata = {
 		url: "https://www.neurativo.com/",
 		siteName: "Neurativo",
 		images: [
-			{
-				url: "/file.svg",
-				width: 1200,
-				height: 630,
-				alt: "Neurativo",
-			},
+			{ url: "/file.svg", width: 1200, height: 630, alt: "Neurativo" },
 		],
 	},
 	twitter: {
@@ -54,10 +49,7 @@ export const metadata: Metadata = {
 		images: ["/file.svg"],
 	},
 	icons: {
-		icon: [
-			{ url: "/favicon.ico" },
-			{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-		],
+		icon: [ { url: "/file.svg" } ],
 	},
 };
 

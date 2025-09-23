@@ -19,9 +19,7 @@ export const metadata: Metadata = {
 	title: "Neurativo - AI-Powered Learning Platform",
 	description: "Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
 	metadataBase: new URL("https://www.neurativo.com"),
-	alternates: {
-		canonical: "/",
-	},
+	alternates: { canonical: "/" },
 	keywords: [
 		"Neurativo",
 		"AI quizzes",
@@ -41,10 +39,10 @@ export const metadata: Metadata = {
 		siteName: "Neurativo",
 		images: [
 			{
-				url: "/og/neurativo-og.png",
+				url: "/file.svg",
 				width: 1200,
 				height: 630,
-				alt: "Neurativo - AI-Powered Learning Platform",
+				alt: "Neurativo",
 			},
 		],
 	},
@@ -53,17 +51,12 @@ export const metadata: Metadata = {
 		title: "Neurativo - AI-Powered Learning Platform",
 		description:
 			"Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
-		images: ["/og/neurativo-og.png"],
+		images: ["/file.svg"],
 	},
 	icons: {
 		icon: [
 			{ url: "/favicon.ico" },
-			{ url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
 			{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-			{ url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-		],
-		apple: [
-			{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
 		],
 	},
 };

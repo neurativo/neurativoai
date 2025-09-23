@@ -22,25 +22,30 @@ export async function POST(req: Request) {
 	}
 
 	const contentType = req.headers.get('content-type') || '';
+
+	// Prefer FormData first (browser sends multipart for file or FormData)
+	let formData: FormData | null = null;
+	try {
+		formData = await req.formData();
+	} catch {}
+
 	let body: any = undefined;
-	// Only parse JSON when the client actually sends JSON.
-	if (contentType.includes('application/json')) {
-		try {
-			body = await req.json();
-		} catch {
-			return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
-		}
-		// Minimal validation only for JSON bodies (form/multipart handled downstream)
-		if (!body || (!body.text && !body.url && !body.content)) {
-			return new Response(JSON.stringify({ error: 'Provide either text/content or url' }), { status: 400 });
+	if (!formData || Array.from(formData.keys()).length === 0) {
+		// Only parse JSON if no form fields present
+		if (contentType.includes('application/json')) {
+			try {
+				body = await req.json();
+			} catch {
+				return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+			}
+		} else {
+			// Neither form nor JSON → bad request
+			return NextResponse.json({ success: false, error: 'Unsupported content type' }, { status: 400 });
 		}
 	}
-	// For multipart/form-data and others, downstream logic should call req.formData()
 
-	// From here, rely on existing logic of this route (expects FormData for quiz generation)
-	const formData = await req.formData().catch(() => null);
 	const searchParams = new URL(req.url).searchParams;
-	const action = formData?.get("action")?.toString() || searchParams.get("action") || "";
+	const action = (formData?.get("action")?.toString() || body?.action || searchParams.get("action") || "").toString();
 
 	if (action === "test_api" || action === "debug_api") {
 		const configured = !!process.env.OPENAI_API_KEY;
@@ -48,9 +53,9 @@ export async function POST(req: Request) {
 	}
 
         if (action === "generate_quiz") {
-            const source = (formData?.get("source")?.toString() || "text").toLowerCase();
-            const content = formData?.get("content")?.toString() || "";
-            const url = formData?.get("url")?.toString() || "";
+            const source = ((formData?.get("source")?.toString() || body?.source || "text")).toLowerCase();
+            const content = (formData?.get("content")?.toString() || body?.content || "");
+            const url = (formData?.get("url")?.toString() || body?.url || "");
             
             let finalContent = content;
             let contentTitle = "Quiz Content";
@@ -139,34 +144,34 @@ export async function POST(req: Request) {
 		const currentPlan = subscription?.plan || "free";
 
 // Define the plan data type
-type PlanData = {
-	monthly_quiz_generations: number;
-	max_questions_per_quiz: number;
-	daily_quiz_generations?: number; // 👈 allow daily_quiz_generations
-  };
+ type PlanData = {
+ 	monthly_quiz_generations: number;
+ 	max_questions_per_quiz: number;
+ 	daily_quiz_generations?: number; // 👈 allow daily_quiz_generations
+ };
   
   // Get plan limits
   const { data: planData, error: planError } = await supabase
-	.from("plans")
-	.select("monthly_quiz_generations, max_questions_per_quiz")
-	.eq("key", currentPlan)
-	.single<PlanData>(); // 👈 cast as PlanData
+ 	.from("plans")
+ 	.select("monthly_quiz_generations, max_questions_per_quiz")
+ 	.eq("key", currentPlan)
+ 	.single<PlanData>(); // 👈 cast as PlanData
   
   if (planError) {
-	console.error("Plan error:", planError);
-	return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
+ 	console.error("Plan error:", planError);
+ 	return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
   }
   
   if (!planData) {
-	return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
+ 	return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
   }
   
   // Set default daily limits based on plan
   const dailyLimits = {
-	free: 5,
-	plus: 20,
-	premium: 50,
-	pro: 100
+ 	free: 5,
+ 	plus: 20,
+ 	premium: 50,
+ 	pro: 100
   };
   
   // ✅ Now TypeScript won’t complain
@@ -175,13 +180,13 @@ type PlanData = {
 
 		// Check daily usage limit
 		const today = new Date().toISOString().split('T')[0];
-		const { data: dailyUsage, error: dailyError } = await supabase
+		const { data: dailyUsage } = await supabase
 			.from("usage_counters")
 			.select("count")
 			.eq("user_id", user.id)
 			.eq("counter_type", "daily_quiz_generations")
 			.eq("date", today)
-			.single();
+			.maybeSingle();
 
 		const dailyCount = dailyUsage?.count || 0;
 		const dailyLimit = planData.daily_quiz_generations || 5;
@@ -195,13 +200,13 @@ type PlanData = {
 
 		// Check monthly usage limit
 		const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-		const { data: monthlyUsage, error: monthlyError } = await supabase
+		const { data: monthlyUsage } = await supabase
 			.from("usage_counters")
 			.select("count")
 			.eq("user_id", user.id)
 			.eq("counter_type", "monthly_quiz_generations")
 			.eq("date", currentMonth)
-			.single();
+			.maybeSingle();
 
 		const monthlyCount = monthlyUsage?.count || 0;
 		const monthlyLimit = planData.monthly_quiz_generations || 20;
@@ -214,17 +219,17 @@ type PlanData = {
 		}
 
 		// Enforce plan-based question limit
-		const requestedQuestions = Math.max(1, Math.min(20, Number(formData?.get("num_questions") || 10)));
+		const requestedQuestions = Math.max(1, Math.min(20, Number((formData?.get("num_questions") || body?.num_questions || 10))));
 		const maxQuestions = planData.max_questions_per_quiz || 8;
 		const numQuestions = Math.min(requestedQuestions, maxQuestions);
 
-		const difficulty = (formData?.get("difficulty")?.toString() || "medium").toLowerCase();
+		const difficulty = ((formData?.get("difficulty")?.toString() || body?.difficulty || "medium")).toLowerCase();
 		let types: string[] = [];
 		try {
-			types = JSON.parse(formData?.get("question_types")?.toString() || "[]");
+			types = JSON.parse((formData?.get("question_types")?.toString() || body?.question_types || "[]"));
 		} catch {}
-		const focus = formData?.get("focus_areas")?.toString() || "";
-		const topic = formData?.get("topic")?.toString() || "";
+		const focus = (formData?.get("focus_areas")?.toString() || body?.focus_areas || "");
+		const topic = (formData?.get("topic")?.toString() || body?.topic || "");
 
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
@@ -420,61 +425,61 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
 }
 
 // Ephemeral in-memory store (OK for dev; replace with DB in production)
-type SavedQuiz = { id: string; quiz: any; metadata: any };
-const memoryStore = new Map<string, SavedQuiz>();
+ type SavedQuiz = { id: string; quiz: any; metadata: any };
+ const memoryStore = new Map<string, SavedQuiz>();
 
-function saveQuiz(parsed: any): SavedQuiz {
-	const id = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-	const saved = {
-		id,
-		quiz: parsed.quiz,
-		metadata: { ...(parsed.metadata || {}), id, generated_at: new Date().toISOString() },
-	};
-	memoryStore.set(id, saved);
-	return saved;
-}
+ function saveQuiz(parsed: any): SavedQuiz {
+ 	const id = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+ 	const saved = {
+ 		id,
+ 		quiz: parsed.quiz,
+ 		metadata: { ...(parsed.metadata || {}), id, generated_at: new Date().toISOString() },
+ 	};
+ 	memoryStore.set(id, saved);
+ 	return saved;
+ }
 
-function getQuiz(id: string): SavedQuiz | undefined {
-	return memoryStore.get(id);
-}
+ function getQuiz(id: string): SavedQuiz | undefined {
+ 	return memoryStore.get(id);
+ }
 
-async function incrementUsageCounters(supabase: any, userId: string, today: string, currentMonth: string) {
-	// Increment daily counter
-	const { data: dailyData } = await supabase
-		.from("usage_counters")
-		.select("count")
-		.eq("user_id", userId)
-		.eq("counter_type", "daily_quiz_generations")
-		.eq("date", today)
-		.single();
+ async function incrementUsageCounters(supabase: any, userId: string, today: string, currentMonth: string) {
+ 	// Increment daily counter
+ 	const { data: dailyData } = await supabase
+ 		.from("usage_counters")
+ 		.select("count")
+ 		.eq("user_id", userId)
+ 		.eq("counter_type", "daily_quiz_generations")
+ 		.eq("date", today)
+ 		.maybeSingle();
 
-	const dailyCount = dailyData?.count || 0;
-	await supabase
-		.from("usage_counters")
-		.upsert({
-			user_id: userId,
-			counter_type: "daily_quiz_generations",
-			date: today,
-			count: dailyCount + 1
-		});
+ 	const dailyCount = dailyData?.count || 0;
+ 	await supabase
+ 		.from("usage_counters")
+ 		.upsert({
+ 			user_id: userId,
+ 			counter_type: "daily_quiz_generations",
+ 			date: today,
+ 			count: dailyCount + 1
+ 		});
 
-	// Increment monthly counter
-	const { data: monthlyData } = await supabase
-		.from("usage_counters")
-		.select("count")
-		.eq("user_id", userId)
-		.eq("counter_type", "monthly_quiz_generations")
-		.eq("date", currentMonth)
-		.single();
+ 	// Increment monthly counter
+ 	const { data: monthlyData } = await supabase
+ 		.from("usage_counters")
+ 		.select("count")
+ 		.eq("user_id", userId)
+ 		.eq("counter_type", "monthly_quiz_generations")
+ 		.eq("date", currentMonth)
+ 		.maybeSingle();
 
-	const monthlyCount = monthlyData?.count || 0;
-	await supabase
-		.from("usage_counters")
-		.upsert({
-			user_id: userId,
-			counter_type: "monthly_quiz_generations",
-			date: currentMonth,
-			count: monthlyCount + 1
-		});
-}
+ 	const monthlyCount = monthlyData?.count || 0;
+ 	await supabase
+ 		.from("usage_counters")
+ 		.upsert({
+ 			user_id: userId,
+ 			counter_type: "monthly_quiz_generations",
+ 			date: currentMonth,
+ 			count: monthlyCount + 1
+ 		});
+ }
 

@@ -16,16 +16,11 @@ export default function manifest(): MetadataRoute.Manifest {
 				sizes: "192x192",
 				type: "image/png",
 			},
+			// Fallback generic icon to avoid 404s if others are missing
 			{
-				src: "/icons/icon-512.png",
-				sizes: "512x512",
-				type: "image/png",
-			},
-			{
-				src: "/icons/maskable-512.png",
-				sizes: "512x512",
-				type: "image/png",
-				purpose: "maskable",
+				src: "/file.svg",
+				sizes: "any",
+				type: "image/svg+xml",
 			},
 		],
 	};

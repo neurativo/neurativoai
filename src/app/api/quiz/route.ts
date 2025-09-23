@@ -20,21 +20,24 @@ export async function POST(req: Request) {
 	if (contentLength && Number(contentLength) > 1024 * 200) { // ~200KB
 		return new Response(JSON.stringify({ error: 'Request too large' }), { status: 413 });
 	}
-	let body: any;
-	try {
-		body = await req.json();
-	} catch {
-		return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+
+	const contentType = req.headers.get('content-type') || '';
+	let body: any = undefined;
+	// Only parse JSON when the client actually sends JSON.
+	if (contentType.includes('application/json')) {
+		try {
+			body = await req.json();
+		} catch {
+			return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+		}
+		// Minimal validation only for JSON bodies (form/multipart handled downstream)
+		if (!body || (!body.text && !body.url && !body.content)) {
+			return new Response(JSON.stringify({ error: 'Provide either text/content or url' }), { status: 400 });
+		}
 	}
-	// Validate minimal fields
-	if (!body || (!body.text && !body.url)) {
-		return new Response(JSON.stringify({ error: 'Provide either text or url' }), { status: 400 });
-	}
-	if (body.questionTypes && !Array.isArray(body.questionTypes)) {
-		return new Response(JSON.stringify({ error: 'questionTypes must be an array' }), { status: 400 });
-	}
-	// Reconstruct the Request with parsed JSON if needed by downstream code
-	// From here, rely on existing logic
+	// For multipart/form-data and others, downstream logic should call req.formData()
+
+	// From here, rely on existing logic of this route (expects FormData for quiz generation)
 	const formData = await req.formData().catch(() => null);
 	const searchParams = new URL(req.url).searchParams;
 	const action = formData?.get("action")?.toString() || searchParams.get("action") || "";

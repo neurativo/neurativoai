@@ -5,6 +5,15 @@ import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 type PreviewQuestion = { id?: string | number; question?: string; type?: string };
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
 
+type LimitState = {
+	blocked: boolean;
+	reason?: string;
+	dailyUsed?: number;
+	dailyLimit?: number;
+	monthlyUsed?: number;
+	monthlyLimit?: number;
+};
+
 export default function QuizPage() {
 	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document">("text");
 	const [aiContent, setAiContent] = useState("");
@@ -21,6 +30,7 @@ export default function QuizPage() {
 	const [previewOpen, setPreviewOpen] = useState(false);
     type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: Array<{ id?: string | number; question?: string; type?: string }>; } };
     const [previewData, setPreviewData] = useState<PreviewQuiz | null>(null);
+	const [limits, setLimits] = useState<LimitState | null>(null);
 
 	const characters = useMemo(() => aiContent.length, [aiContent]);
 
@@ -33,8 +43,6 @@ export default function QuizPage() {
 		setAiContent("Artificial Intelligence (AI) is a branch of computer science that aims to create intelligent machines. Machine Learning is a subset of AI that focuses on algorithms and statistical models.");
 	}
 
-
-
 	async function readFileToText(file: File): Promise<string | null> {
 		return new Promise((resolve) => {
 			const reader = new FileReader();
@@ -42,6 +50,46 @@ export default function QuizPage() {
 			reader.onerror = () => resolve(null);
 			reader.readAsText(file);
 		});
+	}
+
+	async function checkLimits(): Promise<LimitState> {
+		const supabase = getSupabaseBrowser();
+		const { data: { user } } = await supabase.auth.getUser();
+		if (!user) {
+			return { blocked: true, reason: "Please sign in to generate quizzes" };
+		}
+		// Get plan
+		const { data: subscription } = await supabase
+			.from("subscriptions").select("plan,status").eq("user_id", user.id).maybeSingle();
+		const plan = subscription?.plan || "free";
+		// Plan caps
+		const { data: planData } = await supabase
+			.from("plans").select("monthly_quiz_generations").eq("key", plan).maybeSingle();
+		const monthlyLimit = planData?.monthly_quiz_generations ?? 20;
+		const dailyLimits: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
+		const dailyLimit = dailyLimits[plan] ?? 5;
+		// Usage
+		const today = new Date().toISOString().split('T')[0];
+		const currentMonth = new Date().toISOString().slice(0, 7);
+		const [{ data: d }, { data: m }] = await Promise.all([
+			supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "daily_quiz_generations").eq("date", today).maybeSingle(),
+			supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "monthly_quiz_generations").eq("date", currentMonth).maybeSingle(),
+		]);
+		const dailyUsed = d?.count ?? 0;
+		const monthlyUsed = m?.count ?? 0;
+		const dailyBlocked = dailyUsed >= dailyLimit;
+		const monthlyBlocked = monthlyUsed >= monthlyLimit;
+		if (dailyBlocked || monthlyBlocked) {
+			return {
+				blocked: true,
+				reason: dailyBlocked ? `Daily limit reached (${dailyUsed}/${dailyLimit}). Try again tomorrow or upgrade.` : `Monthly limit reached (${monthlyUsed}/${monthlyLimit}). Upgrade your plan to continue.`,
+				dailyUsed,
+				dailyLimit,
+				monthlyUsed,
+				monthlyLimit,
+			};
+		}
+		return { blocked: false, dailyUsed, dailyLimit, monthlyUsed, monthlyLimit };
 	}
 
     async function generateQuiz() {
@@ -72,8 +120,15 @@ export default function QuizPage() {
 		setLoading(true); 
 		setUrlLoading(sourceTab === "url");
 		setError(null);
-		
 		try {
+			// Client-side limit check before calling API
+			const lim = await checkLimits();
+			setLimits(lim);
+			if (lim.blocked) {
+				setError(lim.reason || "Limit reached");
+				return;
+			}
+
 			const form = new FormData();
 			form.set("action", "generate_quiz");
 			form.set("num_questions", String(aiCount));
@@ -101,7 +156,6 @@ export default function QuizPage() {
 			// Get the current session token
 			const supabase = getSupabaseBrowser();
 			const { data: { session } } = await supabase.auth.getSession();
-			
 			if (!session?.access_token) {
 				setError("Please sign in to generate quizzes");
 				return;
@@ -115,24 +169,13 @@ export default function QuizPage() {
 				}
 			});
 			const json = await res.json();
-			
 			if (!json.success) {
-				// Handle specific error cases
-				if (res.status === 401) {
-					setError("Please sign in to generate quizzes");
-					return;
-				}
-				if (res.status === 429) {
-					setError(json.error || "Quiz limit reached. Please upgrade your plan.");
-					return;
-				}
-				if (res.status === 500) {
-					setError("Server error. Please try again later.");
-					return;
-				}
+				if (res.status === 401) { setError("Please sign in to generate quizzes"); return; }
+				if (res.status === 429) { setError(json.error || "Quiz limit reached. Please upgrade your plan."); return; }
+				if (res.status === 413) { setError(json.error || "Request too large."); return; }
+				if (res.status === 500) { setError("Server error. Please try again later."); return; }
 				throw new Error(json.error || "Failed to generate quiz");
 			}
-			
 			setPreviewData(json.data);
 			setPreviewOpen(true);
         } catch (e: unknown) { 
@@ -278,11 +321,18 @@ export default function QuizPage() {
 								<div className="divider my-6 opacity-20"></div>
 
 								<div className="mt-2">
-									<button disabled={loading} onClick={async () => {
+									<button disabled={loading || limits?.blocked} onClick={async () => {
 										await generateQuiz();
 									}} className="btn btn-primary w-full">
-										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : "Generating quiz...") : "Generate Quiz"}
+										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
 									</button>
+									{limits && (
+										<div className="text-gray-300 text-sm mt-2 text-center">
+											{typeof limits.dailyUsed === 'number' && typeof limits.dailyLimit === 'number' && (
+												<div>Today: {limits.dailyUsed}/{limits.dailyLimit} • Month: {limits.monthlyUsed ?? 0}/{limits.monthlyLimit ?? 0}</div>
+											)}
+										</div>
+									)}
 									<div className="text-gray-400 text-sm mt-2 text-center">{characters} characters</div>
 									{error && (
 										<div className="mt-4 alert alert-error bg-red-500/20 border border-red-500/50 text-red-200">
@@ -298,8 +348,7 @@ export default function QuizPage() {
 								</div>
 							</div>
 						</div>
-					</div>
-				</section>
+					</section>
 
 					<div className={"modal" + (previewOpen ? " modal-open" : "")}>
 						<div className="modal-box max-w-5xl bg-white/5 backdrop-blur-xl border border-white/20">

@@ -19,6 +19,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const supabase = getSupabaseBrowser();
+    let chan: ReturnType<typeof supabase.channel> | null = null;
+
     async function load() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -26,7 +28,6 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-      
       setEmail(user.email);
 
       // Get user's subscription
@@ -52,8 +53,7 @@ export default function DashboardPage() {
         plus: 20,
         premium: 50,
         pro: 100
-      };
-      
+      } as const;
       const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
 
       // Get current month usage
@@ -64,7 +64,7 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .eq("counter_type", "monthly_quiz_generations")
         .eq("date", currentMonth)
-        .single();
+        .maybeSingle();
 
       // Get today's usage
       const today = new Date().toISOString().split('T')[0];
@@ -74,7 +74,7 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .eq("counter_type", "daily_quiz_generations")
         .eq("date", today)
-        .single();
+        .maybeSingle();
 
       setUsage({
         plan: currentPlan,
@@ -84,11 +84,36 @@ export default function DashboardPage() {
         daily_limit: dailyLimit,
         max_questions_per_quiz: planData?.max_questions_per_quiz || 8
       });
-      
+
+      // Realtime updates for usage counters
+      chan = supabase
+        .channel("dashboard_usage")
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'usage_counters', filter: `user_id=eq.${user.id}` }, (payload: any) => {
+          const row = (payload.new || payload.record) as { counter_type?: string; count?: number; date?: string };
+          if (!row?.counter_type) return;
+          setUsage(prev => {
+            if (!prev) return prev;
+            if (row.counter_type === 'daily_quiz_generations') {
+              return { ...prev, daily_used: row.count ?? prev.daily_used };
+            }
+            if (row.counter_type === 'monthly_quiz_generations') {
+              return { ...prev, used: row.count ?? prev.used };
+            }
+            return prev;
+          });
+        })
+        .subscribe();
+
       setLoading(false);
     }
     load();
+    return () => {
+      if (chan) supabase.removeChannel(chan);
+    };
   }, []);
+
+  const nearingDaily = usage ? usage.daily_used >= Math.max(1, Math.floor(usage.daily_limit * 0.8)) : false;
+  const nearingMonthly = usage ? usage.used >= Math.max(1, Math.floor(usage.monthly_quiz_generations * 0.8)) : false;
 
   if (loading) return <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center text-white">Loading...</div>;
   if (!email) return (
@@ -101,7 +126,14 @@ export default function DashboardPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
       <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
-      <p className="text-gray-300 mb-6">{email}</p>
+      <p className="text-gray-300 mb-4">{email}</p>
+
+      {(nearingDaily || nearingMonthly) && (
+        <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-xl p-3">
+          {nearingDaily && (<div>Heads up: You are approaching your daily limit ({usage?.daily_used}/{usage?.daily_limit}).</div>)}
+          {nearingMonthly && (<div>Heads up: You are approaching your monthly limit ({usage?.used}/{usage?.monthly_quiz_generations}).</div>)}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="stat-card">

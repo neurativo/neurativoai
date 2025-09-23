@@ -18,6 +18,54 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
 	title: "Neurativo - AI-Powered Learning Platform",
 	description: "Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
+	metadataBase: new URL("https://neurativo.ai"),
+	alternates: {
+		canonical: "/",
+	},
+	keywords: [
+		"Neurativo",
+		"AI quizzes",
+		"quiz generator",
+		"study tools",
+		"learning platform",
+		"edtech",
+		"practice questions",
+		"flashcards",
+	],
+	openGraph: {
+		type: "website",
+		title: "Neurativo - AI-Powered Learning Platform",
+		description:
+			"Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
+		url: "https://neurativo.ai/",
+		siteName: "Neurativo",
+		images: [
+			{
+				url: "/og/neurativo-og.png",
+				width: 1200,
+				height: 630,
+				alt: "Neurativo - AI-Powered Learning Platform",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Neurativo - AI-Powered Learning Platform",
+		description:
+			"Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
+		images: ["/og/neurativo-og.png"],
+	},
+	icons: {
+		icon: [
+			{ url: "/favicon.ico" },
+			{ url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+			{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+			{ url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+		],
+		apple: [
+			{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+		],
+	},
 };
 
 export default function RootLayout({

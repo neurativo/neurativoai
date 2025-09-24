@@ -58,8 +58,11 @@ export default function DashboardPage() {
       } as const;
       const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
 
-      // Get current month usage
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      // Get current month usage (normalized to YYYY-MM-01)
+      const monthDate = new Date();
+      monthDate.setDate(1);
+      const currentMonth = monthDate.toISOString().split('T')[0];
+
       const { data: monthlyUsage } = await supabase
         .from("usage_counters")
         .select("count")
@@ -138,7 +141,11 @@ export default function DashboardPage() {
         const dailyLimits = { free: 5, plus: 20, premium: 50, pro: 100 } as const;
         const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
 
-        const currentMonth = new Date().toISOString().slice(0, 7);
+        // Normalize month key
+        const monthDate = new Date();
+        monthDate.setDate(1);
+        const currentMonth = monthDate.toISOString().split('T')[0];
+
         const today = new Date().toISOString().split('T')[0];
         const [{ data: monthlyUsage }, { data: dailyUsage }] = await Promise.all([
           supabase.from("usage_counters").select("count").eq("user_id", userId).eq("counter_type", "monthly_quiz_generations").eq("date", currentMonth).maybeSingle(),

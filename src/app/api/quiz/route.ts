@@ -198,8 +198,10 @@ export async function POST(req: Request) {
 			}, { status: 429 });
 		}
 
-		// Check monthly usage limit
-		const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+		// Check monthly usage limit (normalize to first day of month YYYY-MM-01 to match DATE columns)
+		const monthDate = new Date();
+		monthDate.setDate(1);
+		const currentMonth = monthDate.toISOString().split('T')[0]; // YYYY-MM-01
 		const { data: monthlyUsage } = await supabase
 			.from("usage_counters")
 			.select("count")
@@ -463,8 +465,8 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
  			count: dailyCount + 1
  		});
 
- 	// Increment monthly counter
- 	const { data: monthlyData } = await supabase
+		// Increment monthly counter (use first-of-month key)
+		const { data: monthlyData } = await supabase
  		.from("usage_counters")
  		.select("count")
  		.eq("user_id", userId)

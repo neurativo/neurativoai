@@ -231,16 +231,17 @@ export async function POST(req: Request) {
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
 			// Fetch updated monthly usage to return
-			const { data: updatedMonthly } = await supabase
+            const { data: updatedMonthly } = await supabase
 				.from("usage_counters")
 				.select("count")
 				.eq("user_id", user.id)
 				.eq("counter_type", "monthly_quiz_generations")
 				.eq("date", currentMonth)
 				.maybeSingle();
-			return NextResponse.json({ success: true, data: saved, usage: { monthly_used: updatedMonthly?.count ?? null, monthly_limit: monthlyLimit } });
+            return NextResponse.json({ success: true, data: saved, usage: { monthly_used: updatedMonthly?.count ?? (monthlyCount + 1), monthly_limit: monthlyLimit } });
 		} catch (err: any) {
-			return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
+            console.error('API/quiz error:', err);
+            return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
 		}
 	}
 

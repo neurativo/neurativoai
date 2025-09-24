@@ -346,10 +346,10 @@ export default function QuizPage() {
 										</div>
 									)}
 								</div>
-							</div>
-						</div>
+					</div>
+					</div>
+					</div>
 					</section>
-
 					<div className={"modal" + (previewOpen ? " modal-open" : "")}>
 						<div className="modal-box max-w-5xl bg-white/5 backdrop-blur-xl border border-white/20">
 							<h3 className="font-bold text-lg text-white mb-1">{previewData?.quiz?.title || "Quiz Preview"}</h3>

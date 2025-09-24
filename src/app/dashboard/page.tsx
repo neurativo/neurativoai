@@ -24,7 +24,10 @@ export default function DashboardPage() {
 
     async function load() {
       setLoading(true);
-      const { data: { user, session } } = await supabase.auth.getUser();
+      const [{ data: { user } }, { data: { session } }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.auth.getSession()
+      ]);
       if (!user) {
         setLoading(false);
         return;

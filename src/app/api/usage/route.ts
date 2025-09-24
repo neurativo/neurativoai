@@ -45,14 +45,18 @@ export async function GET(req: Request) {
       supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "daily_quiz_generations").eq("date", today).maybeSingle(),
     ]);
 
+    // Ensure we never return negative or undefined
+    const monthly_used = typeof m?.count === 'number' && m.count > 0 ? m.count : 0;
+    const daily_used = typeof d?.count === 'number' && d.count > 0 ? d.count : 0;
+
     return NextResponse.json({
       success: true,
       data: {
         plan: currentPlan,
         monthly_quiz_generations: planData?.monthly_quiz_generations ?? 20,
         max_questions_per_quiz: planData?.max_questions_per_quiz ?? 8,
-        monthly_used: m?.count ?? 0,
-        daily_used: d?.count ?? 0,
+        monthly_used,
+        daily_used,
         daily_limit: dailyLimit,
       }
     });

@@ -424,22 +424,25 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
  }
 
  async function incrementMonthlyUsage(supabase: any, userId: string, currentMonth: string) {
- 	const { data: monthlyData } = await supabase
+ 	// Read current count
+ 	const { data: monthlyData, error: readErr } = await supabase
  		.from("usage_counters")
  		.select("count")
  		.eq("user_id", userId)
  		.eq("counter_type", "monthly_quiz_generations")
  		.eq("date", currentMonth)
  		.maybeSingle();
+ 	if (readErr) throw new Error(`usage read failed: ${readErr.message}`);
 
  	const monthlyCount = monthlyData?.count || 0;
- 	await supabase
+ 	const { error: upsertErr } = await supabase
  		.from("usage_counters")
  		.upsert({
  			user_id: userId,
  			counter_type: "monthly_quiz_generations",
  			date: currentMonth,
  			count: monthlyCount + 1
- 		});
+ 		}, { onConflict: 'user_id,counter_type,date', ignoreDuplicates: false });
+ 	if (upsertErr) throw new Error(`usage upsert failed: ${upsertErr.message}`);
  }
 

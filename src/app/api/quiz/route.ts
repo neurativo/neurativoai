@@ -166,37 +166,7 @@ export async function POST(req: Request) {
  	return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
   }
   
-  // Set default daily limits based on plan
-  const dailyLimits = {
- 	free: 5,
- 	plus: 20,
- 	premium: 50,
- 	pro: 100
-  };
-  
-  // ✅ Now TypeScript won’t complain
-  planData.daily_quiz_generations = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
-  
 
-		// Check daily usage limit
-		const today = new Date().toISOString().split('T')[0];
-		const { data: dailyUsage } = await supabase
-			.from("usage_counters")
-			.select("count")
-			.eq("user_id", user.id)
-			.eq("counter_type", "daily_quiz_generations")
-			.eq("date", today)
-			.maybeSingle();
-
-		const dailyCount = dailyUsage?.count || 0;
-		const dailyLimit = planData.daily_quiz_generations || 5;
-
-		if (dailyCount >= dailyLimit) {
-			return NextResponse.json({ 
-				success: false, 
-				error: `Daily quiz limit reached (${dailyLimit}/day). Upgrade your plan for more quizzes.` 
-			}, { status: 429 });
-		}
 
 		// Check monthly usage limit (normalize to first day of month YYYY-MM-01 to match DATE columns)
 		const monthDate = new Date();
@@ -255,12 +225,20 @@ export async function POST(req: Request) {
 				return NextResponse.json({ success: false, error: "Failed to parse AI response as JSON" }, { status: 502 });
 			}
 
-			// Increment usage counters
-			await incrementUsageCounters(supabase, user.id, today, currentMonth);
+			// Increment monthly usage counter after successful generation
+			await incrementMonthlyUsage(supabase, user.id, currentMonth);
 
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
-			return NextResponse.json({ success: true, data: saved });
+			// Fetch updated monthly usage to return
+			const { data: updatedMonthly } = await supabase
+				.from("usage_counters")
+				.select("count")
+				.eq("user_id", user.id)
+				.eq("counter_type", "monthly_quiz_generations")
+				.eq("date", currentMonth)
+				.maybeSingle();
+			return NextResponse.json({ success: true, data: saved, usage: { monthly_used: updatedMonthly?.count ?? null, monthly_limit: monthlyLimit } });
 		} catch (err: any) {
 			return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
 		}
@@ -445,28 +423,8 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
  	return memoryStore.get(id);
  }
 
- async function incrementUsageCounters(supabase: any, userId: string, today: string, currentMonth: string) {
- 	// Increment daily counter
- 	const { data: dailyData } = await supabase
- 		.from("usage_counters")
- 		.select("count")
- 		.eq("user_id", userId)
- 		.eq("counter_type", "daily_quiz_generations")
- 		.eq("date", today)
- 		.maybeSingle();
-
- 	const dailyCount = dailyData?.count || 0;
- 	await supabase
- 		.from("usage_counters")
- 		.upsert({
- 			user_id: userId,
- 			counter_type: "daily_quiz_generations",
- 			date: today,
- 			count: dailyCount + 1
- 		});
-
-		// Increment monthly counter (use first-of-month key)
-		const { data: monthlyData } = await supabase
+ async function incrementMonthlyUsage(supabase: any, userId: string, currentMonth: string) {
+ 	const { data: monthlyData } = await supabase
  		.from("usage_counters")
  		.select("count")
  		.eq("user_id", userId)

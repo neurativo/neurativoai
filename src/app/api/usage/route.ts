@@ -33,21 +33,21 @@ export async function GET(req: Request) {
     const dailyLimits: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
     const dailyLimit = dailyLimits[currentPlan] ?? 5;
 
-    // Dates
-    const today = new Date().toISOString().split('T')[0];
+    // Period start (YYYY-MM-01)
     const monthDate = new Date();
     monthDate.setDate(1);
-    const currentMonth = monthDate.toISOString().split('T')[0];
+    const periodStart = monthDate.toISOString().split('T')[0];
 
-    // Usage counts
-    const [{ data: m }, { data: d }] = await Promise.all([
-      supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "monthly_quiz_generations").eq("date", currentMonth).maybeSingle(),
-      supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "daily_quiz_generations").eq("date", today).maybeSingle(),
-    ]);
+    // Read monthly usage from new table
+    const { data: mqu } = await supabase
+      .from('monthly_quiz_usage')
+      .select('used_count, plan_limit')
+      .eq('user_id', user.id)
+      .eq('period_start', periodStart)
+      .maybeSingle();
 
-    // Ensure we never return negative or undefined
-    const monthly_used = typeof m?.count === 'number' && m.count > 0 ? m.count : 0;
-    const daily_used = typeof d?.count === 'number' && d.count > 0 ? d.count : 0;
+    const monthly_used = mqu?.used_count ?? 0;
+    const monthly_limit = mqu?.plan_limit ?? (planData?.monthly_quiz_generations ?? 20);
 
     return NextResponse.json({
       success: true,
@@ -56,8 +56,7 @@ export async function GET(req: Request) {
         monthly_quiz_generations: planData?.monthly_quiz_generations ?? 20,
         max_questions_per_quiz: planData?.max_questions_per_quiz ?? 8,
         monthly_used,
-        daily_used,
-        daily_limit: dailyLimit,
+        monthly_limit,
       }
     });
   } catch (e: any) {

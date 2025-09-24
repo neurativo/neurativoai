@@ -168,27 +168,11 @@ export async function POST(req: Request) {
   
 
 
-		// Check monthly usage limit (normalize to first day of month YYYY-MM-01 to match DATE columns)
+		// Period start (normalize to first day of this month)
 		const monthDate = new Date();
 		monthDate.setDate(1);
-		const currentMonth = monthDate.toISOString().split('T')[0]; // YYYY-MM-01
-		const { data: monthlyUsage } = await supabase
-			.from("usage_counters")
-			.select("count")
-			.eq("user_id", user.id)
-			.eq("counter_type", "monthly_quiz_generations")
-			.eq("date", currentMonth)
-			.maybeSingle();
-
-		const monthlyCount = monthlyUsage?.count || 0;
+		const periodStart = monthDate.toISOString().split('T')[0]; // YYYY-MM-01
 		const monthlyLimit = planData.monthly_quiz_generations || 20;
-
-		if (monthlyCount >= monthlyLimit) {
-			return NextResponse.json({ 
-				success: false, 
-				error: `Monthly quiz limit reached (${monthlyLimit}/month). Upgrade your plan for more quizzes.` 
-			}, { status: 429 });
-		}
 
 		// Enforce plan-based question limit
 		const requestedQuestions = Math.max(1, Math.min(20, Number((formData?.get("num_questions") || body?.num_questions || 10))));
@@ -204,6 +188,21 @@ export async function POST(req: Request) {
 		const topic = (formData?.get("topic")?.toString() || body?.topic || "");
 
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
+
+		// Reserve usage atomically (RPC)
+		const { data: reserveData, error: reserveErr } = await supabase.rpc('reserve_quiz_generation', {
+			p_user_id: user.id,
+			p_period_start: periodStart,
+			p_limit: monthlyLimit,
+		});
+		if (reserveErr) {
+			console.error('reserve_quiz_generation error:', reserveErr);
+			return NextResponse.json({ success: false, error: `Monthly quiz limit reached (${monthlyLimit}/month).` }, { status: 429 });
+		}
+		const reservation = Array.isArray(reserveData) ? reserveData[0] : reserveData;
+		if (!reservation?.allowed) {
+			return NextResponse.json({ success: false, error: `Monthly quiz limit reached (${reservation?.plan_limit ?? monthlyLimit}/month).` }, { status: 429 });
+		}
 
 		try {
 			const data = await requestOpenAIWithRetry({
@@ -225,20 +224,10 @@ export async function POST(req: Request) {
 				return NextResponse.json({ success: false, error: "Failed to parse AI response as JSON" }, { status: 502 });
 			}
 
-			// Increment monthly usage counter after successful generation
-			await incrementMonthlyUsage(supabase, user.id, currentMonth);
-
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
-			// Fetch updated monthly usage to return
-            const { data: updatedMonthly } = await supabase
-				.from("usage_counters")
-				.select("count")
-				.eq("user_id", user.id)
-				.eq("counter_type", "monthly_quiz_generations")
-				.eq("date", currentMonth)
-				.maybeSingle();
-            return NextResponse.json({ success: true, data: saved, usage: { monthly_used: updatedMonthly?.count ?? (monthlyCount + 1), monthly_limit: monthlyLimit } });
+			// Return usage from reservation result
+			return NextResponse.json({ success: true, data: saved, usage: { monthly_used: reservation.used_count, monthly_limit: reservation.plan_limit } });
 		} catch (err: any) {
             console.error('API/quiz error:', err);
             return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
@@ -424,26 +413,5 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
  	return memoryStore.get(id);
  }
 
- async function incrementMonthlyUsage(supabase: any, userId: string, currentMonth: string) {
- 	// Read current count
- 	const { data: monthlyData, error: readErr } = await supabase
- 		.from("usage_counters")
- 		.select("count")
- 		.eq("user_id", userId)
- 		.eq("counter_type", "monthly_quiz_generations")
- 		.eq("date", currentMonth)
- 		.maybeSingle();
- 	if (readErr) throw new Error(`usage read failed: ${readErr.message}`);
-
- 	const monthlyCount = monthlyData?.count || 0;
- 	const { error: upsertErr } = await supabase
- 		.from("usage_counters")
- 		.upsert({
- 			user_id: userId,
- 			counter_type: "monthly_quiz_generations",
- 			date: currentMonth,
- 			count: monthlyCount + 1
- 		}, { onConflict: 'user_id,counter_type,date', ignoreDuplicates: false });
- 	if (upsertErr) throw new Error(`usage upsert failed: ${upsertErr.message}`);
- }
+ // legacy helper removed; using RPC reserve_quiz_generation instead
 

@@ -6,12 +6,10 @@ type PreviewQuestion = { id?: string | number; question?: string; type?: string 
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
 
 type LimitState = {
-	blocked: boolean;
-	reason?: string;
-	dailyUsed?: number;
-	dailyLimit?: number;
-	monthlyUsed?: number;
-	monthlyLimit?: number;
+    blocked: boolean;
+    reason?: string;
+    monthlyUsed?: number;
+    monthlyLimit?: number;
 };
 
 export default function QuizPage() {
@@ -52,45 +50,32 @@ export default function QuizPage() {
 		});
 	}
 
-	async function checkLimits(): Promise<LimitState> {
-		const supabase = getSupabaseBrowser();
-		const { data: { user } } = await supabase.auth.getUser();
-		if (!user) {
-			return { blocked: true, reason: "Please sign in to generate quizzes" };
-		}
-		// Get plan
-		const { data: subscription } = await supabase
-			.from("subscriptions").select("plan,status").eq("user_id", user.id).maybeSingle();
-		const plan = subscription?.plan || "free";
-		// Plan caps
-		const { data: planData } = await supabase
-			.from("plans").select("monthly_quiz_generations").eq("key", plan).maybeSingle();
-		const monthlyLimit = planData?.monthly_quiz_generations ?? 20;
-		const dailyLimits: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
-		const dailyLimit = dailyLimits[plan] ?? 5;
-		// Usage
-		const today = new Date().toISOString().split('T')[0];
-		const currentMonth = new Date().toISOString().slice(0, 7);
-		const [{ data: d }, { data: m }] = await Promise.all([
-			supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "daily_quiz_generations").eq("date", today).maybeSingle(),
-			supabase.from("usage_counters").select("count").eq("user_id", user.id).eq("counter_type", "monthly_quiz_generations").eq("date", currentMonth).maybeSingle(),
-		]);
-		const dailyUsed = d?.count ?? 0;
-		const monthlyUsed = m?.count ?? 0;
-		const dailyBlocked = dailyUsed >= dailyLimit;
-		const monthlyBlocked = monthlyUsed >= monthlyLimit;
-		if (dailyBlocked || monthlyBlocked) {
-			return {
-				blocked: true,
-				reason: dailyBlocked ? `Daily limit reached (${dailyUsed}/${dailyLimit}). Try again tomorrow or upgrade.` : `Monthly limit reached (${monthlyUsed}/${monthlyLimit}). Upgrade your plan to continue.`,
-				dailyUsed,
-				dailyLimit,
-				monthlyUsed,
-				monthlyLimit,
-			};
-		}
-		return { blocked: false, dailyUsed, dailyLimit, monthlyUsed, monthlyLimit };
-	}
+    async function checkLimits(): Promise<LimitState> {
+        const supabase = getSupabaseBrowser();
+        const [{ data: { user } }, { data: { session } }] = await Promise.all([
+            supabase.auth.getUser(),
+            supabase.auth.getSession(),
+        ]);
+        if (!user || !session?.access_token) {
+            return { blocked: true, reason: "Please sign in to generate quizzes" };
+        }
+        try {
+            const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } });
+            const json = await res.json();
+            if (!json?.success) return { blocked: false };
+            const monthlyUsed = json.data.monthly_used as number;
+            const monthlyLimit = json.data.monthly_limit as number;
+            const blocked = typeof monthlyUsed === 'number' && typeof monthlyLimit === 'number' && monthlyUsed >= monthlyLimit;
+            return {
+                blocked,
+                reason: blocked ? `Monthly limit reached (${monthlyUsed}/${monthlyLimit}). Upgrade your plan to continue.` : undefined,
+                monthlyUsed,
+                monthlyLimit,
+            };
+        } catch {
+            return { blocked: false };
+        }
+    }
 
     async function generateQuiz() {
 		// Validation
@@ -168,7 +153,7 @@ export default function QuizPage() {
 					'Authorization': `Bearer ${session.access_token}`
 				}
 			});
-			const json = await res.json();
+            const json = await res.json();
 			if (!json.success) {
 				if (res.status === 401) { setError("Please sign in to generate quizzes"); return; }
 				if (res.status === 429) { setError(json.error || "Quiz limit reached. Please upgrade your plan."); return; }
@@ -176,7 +161,16 @@ export default function QuizPage() {
 				if (res.status === 500) { setError("Server error. Please try again later."); return; }
 				throw new Error(json.error || "Failed to generate quiz");
 			}
-			setPreviewData(json.data);
+            setPreviewData(json.data);
+            // Update limits in UI from API response usage if present
+            if (json.usage && typeof json.usage.monthly_used === 'number' && typeof json.usage.monthly_limit === 'number') {
+                setLimits({
+                    blocked: json.usage.monthly_used >= json.usage.monthly_limit,
+                    monthlyUsed: json.usage.monthly_used,
+                    monthlyLimit: json.usage.monthly_limit,
+                    reason: json.usage.monthly_used >= json.usage.monthly_limit ? `Monthly limit reached (${json.usage.monthly_used}/${json.usage.monthly_limit}).` : undefined,
+                });
+            }
 			setPreviewOpen(true);
         } catch (e: unknown) { 
             const err = e as { name?: string; message?: string } | undefined;
@@ -326,11 +320,11 @@ export default function QuizPage() {
 									}} className="btn btn-primary w-full">
 										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
 									</button>
-									{limits && (
+                                    {limits && (
 										<div className="text-gray-300 text-sm mt-2 text-center">
-											{typeof limits.dailyUsed === 'number' && typeof limits.dailyLimit === 'number' && (
-												<div>Today: {limits.dailyUsed}/{limits.dailyLimit} • Month: {limits.monthlyUsed ?? 0}/{limits.monthlyLimit ?? 0}</div>
-											)}
+                                            {typeof limits.monthlyUsed === 'number' && typeof limits.monthlyLimit === 'number' && (
+                                                <div>Month: {limits.monthlyUsed}/{limits.monthlyLimit}</div>
+                                            )}
 										</div>
 									)}
 									<div className="text-gray-400 text-sm mt-2 text-center">{characters} characters</div>

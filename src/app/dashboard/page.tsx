@@ -102,7 +102,7 @@ export default function DashboardPage() {
 
     // Initial refresh, then interval
     refreshUsage();
-    timer = setInterval(refreshUsage, 10000);
+    timer = setInterval(refreshUsage, 5000);
 
     // Refresh when tab becomes visible
     const onVis = () => { if (document.visibilityState === 'visible') refreshUsage(); };
@@ -128,7 +128,29 @@ export default function DashboardPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
       <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
-      <p className="text-gray-300 mb-4">{email}</p>
+      <div className="flex items-center gap-3 mb-4">
+        <p className="text-gray-300">{email}</p>
+        <button className="secondary-button" onClick={() => {
+          const supabase = getSupabaseBrowser();
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session?.access_token) return;
+            fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
+              .then(r => r.json())
+              .then(json => {
+                if (json?.success && json?.data) {
+                  setUsage({
+                    plan: json.data.plan,
+                    monthly_quiz_generations: json.data.monthly_quiz_generations,
+                    used: json.data.monthly_used,
+                    daily_used: json.data.daily_used,
+                    daily_limit: json.data.daily_limit,
+                    max_questions_per_quiz: json.data.max_questions_per_quiz,
+                  });
+                }
+              });
+          });
+        }}>Refresh</button>
+      </div>
 
       {(nearingDaily || nearingMonthly) && (
         <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-xl p-3">

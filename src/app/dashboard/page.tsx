@@ -24,71 +24,26 @@ export default function DashboardPage() {
 
     async function load() {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user, session } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
       }
       setEmail(user.email);
       setUserId(user.id);
-
-      // Get user's subscription
-      const { data: subscription } = await supabase
-        .from("subscriptions")
-        .select("plan")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .single();
-
-      const currentPlan = subscription?.plan || "free";
-
-      // Get plan details
-      const { data: planData } = await supabase
-        .from("plans")
-        .select("monthly_quiz_generations, max_questions_per_quiz")
-        .eq("key", currentPlan)
-        .single();
-
-      // Set default daily limits based on plan
-      const dailyLimits = {
-        free: 5,
-        plus: 20,
-        premium: 50,
-        pro: 100
-      } as const;
-      const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
-
-      // Get current month usage (normalized to YYYY-MM-01)
-      const monthDate = new Date();
-      monthDate.setDate(1);
-      const currentMonth = monthDate.toISOString().split('T')[0];
-
-      const { data: monthlyUsage } = await supabase
-        .from("usage_counters")
-        .select("count")
-        .eq("user_id", user.id)
-        .eq("counter_type", "monthly_quiz_generations")
-        .eq("date", currentMonth)
-        .maybeSingle();
-
-      // Get today's usage
-      const today = new Date().toISOString().split('T')[0];
-      const { data: dailyUsage } = await supabase
-        .from("usage_counters")
-        .select("count")
-        .eq("user_id", user.id)
-        .eq("counter_type", "daily_quiz_generations")
-        .eq("date", today)
-        .maybeSingle();
-
-      setUsage({
-        plan: currentPlan,
-        monthly_quiz_generations: planData?.monthly_quiz_generations || 20,
-        used: monthlyUsage?.count || 0,
-        daily_used: dailyUsage?.count || 0,
-        daily_limit: dailyLimit,
-        max_questions_per_quiz: planData?.max_questions_per_quiz || 8
-      });
+      // Call server API with service role to avoid PostgREST 400s
+      const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
+      const json = await res.json();
+      if (json?.success && json?.data) {
+        setUsage({
+          plan: json.data.plan,
+          monthly_quiz_generations: json.data.monthly_quiz_generations,
+          used: json.data.monthly_used,
+          daily_used: json.data.daily_used,
+          daily_limit: json.data.daily_limit,
+          max_questions_per_quiz: json.data.max_questions_per_quiz,
+        });
+      }
 
       // Realtime updates for usage counters
       chan = supabase
@@ -126,40 +81,19 @@ export default function DashboardPage() {
 
     async function refreshUsage() {
       try {
-        // Re-fetch usage counters and plan limits
-        const [{ data: subscription }, { data: planData }] = await Promise.all([
-          supabase.from("subscriptions").select("plan").eq("user_id", userId).eq("status", "active").maybeSingle(),
-          (async () => {
-            const { data: sub } = await supabase.from("subscriptions").select("plan").eq("user_id", userId).eq("status", "active").maybeSingle();
-            const currentPlan = sub?.plan || "free";
-            const { data } = await supabase.from("plans").select("monthly_quiz_generations, max_questions_per_quiz").eq("key", currentPlan).maybeSingle();
-            return data;
-          })()
-        ]);
-
-        const currentPlan = (subscription?.plan as string) || "free";
-        const dailyLimits = { free: 5, plus: 20, premium: 50, pro: 100 } as const;
-        const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
-
-        // Normalize month key
-        const monthDate = new Date();
-        monthDate.setDate(1);
-        const currentMonth = monthDate.toISOString().split('T')[0];
-
-        const today = new Date().toISOString().split('T')[0];
-        const [{ data: monthlyUsage }, { data: dailyUsage }] = await Promise.all([
-          supabase.from("usage_counters").select("count").eq("user_id", userId).eq("counter_type", "monthly_quiz_generations").eq("date", currentMonth).maybeSingle(),
-          supabase.from("usage_counters").select("count").eq("user_id", userId).eq("counter_type", "daily_quiz_generations").eq("date", today).maybeSingle()
-        ]);
-
-        setUsage(prev => ({
-          plan: currentPlan,
-          monthly_quiz_generations: planData?.monthly_quiz_generations || prev?.monthly_quiz_generations || 20,
-          used: monthlyUsage?.count || 0,
-          daily_used: dailyUsage?.count || 0,
-          daily_limit: dailyLimit,
-          max_questions_per_quiz: planData?.max_questions_per_quiz || prev?.max_questions_per_quiz || 8
-        }));
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
+        const json = await res.json();
+        if (json?.success && json?.data) {
+          setUsage(prev => ({
+            plan: json.data.plan,
+            monthly_quiz_generations: json.data.monthly_quiz_generations,
+            used: json.data.monthly_used,
+            daily_used: json.data.daily_used,
+            daily_limit: json.data.daily_limit,
+            max_questions_per_quiz: json.data.max_questions_per_quiz,
+          }));
+        }
       } catch { /* ignore */ }
     }
 

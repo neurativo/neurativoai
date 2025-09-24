@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState<Usage | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowser();
@@ -29,6 +30,7 @@ export default function DashboardPage() {
         return;
       }
       setEmail(user.email);
+      setUserId(user.id);
 
       // Get user's subscription
       const { data: subscription } = await supabase
@@ -111,6 +113,62 @@ export default function DashboardPage() {
       if (chan) supabase.removeChannel(chan);
     };
   }, []);
+
+  // Polling fallback to keep usage fresh even if realtime misses an event
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = getSupabaseBrowser();
+
+    let timer: NodeJS.Timer | null = null;
+
+    async function refreshUsage() {
+      try {
+        // Re-fetch usage counters and plan limits
+        const [{ data: subscription }, { data: planData }] = await Promise.all([
+          supabase.from("subscriptions").select("plan").eq("user_id", userId).eq("status", "active").maybeSingle(),
+          (async () => {
+            const { data: sub } = await supabase.from("subscriptions").select("plan").eq("user_id", userId).eq("status", "active").maybeSingle();
+            const currentPlan = sub?.plan || "free";
+            const { data } = await supabase.from("plans").select("monthly_quiz_generations, max_questions_per_quiz").eq("key", currentPlan).maybeSingle();
+            return data;
+          })()
+        ]);
+
+        const currentPlan = (subscription?.plan as string) || "free";
+        const dailyLimits = { free: 5, plus: 20, premium: 50, pro: 100 } as const;
+        const dailyLimit = dailyLimits[currentPlan as keyof typeof dailyLimits] || 5;
+
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const today = new Date().toISOString().split('T')[0];
+        const [{ data: monthlyUsage }, { data: dailyUsage }] = await Promise.all([
+          supabase.from("usage_counters").select("count").eq("user_id", userId).eq("counter_type", "monthly_quiz_generations").eq("date", currentMonth).maybeSingle(),
+          supabase.from("usage_counters").select("count").eq("user_id", userId).eq("counter_type", "daily_quiz_generations").eq("date", today).maybeSingle()
+        ]);
+
+        setUsage(prev => ({
+          plan: currentPlan,
+          monthly_quiz_generations: planData?.monthly_quiz_generations || prev?.monthly_quiz_generations || 20,
+          used: monthlyUsage?.count || 0,
+          daily_used: dailyUsage?.count || 0,
+          daily_limit: dailyLimit,
+          max_questions_per_quiz: planData?.max_questions_per_quiz || prev?.max_questions_per_quiz || 8
+        }));
+      } catch { /* ignore */ }
+    }
+
+    // Initial refresh, then interval
+    refreshUsage();
+    timer = setInterval(refreshUsage, 10000);
+
+    // Refresh when tab becomes visible
+    const onVis = () => { if (document.visibilityState === 'visible') refreshUsage(); };
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      if (timer) clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [userId]);
 
   const nearingDaily = usage ? usage.daily_used >= Math.max(1, Math.floor(usage.daily_limit * 0.8)) : false;
   const nearingMonthly = usage ? usage.used >= Math.max(1, Math.floor(usage.monthly_quiz_generations * 0.8)) : false;

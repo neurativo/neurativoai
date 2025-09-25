@@ -189,87 +189,28 @@ export async function POST(req: Request) {
 
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
-		// Reserve usage atomically (RPC)
-		let reservationUsage: { monthly_used: number; monthly_limit: number } | null = null;
-		{
-			const { data: reserveData, error: reserveErr } = await supabase.rpc('reserve_quiz_generation', {
-				p_user_id: user.id,
-				p_period_start: periodStart,
-				p_limit: monthlyLimit,
-			});
-			if (!reserveErr) {
-				const reservation = Array.isArray(reserveData) ? reserveData?.[0] : reserveData;
-				if (reservation && typeof reservation.allowed === 'boolean') {
-					if (reservation.allowed) {
-						reservationUsage = { monthly_used: reservation.used_count, monthly_limit: reservation.plan_limit };
-					} else {
-						// Fallback double-check: read and attempt guarded increment once
-						const { data: current } = await supabase
-							.from('monthly_quiz_usage')
-							.select('used_count, plan_limit')
-							.eq('user_id', user.id)
-							.eq('period_start', periodStart)
-							.maybeSingle();
-						const currentUsed = current?.used_count ?? 0;
-						const currentLimit = current?.plan_limit ?? monthlyLimit;
-						const { data: updated } = await supabase
-							.from('monthly_quiz_usage')
-							.update({ used_count: currentUsed + 1, plan_limit: monthlyLimit })
-							.eq('user_id', user.id)
-							.eq('period_start', periodStart)
-							.lt('used_count', currentLimit)
-							.select('used_count, plan_limit')
-							.maybeSingle();
-						if (updated) {
-							reservationUsage = { monthly_used: updated.used_count, monthly_limit: updated.plan_limit };
-						} else {
-							return NextResponse.json({
-								success: false,
-								error: `Monthly quiz limit reached (${currentLimit}/month).`,
-								usage: { monthly_used: currentUsed, monthly_limit: currentLimit }
-							}, { status: 429 });
-						}
-					}
-				} else {
-					console.error('reserve_quiz_generation invalid response:', reserveData);
-					return NextResponse.json({ success: false, error: 'Usage reservation unavailable' }, { status: 503 });
-				}
-			} else {
-				console.error('reserve_quiz_generation error:', reserveErr);
-				// Try the guarded increment path even if RPC failed
-				// Ensure row exists
-				await supabase.from('monthly_quiz_usage').upsert({
-					user_id: user.id,
-					period_start: periodStart,
-					used_count: 0,
-					plan_limit: monthlyLimit,
-				}, { onConflict: 'user_id,period_start' });
-				const { data: current } = await supabase
-					.from('monthly_quiz_usage')
-					.select('used_count, plan_limit')
-					.eq('user_id', user.id)
-					.eq('period_start', periodStart)
-					.maybeSingle();
-				const currentUsed = current?.used_count ?? 0;
-				const currentLimit = current?.plan_limit ?? monthlyLimit;
-				const { data: updated } = await supabase
-					.from('monthly_quiz_usage')
-					.update({ used_count: currentUsed + 1, plan_limit: monthlyLimit })
-					.eq('user_id', user.id)
-					.eq('period_start', periodStart)
-					.lt('used_count', currentLimit)
-					.select('used_count, plan_limit')
-					.maybeSingle();
-				if (!updated) {
-					return NextResponse.json({
-						success: false,
-						error: `Monthly quiz limit reached (${currentLimit}/month).`,
-						usage: { monthly_used: currentUsed, monthly_limit: currentLimit }
-					}, { status: 429 });
-				}
-				reservationUsage = { monthly_used: updated.used_count, monthly_limit: updated.plan_limit };
-			}
+		// Reserve usage via new RPC (single-source of truth)
+		const { data: claimData, error: claimErr } = await supabase.rpc('claim_quiz_slot', {
+			p_user_id: user.id,
+			p_limit: monthlyLimit,
+		});
+		if (claimErr) {
+			console.error('claim_quiz_slot error:', claimErr);
+			return NextResponse.json({ success: false, error: 'Failed to claim quiz slot' }, { status: 500 });
 		}
+		const claim = Array.isArray(claimData) ? claimData[0] : claimData;
+		if (!claim || typeof claim.allowed !== 'boolean') {
+			console.error('claim_quiz_slot invalid response:', claimData);
+			return NextResponse.json({ success: false, error: 'Usage reservation unavailable' }, { status: 503 });
+		}
+		if (!claim.allowed) {
+			return NextResponse.json({
+				success: false,
+				error: `Monthly quiz limit reached (${claim.plan_limit ?? monthlyLimit}/month).`,
+				usage: { monthly_used: claim.used_count ?? 0, monthly_limit: claim.plan_limit ?? monthlyLimit }
+			}, { status: 429 });
+		}
+		const reservationUsage = { monthly_used: claim.used_count, monthly_limit: claim.plan_limit };
 
 		try {
 			const data = await requestOpenAIWithRetry({
@@ -293,8 +234,8 @@ export async function POST(req: Request) {
 
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
-			// Return usage (from reservation or fallback guarded increment)
-			return NextResponse.json({ success: true, data: saved, usage: reservationUsage ?? { monthly_used: 0, monthly_limit: monthlyLimit } });
+			// Return usage from claim RPC
+			return NextResponse.json({ success: true, data: saved, usage: reservationUsage });
 		} catch (err: any) {
             console.error('API/quiz error:', err);
             return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });

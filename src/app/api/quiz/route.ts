@@ -198,12 +198,46 @@ export async function POST(req: Request) {
 		let reservationUsage = { monthly_used: 0, monthly_limit: monthlyLimit } as { monthly_used: number; monthly_limit: number };
 		if (claimErr) {
 			console.error('claim_quiz_slot error:', claimErr);
-			// Permissive fallback on any RPC error: allow generation; usage remains default
+			// Fallback: guarded manual increment on user_usage
+			try {
+				const monthDate2 = new Date(); monthDate2.setDate(1);
+				const monthStart = monthDate2.toISOString().split('T')[0];
+				await supabase.from('user_usage').upsert({ user_id: user.id, month_start: monthStart, plan_id: currentPlan, used_count: 0 }, { onConflict: 'user_id,month_start' });
+				const { data: updated } = await supabase
+					.from('user_usage')
+					.update({ used_count: (undefined as any), plan_id: currentPlan })
+					.eq('user_id', user.id)
+					.eq('month_start', monthStart)
+					.lt('used_count', monthlyLimit)
+					.select('used_count')
+					.maybeSingle();
+				if (!updated) {
+					return NextResponse.json({ success: false, error: `Monthly quiz limit reached (${monthlyLimit}/month).`, usage: { monthly_used: monthlyLimit, monthly_limit: monthlyLimit } }, { status: 429 });
+				}
+				// Re-read used_count after increment (Supabase update with select returns new values)
+				reservationUsage = { monthly_used: updated.used_count, monthly_limit: monthlyLimit };
+			} catch (e) {
+				console.error('manual user_usage increment failed:', e);
+			}
 		} else {
 			const claim = Array.isArray(claimData) ? claimData[0] : claimData;
 			if (!claim || typeof claim.allowed !== 'boolean') {
 				console.error('claim_quiz_slot invalid response:', claimData);
-				// Permissive continue
+				// Fallback: guarded manual increment on user_usage
+				try {
+					const monthDate2 = new Date(); monthDate2.setDate(1);
+					const monthStart = monthDate2.toISOString().split('T')[0];
+					await supabase.from('user_usage').upsert({ user_id: user.id, month_start: monthStart, plan_id: currentPlan, used_count: 0 }, { onConflict: 'user_id,month_start' });
+					const { data: updated } = await supabase
+						.from('user_usage')
+						.update({ used_count: (undefined as any), plan_id: currentPlan })
+						.eq('user_id', user.id)
+						.eq('month_start', monthStart)
+						.lt('used_count', monthlyLimit)
+						.select('used_count')
+						.maybeSingle();
+					if (updated) reservationUsage = { monthly_used: updated.used_count, monthly_limit: monthlyLimit };
+				} catch {}
 			} else if (!claim.allowed) {
 				return NextResponse.json({
 					success: false,

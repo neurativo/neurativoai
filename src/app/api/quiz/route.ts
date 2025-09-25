@@ -256,9 +256,28 @@ export async function POST(req: Request) {
 			p_user_id: user.id,
 			p_daily_limit: dailyLimit,
 		});
+		let dailyUsage: { daily_used?: number; daily_limit?: number } = {};
 		if (dailyErr) {
 			console.error('user_daily_claim error:', dailyErr);
-			// If daily RPC fails, continue permissively
+			// Guarded manual daily increment fallback
+			try {
+				const today = new Date().toISOString().split('T')[0];
+				await supabase.from('user_daily_usage').upsert({ user_id: user.id, day: today, used_count: 0 }, { onConflict: 'user_id,day' });
+				const { data: updatedDaily } = await supabase
+					.from('user_daily_usage')
+					.update({ used_count: (undefined as any) })
+					.eq('user_id', user.id)
+					.eq('day', today)
+					.lt('used_count', dailyLimit)
+					.select('used_count')
+					.maybeSingle();
+				if (!updatedDaily) {
+					return NextResponse.json({ success: false, error: `Daily quiz limit reached (${dailyLimit}/day).`, usage: { ...reservationUsage, daily_used: dailyLimit, daily_limit: dailyLimit } }, { status: 429 });
+				}
+				dailyUsage = { daily_used: updatedDaily.used_count, daily_limit: dailyLimit };
+			} catch (e) {
+				console.error('manual user_daily_usage increment failed:', e);
+			}
 		} else {
 			const d = Array.isArray(dailyData) ? dailyData[0] : dailyData;
 			if (d && typeof d.allowed === 'boolean' && !d.allowed) {
@@ -267,6 +286,9 @@ export async function POST(req: Request) {
 					error: `Daily quiz limit reached (${d.daily_limit ?? dailyLimit}/day).`,
 					usage: { monthly_used: reservationUsage.monthly_used, monthly_limit: reservationUsage.monthly_limit, daily_used: d.daily_used ?? 0, daily_limit: d.daily_limit ?? dailyLimit }
 				}, { status: 429 });
+			}
+			if (d && typeof d.daily_used === 'number') {
+				dailyUsage = { daily_used: d.daily_used, daily_limit: d.daily_limit ?? dailyLimit };
 			}
 		}
 
@@ -293,14 +315,7 @@ export async function POST(req: Request) {
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
 			// Return usage (monthly from claim, daily best-effort via daily RPC)
-			let usagePayload: any = { ...reservationUsage };
-			if (dailyData && !dailyErr) {
-				const d = Array.isArray(dailyData) ? dailyData[0] : dailyData;
-				if (d && typeof d.daily_used === 'number') {
-					usagePayload.daily_used = d.daily_used;
-					usagePayload.daily_limit = d.daily_limit ?? dailyLimit;
-				}
-			}
+			let usagePayload: any = { ...reservationUsage, ...dailyUsage };
 			return NextResponse.json({ success: true, data: saved, usage: usagePayload });
 		} catch (err: any) {
             console.error('API/quiz error:', err);

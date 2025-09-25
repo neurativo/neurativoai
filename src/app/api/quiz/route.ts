@@ -173,6 +173,8 @@ export async function POST(req: Request) {
 		monthDate.setDate(1);
 		const periodStart = monthDate.toISOString().split('T')[0]; // YYYY-MM-01
 		const monthlyLimit = planData.monthly_quiz_generations || 20;
+		const dailyLimitMap: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
+		const dailyLimit = dailyLimitMap[currentPlan] ?? 5;
 
 		// Enforce plan-based question limit
 		const requestedQuestions = Math.max(1, Math.min(20, Number((formData?.get("num_questions") || body?.num_questions || 10))));
@@ -189,7 +191,7 @@ export async function POST(req: Request) {
 
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
-		// Reserve usage via new RPC user_usage_claim
+		// Reserve MONTHLY via new RPC user_usage_claim
 		const { data: claimData, error: claimErr } = await supabase.rpc('user_usage_claim', {
 			p_user_id: user.id,
 			p_plan_id: currentPlan,
@@ -249,6 +251,25 @@ export async function POST(req: Request) {
 			}
 		}
 
+		// Reserve DAILY via new RPC user_daily_claim
+		const { data: dailyData, error: dailyErr } = await supabase.rpc('user_daily_claim', {
+			p_user_id: user.id,
+			p_daily_limit: dailyLimit,
+		});
+		if (dailyErr) {
+			console.error('user_daily_claim error:', dailyErr);
+			// If daily RPC fails, continue permissively
+		} else {
+			const d = Array.isArray(dailyData) ? dailyData[0] : dailyData;
+			if (d && typeof d.allowed === 'boolean' && !d.allowed) {
+				return NextResponse.json({
+					success: false,
+					error: `Daily quiz limit reached (${d.daily_limit ?? dailyLimit}/day).`,
+					usage: { monthly_used: reservationUsage.monthly_used, monthly_limit: reservationUsage.monthly_limit, daily_used: d.daily_used ?? 0, daily_limit: d.daily_limit ?? dailyLimit }
+				}, { status: 429 });
+			}
+		}
+
 		try {
 			const data = await requestOpenAIWithRetry({
 				url: OPENAI_URL,
@@ -271,8 +292,16 @@ export async function POST(req: Request) {
 
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
-			// Return usage (from claim RPC or permissive default)
-			return NextResponse.json({ success: true, data: saved, usage: reservationUsage });
+			// Return usage (monthly from claim, daily best-effort via daily RPC)
+			let usagePayload: any = { ...reservationUsage };
+			if (dailyData && !dailyErr) {
+				const d = Array.isArray(dailyData) ? dailyData[0] : dailyData;
+				if (d && typeof d.daily_used === 'number') {
+					usagePayload.daily_used = d.daily_used;
+					usagePayload.daily_limit = d.daily_limit ?? dailyLimit;
+				}
+			}
+			return NextResponse.json({ success: true, data: saved, usage: usagePayload });
 		} catch (err: any) {
             console.error('API/quiz error:', err);
             return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });

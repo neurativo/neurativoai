@@ -49,20 +49,17 @@ export async function GET(req: Request) {
     const monthly_used = uu?.used_count ?? 0;
     const monthly_limit = planData?.monthly_quiz_generations ?? 20;
 
-    // Provide daily fields for dashboard display (not enforced here)
+    // Read daily usage from user_daily_usage
     const today = new Date().toISOString().split('T')[0];
-    let daily_used = 0;
-    try {
-      const { data: du } = await supabase
-        .from('usage_counters')
-        .select('count')
-        .eq('user_id', user.id)
-        .eq('counter_type', 'daily_quiz_generations')
-        .eq('date', today)
-        .maybeSingle();
-      daily_used = du?.count ?? 0;
-    } catch {}
-    const daily_limit = 0; // not enforced; show 0 or derive from plan if desired
+    const { data: du } = await supabase
+      .from('user_daily_usage')
+      .select('used_count')
+      .eq('user_id', user.id)
+      .eq('day', today)
+      .maybeSingle();
+    const daily_used = du?.used_count ?? 0;
+    const dailyLimits: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
+    const daily_limit = dailyLimits[currentPlan] ?? 5;
 
     return NextResponse.json({
       success: true,

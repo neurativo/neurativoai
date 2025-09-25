@@ -190,18 +190,85 @@ export async function POST(req: Request) {
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
 		// Reserve usage atomically (RPC)
-		const { data: reserveData, error: reserveErr } = await supabase.rpc('reserve_quiz_generation', {
-			p_user_id: user.id,
-			p_period_start: periodStart,
-			p_limit: monthlyLimit,
-		});
-		if (reserveErr) {
-			console.error('reserve_quiz_generation error:', reserveErr);
-			return NextResponse.json({ success: false, error: `Monthly quiz limit reached (${monthlyLimit}/month).` }, { status: 429 });
-		}
-		const reservation = Array.isArray(reserveData) ? reserveData[0] : reserveData;
-		if (!reservation?.allowed) {
-			return NextResponse.json({ success: false, error: `Monthly quiz limit reached (${reservation?.plan_limit ?? monthlyLimit}/month).` }, { status: 429 });
+		let reservationUsage: { monthly_used: number; monthly_limit: number } | null = null;
+		{
+			const { data: reserveData, error: reserveErr } = await supabase.rpc('reserve_quiz_generation', {
+				p_user_id: user.id,
+				p_period_start: periodStart,
+				p_limit: monthlyLimit,
+			});
+			if (!reserveErr) {
+				const reservation = Array.isArray(reserveData) ? reserveData?.[0] : reserveData;
+				if (reservation && typeof reservation.allowed === 'boolean') {
+					if (reservation.allowed) {
+						reservationUsage = { monthly_used: reservation.used_count, monthly_limit: reservation.plan_limit };
+					} else {
+						// Fallback double-check: read and attempt guarded increment once
+						const { data: current } = await supabase
+							.from('monthly_quiz_usage')
+							.select('used_count, plan_limit')
+							.eq('user_id', user.id)
+							.eq('period_start', periodStart)
+							.maybeSingle();
+						const currentUsed = current?.used_count ?? 0;
+						const currentLimit = current?.plan_limit ?? monthlyLimit;
+						const { data: updated } = await supabase
+							.from('monthly_quiz_usage')
+							.update({ used_count: currentUsed + 1, plan_limit: monthlyLimit })
+							.eq('user_id', user.id)
+							.eq('period_start', periodStart)
+							.lt('used_count', currentLimit)
+							.select('used_count, plan_limit')
+							.maybeSingle();
+						if (updated) {
+							reservationUsage = { monthly_used: updated.used_count, monthly_limit: updated.plan_limit };
+						} else {
+							return NextResponse.json({
+								success: false,
+								error: `Monthly quiz limit reached (${currentLimit}/month).`,
+								usage: { monthly_used: currentUsed, monthly_limit: currentLimit }
+							}, { status: 429 });
+						}
+					}
+				} else {
+					console.error('reserve_quiz_generation invalid response:', reserveData);
+					return NextResponse.json({ success: false, error: 'Usage reservation unavailable' }, { status: 503 });
+				}
+			} else {
+				console.error('reserve_quiz_generation error:', reserveErr);
+				// Try the guarded increment path even if RPC failed
+				// Ensure row exists
+				await supabase.from('monthly_quiz_usage').upsert({
+					user_id: user.id,
+					period_start: periodStart,
+					used_count: 0,
+					plan_limit: monthlyLimit,
+				}, { onConflict: 'user_id,period_start' });
+				const { data: current } = await supabase
+					.from('monthly_quiz_usage')
+					.select('used_count, plan_limit')
+					.eq('user_id', user.id)
+					.eq('period_start', periodStart)
+					.maybeSingle();
+				const currentUsed = current?.used_count ?? 0;
+				const currentLimit = current?.plan_limit ?? monthlyLimit;
+				const { data: updated } = await supabase
+					.from('monthly_quiz_usage')
+					.update({ used_count: currentUsed + 1, plan_limit: monthlyLimit })
+					.eq('user_id', user.id)
+					.eq('period_start', periodStart)
+					.lt('used_count', currentLimit)
+					.select('used_count, plan_limit')
+					.maybeSingle();
+				if (!updated) {
+					return NextResponse.json({
+						success: false,
+						error: `Monthly quiz limit reached (${currentLimit}/month).`,
+						usage: { monthly_used: currentUsed, monthly_limit: currentLimit }
+					}, { status: 429 });
+				}
+				reservationUsage = { monthly_used: updated.used_count, monthly_limit: updated.plan_limit };
+			}
 		}
 
 		try {
@@ -226,8 +293,8 @@ export async function POST(req: Request) {
 
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
-			// Return usage from reservation result
-			return NextResponse.json({ success: true, data: saved, usage: { monthly_used: reservation.used_count, monthly_limit: reservation.plan_limit } });
+			// Return usage (from reservation or fallback guarded increment)
+			return NextResponse.json({ success: true, data: saved, usage: reservationUsage ?? { monthly_used: 0, monthly_limit: monthlyLimit } });
 		} catch (err: any) {
             console.error('API/quiz error:', err);
             return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });

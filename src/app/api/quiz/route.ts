@@ -197,14 +197,7 @@ export async function POST(req: Request) {
 		let reservationUsage = { monthly_used: 0, monthly_limit: monthlyLimit } as { monthly_used: number; monthly_limit: number };
 		if (claimErr) {
 			console.error('claim_quiz_slot error:', claimErr);
-			// Permissive fallback: allow generation if SQL not applied yet
-			// Detect typical messages for missing function/table or permission issues
-			const msg = String(claimErr.message || claimErr);
-			const isMissing = msg.includes('does not exist') || msg.includes('relation') || msg.includes('permission');
-			if (!isMissing) {
-				return NextResponse.json({ success: false, error: 'Failed to claim quiz slot' }, { status: 500 });
-			}
-			// Continue without blocking; usage will be default
+			// Permissive fallback on any RPC error: allow generation; usage remains default
 		} else {
 			const claim = Array.isArray(claimData) ? claimData[0] : claimData;
 			if (!claim || typeof claim.allowed !== 'boolean') {

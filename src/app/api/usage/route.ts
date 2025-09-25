@@ -30,8 +30,6 @@ export async function GET(req: Request) {
     // Plan limits
     const { data: planData } = await supabase
       .from("plans").select("monthly_quiz_generations, max_questions_per_quiz").eq("key", currentPlan).maybeSingle();
-    const dailyLimits: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
-    const dailyLimit = dailyLimits[currentPlan] ?? 5;
 
     // Period start (YYYY-MM-01)
     const monthDate = new Date();

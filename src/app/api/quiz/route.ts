@@ -259,25 +259,7 @@ export async function POST(req: Request) {
 		let dailyUsage: { daily_used?: number; daily_limit?: number } = {};
 		if (dailyErr) {
 			console.error('user_daily_claim error:', dailyErr);
-			// Guarded manual daily increment fallback
-			try {
-				const today = new Date().toISOString().split('T')[0];
-				await supabase.from('user_daily_usage').upsert({ user_id: user.id, day: today, used_count: 0 }, { onConflict: 'user_id,day' });
-				const { data: updatedDaily } = await supabase
-					.from('user_daily_usage')
-					.update({ used_count: (undefined as any) })
-					.eq('user_id', user.id)
-					.eq('day', today)
-					.lt('used_count', dailyLimit)
-					.select('used_count')
-					.maybeSingle();
-				if (!updatedDaily) {
-					return NextResponse.json({ success: false, error: `Daily quiz limit reached (${dailyLimit}/day).`, usage: { ...reservationUsage, daily_used: dailyLimit, daily_limit: dailyLimit } }, { status: 429 });
-				}
-				dailyUsage = { daily_used: updatedDaily.used_count, daily_limit: dailyLimit };
-			} catch (e) {
-				console.error('manual user_daily_usage increment failed:', e);
-			}
+			// On RPC error, do not block. Dashboard will still display daily usage via API.
 		} else {
 			const d = Array.isArray(dailyData) ? dailyData[0] : dailyData;
 			if (d && typeof d.allowed === 'boolean' && !d.allowed) {

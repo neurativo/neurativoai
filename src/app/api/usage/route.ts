@@ -36,18 +36,18 @@ export async function GET(req: Request) {
     // Period start (YYYY-MM-01)
     const monthDate = new Date();
     monthDate.setDate(1);
-    const periodStart = monthDate.toISOString().split('T')[0];
+    const monthStart = monthDate.toISOString().split('T')[0];
 
-    // Read monthly usage from new table
-    const { data: mqu } = await supabase
-      .from('monthly_quiz_usage')
-      .select('used_count, plan_limit')
+    // Read monthly usage from user_usage
+    const { data: uu } = await supabase
+      .from('user_usage')
+      .select('used_count')
       .eq('user_id', user.id)
-      .eq('period_start', periodStart)
+      .eq('month_start', monthStart)
       .maybeSingle();
 
-    const monthly_used = mqu?.used_count ?? 0;
-    const monthly_limit = mqu?.plan_limit ?? (planData?.monthly_quiz_generations ?? 20);
+    const monthly_used = uu?.used_count ?? 0;
+    const monthly_limit = planData?.monthly_quiz_generations ?? 20;
 
     return NextResponse.json({
       success: true,

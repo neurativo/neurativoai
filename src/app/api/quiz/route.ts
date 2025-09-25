@@ -189,10 +189,11 @@ export async function POST(req: Request) {
 
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
-		// Reserve usage via new RPC (single-source of truth)
-		const { data: claimData, error: claimErr } = await supabase.rpc('claim_quiz_slot', {
+		// Reserve usage via new RPC user_usage_claim
+		const { data: claimData, error: claimErr } = await supabase.rpc('user_usage_claim', {
 			p_user_id: user.id,
-			p_limit: monthlyLimit,
+			p_plan_id: currentPlan,
+			p_plan_limit: monthlyLimit,
 		});
 		let reservationUsage = { monthly_used: 0, monthly_limit: monthlyLimit } as { monthly_used: number; monthly_limit: number };
 		if (claimErr) {
@@ -206,11 +207,11 @@ export async function POST(req: Request) {
 			} else if (!claim.allowed) {
 				return NextResponse.json({
 					success: false,
-					error: `Monthly quiz limit reached (${claim.plan_limit ?? monthlyLimit}/month).`,
-					usage: { monthly_used: claim.used_count ?? 0, monthly_limit: claim.plan_limit ?? monthlyLimit }
+					error: `Monthly quiz limit reached (${claim.monthly_limit ?? monthlyLimit}/month).`,
+					usage: { monthly_used: claim.monthly_used ?? 0, monthly_limit: claim.monthly_limit ?? monthlyLimit }
 				}, { status: 429 });
 			} else {
-				reservationUsage = { monthly_used: claim.used_count, monthly_limit: claim.plan_limit };
+				reservationUsage = { monthly_used: claim.monthly_used, monthly_limit: claim.monthly_limit };
 			}
 		}
 

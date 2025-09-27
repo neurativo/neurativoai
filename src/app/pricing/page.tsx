@@ -135,31 +135,31 @@ function PricingPageInner() {
                           <Link href="/pricing/upgrade?plan=premium" className="cta-button w-full">Upgrade</Link>
                         )}
                     </div>
-                    {/* Pro */}
-                    <div className={`feature-card relative transition-transform duration-200 hover:scale-[1.03] ${currentPlan === 'pro' ? 'ring-2 ring-gold-400/50' : ''}`}>
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs bg-gradient-to-r from-yellow-600/40 to-orange-600/40 border border-yellow-400/60 px-2 py-1 rounded-full">Enterprise</div>
-                        <h3 className="text-2xl font-semibold text-white mb-1">Pro</h3>
-                        <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-blue-300 mb-2">$39</div>
-                        <p className="text-gray-300 mb-1">For power users & educators.</p>
-                        <div className="text-xs text-gray-400 mb-4">Up to 1000 quizzes/month</div>
+                    {/* Special - Live Lecture Plan */}
+                    <div className={`feature-card relative transition-transform duration-200 hover:scale-[1.03] ${currentPlan === 'special' ? 'ring-2 ring-gold-400/50' : ''}`}>
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs bg-gradient-to-r from-amber-600/40 to-orange-600/40 border border-amber-400/60 px-2 py-1 rounded-full">Special</div>
+                        <h3 className="text-2xl font-semibold text-white mb-1">Special</h3>
+                        <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-300 mb-2">$29</div>
+                        <p className="text-gray-300 mb-1">Live Lecture Assistant + Premium Features.</p>
+                        <div className="text-xs text-gray-400 mb-4">Everything + Live Lecture AI</div>
                         <ul className="text-left text-gray-300 space-y-3 mb-6">
-                            <li className="flex items-start gap-2"><i className="fas fa-check text-purple-300 mt-1"/><span>1000 quiz generations / month</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-link text-purple-300 mt-1"/><span>500 URL quizzes / month</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-file-text text-purple-300 mt-1"/><span>800 text quizzes / month</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-file-pdf text-purple-300 mt-1"/><span>300 document quizzes / month</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-sun text-purple-300 mt-1"/><span>Daily cap: 100 quizzes/day</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-check text-purple-300 mt-1"/><span>Up to 50 questions per quiz</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-crown text-purple-300 mt-1"/><span>All features + API access</span></li>
-                            <li className="flex items-start gap-2"><i className="fas fa-phone text-purple-300 mt-1"/><span>Priority support</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-microphone text-amber-300 mt-1"/><span><strong>Live Lecture Assistant</strong></span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-sticky-note text-amber-300 mt-1"/><span>Real-time note generation</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-layer-group text-amber-300 mt-1"/><span>Automatic flashcard creation</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-question-circle text-amber-300 mt-1"/><span>Live Q&A during lectures</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-bookmark text-amber-300 mt-1"/><span>Bookmark & highlight features</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-download text-amber-300 mt-1"/><span>Revision pack downloads</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-check text-purple-300 mt-1"/><span>500 quiz generations / month</span></li>
+                            <li className="flex items-start gap-2"><i className="fas fa-crown text-purple-300 mt-1"/><span>All Premium features included</span></li>
                         </ul>
-                        {currentPlan === 'pro' ? (
+                        {currentPlan === 'special' ? (
                           <button className="btn btn-outline w-full rounded-full" disabled>Current plan</button>
                         ) : !userId ? (
                           <Link href="/signup" className="btn w-full rounded-full bg-white/10 border border-white/20 text-white">Sign in to upgrade</Link>
-                        ) : pendingPlans.has('pro') ? (
+                        ) : pendingPlans.has('special') ? (
                           <button className="btn w-full rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-200" disabled>In verification…</button>
                         ) : (
-                          <Link href="/pricing/upgrade?plan=pro" className="cta-button w-full">Upgrade</Link>
+                          <Link href="/pricing/upgrade?plan=special" className="cta-button w-full">Upgrade</Link>
                         )}
                     </div>
                 </div>

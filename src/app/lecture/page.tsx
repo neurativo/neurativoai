@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { LiveLectureAssistant, LiveLectureState, Flashcard, Bookmark, Highlight } from "@/app/lib/liveLectureAssistant";
 
 export default function LiveLecturePage() {
@@ -18,24 +19,56 @@ export default function LiveLecturePage() {
   const [highlightText, setHighlightText] = useState("");
   const [bookmarkNotes, setBookmarkNotes] = useState("");
   const [setupComplete, setSetupComplete] = useState(false);
+  const [userPlan, setUserPlan] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Check if setup is complete
+  // Check user plan and setup
   useEffect(() => {
-    const checkSetup = () => {
-      const hasOpenAI = !!process.env.NEXT_PUBLIC_OPENAI_API_KEY || !!process.env.OPENAI_API_KEY;
-      const hasGoogle = !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || !!process.env.GOOGLE_API_KEY;
-      const hasAzure = !!process.env.NEXT_PUBLIC_AZURE_API_KEY || !!process.env.AZURE_API_KEY;
-      const hasAssemblyAI = !!process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || !!process.env.ASSEMBLYAI_API_KEY;
-      
-      if (!hasOpenAI && !hasGoogle && !hasAzure && !hasAssemblyAI) {
-        router.push('/lecture/landing');
-        return;
+    const checkAccess = async () => {
+      try {
+        // Check if user is logged in and has Special plan
+        const { data: { user } } = await getSupabaseBrowser().auth.getUser();
+        if (!user) {
+          router.push('/signup');
+          return;
+        }
+
+        // Check user's subscription plan
+        const { data: subscription } = await getSupabaseBrowser()
+          .from('subscriptions')
+          .select('plan')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const plan = subscription?.plan;
+        setUserPlan(plan);
+
+        if (plan !== 'special') {
+          router.push('/pricing?feature=live-lecture');
+          return;
+        }
+
+        // Check if API keys are configured
+        const hasOpenAI = !!process.env.NEXT_PUBLIC_OPENAI_API_KEY || !!process.env.OPENAI_API_KEY;
+        const hasGoogle = !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || !!process.env.GOOGLE_API_KEY;
+        const hasAzure = !!process.env.NEXT_PUBLIC_AZURE_API_KEY || !!process.env.AZURE_API_KEY;
+        const hasAssemblyAI = !!process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || !!process.env.ASSEMBLYAI_API_KEY;
+        
+        if (!hasOpenAI && !hasGoogle && !hasAzure && !hasAssemblyAI) {
+          router.push('/lecture/landing');
+          return;
+        }
+        
+        setSetupComplete(true);
+      } catch (error) {
+        console.error('Error checking access:', error);
+        router.push('/signup');
+      } finally {
+        setIsLoading(false);
       }
-      
-      setSetupComplete(true);
     };
 
-    checkSetup();
+    checkAccess();
   }, [router]);
 
   // Update state periodically
@@ -97,40 +130,50 @@ export default function LiveLecturePage() {
     }
   };
 
-  if (!setupComplete) {
+  if (isLoading || !setupComplete) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white flex items-center justify-center">
+        <div className="text-center glassmorphism-card p-8">
           <div className="loading loading-spinner loading-lg mb-4"></div>
-          <p className="text-gray-400">Checking setup...</p>
+          <p className="text-gray-300">
+            {isLoading ? 'Checking access...' : 'Setting up Live Lecture Assistant...'}
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Live Lecture Assistant</h1>
-          <Link 
-            href="/lecture/landing" 
-            className="btn btn-outline btn-sm"
-          >
-            <i className="fas fa-info-circle mr-2"></i>
-            Setup Guide
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="glassmorphism-card p-8 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Live Lecture Assistant
+            </h1>
+            <Link 
+              href="/lecture/landing" 
+              className="btn btn-outline btn-sm glassmorphism-btn"
+            >
+              <i className="fas fa-info-circle mr-2"></i>
+              Setup Guide
+            </Link>
+          </div>
+          <p className="text-gray-300 text-lg">
+            Transform your university lectures into comprehensive study materials in real-time with AI-powered transcription and note generation.
+          </p>
         </div>
         
         {/* Control Panel */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Lecture Controls</h2>
-          <div className="flex gap-4 mb-4">
+        <div className="glassmorphism-card p-6 mb-8">
+          <h2 className="text-2xl font-semibold mb-6 text-center">Lecture Controls</h2>
+          <div className="flex justify-center gap-4 mb-6">
             {!isInitialized ? (
               <button
                 onClick={startLecture}
-                className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-semibold"
+                className="btn btn-primary btn-lg glassmorphism-btn px-8 py-3 text-lg font-semibold"
               >
+                <i className="fas fa-microphone mr-2"></i>
                 Start Lecture
               </button>
             ) : (
@@ -138,173 +181,224 @@ export default function LiveLecturePage() {
                 {state?.isPaused ? (
                   <button
                     onClick={resumeLecture}
-                    className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-semibold"
+                    className="btn btn-info btn-lg glassmorphism-btn px-6 py-3 text-lg font-semibold"
                   >
+                    <i className="fas fa-play mr-2"></i>
                     Resume
                   </button>
                 ) : (
                   <button
                     onClick={pauseLecture}
-                    className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-semibold"
+                    className="btn btn-warning btn-lg glassmorphism-btn px-6 py-3 text-lg font-semibold"
                   >
+                    <i className="fas fa-pause mr-2"></i>
                     Pause
                   </button>
                 )}
                 <button
                   onClick={stopLecture}
-                  className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-semibold"
+                  className="btn btn-error btn-lg glassmorphism-btn px-6 py-3 text-lg font-semibold"
                 >
+                  <i className="fas fa-stop mr-2"></i>
                   End Lecture
                 </button>
               </>
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Bookmark */}
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Add Bookmark</h3>
+            <div className="glassmorphism-card p-4">
+              <h3 className="font-semibold mb-3 text-center">
+                <i className="fas fa-bookmark mr-2 text-purple-400"></i>
+                Add Bookmark
+              </h3>
               <textarea
                 value={bookmarkNotes}
                 onChange={(e) => setBookmarkNotes(e.target.value)}
                 placeholder="Add notes for this bookmark..."
-                className="w-full bg-gray-600 text-white p-2 rounded mb-2"
+                className="w-full glassmorphism-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
                 rows={2}
               />
               <button
                 onClick={addBookmark}
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-sm"
+                className="btn btn-primary w-full glassmorphism-btn"
               >
+                <i className="fas fa-bookmark mr-2"></i>
                 Bookmark
               </button>
             </div>
 
             {/* Highlight */}
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Highlight & Explain</h3>
+            <div className="glassmorphism-card p-4">
+              <h3 className="font-semibold mb-3 text-center">
+                <i className="fas fa-highlighter mr-2 text-orange-400"></i>
+                Highlight & Explain
+              </h3>
               <input
                 type="text"
                 value={highlightText}
                 onChange={(e) => setHighlightText(e.target.value)}
                 placeholder="Highlight text for explanation..."
-                className="w-full bg-gray-600 text-white p-2 rounded mb-2"
+                className="w-full glassmorphism-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
               />
               <button
                 onClick={addHighlight}
-                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-sm"
+                className="btn btn-warning w-full glassmorphism-btn"
               >
+                <i className="fas fa-highlighter mr-2"></i>
                 Highlight
               </button>
             </div>
 
             {/* Ask Question */}
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Ask Question</h3>
+            <div className="glassmorphism-card p-4">
+              <h3 className="font-semibold mb-3 text-center">
+                <i className="fas fa-question-circle mr-2 text-cyan-400"></i>
+                Ask Question
+              </h3>
               <input
                 type="text"
                 value={studentQuestion}
                 onChange={(e) => setStudentQuestion(e.target.value)}
                 placeholder="Ask a question about the lecture..."
-                className="w-full bg-gray-600 text-white p-2 rounded mb-2"
+                className="w-full glassmorphism-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
               />
               <button
                 onClick={askQuestion}
-                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded text-sm"
+                className="btn btn-info w-full glassmorphism-btn"
               >
+                <i className="fas fa-question-circle mr-2"></i>
                 Ask
               </button>
             </div>
           </div>
 
           {questionAnswer && (
-            <div className="mt-4 p-4 bg-blue-900 rounded-lg">
-              <h4 className="font-semibold mb-2">AI Answer:</h4>
-              <p>{questionAnswer}</p>
+            <div className="mt-6 glassmorphism-card p-4">
+              <h4 className="font-semibold mb-2 text-cyan-400">
+                <i className="fas fa-robot mr-2"></i>
+                AI Answer:
+              </h4>
+              <p className="text-gray-300">{questionAnswer}</p>
             </div>
           )}
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Live Notes */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Live Notes</h2>
-            <div className="bg-gray-700 p-4 rounded-lg min-h-[300px] max-h-[400px] overflow-y-auto">
+          <div className="glassmorphism-card p-6">
+            <h2 className="text-2xl font-semibold mb-6 text-center">
+              <i className="fas fa-sticky-note mr-2 text-green-400"></i>
+              Live Notes
+            </h2>
+            <div className="glassmorphism-card p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
               {currentNotes.length > 0 ? (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {currentNotes.map((note, index) => (
-                    <li key={index} className="text-sm">
+                    <li key={index} className="text-sm text-gray-300 leading-relaxed">
                       {note}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-400">Notes will appear here as the lecture progresses...</p>
+                <div className="text-center text-gray-400 py-8">
+                  <i className="fas fa-sticky-note text-4xl mb-4 opacity-50"></i>
+                  <p>Notes will appear here as the lecture progresses...</p>
+                </div>
               )}
             </div>
           </div>
 
           {/* Recent Flashcards */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Recent Flashcards</h2>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="glassmorphism-card p-6">
+            <h2 className="text-2xl font-semibold mb-6 text-center">
+              <i className="fas fa-layer-group mr-2 text-purple-400"></i>
+              Recent Flashcards
+            </h2>
+            <div className="space-y-4 max-h-[400px] overflow-y-auto">
               {recentFlashcards.length > 0 ? (
                 recentFlashcards.map((card) => (
-                  <div key={card.id} className="bg-gray-700 p-3 rounded-lg">
-                    <div className="font-semibold text-sm mb-1">{card.front}</div>
-                    <div className="text-xs text-gray-300">{card.back}</div>
-                    <div className="text-xs text-gray-500 mt-1">
+                  <div key={card.id} className="glassmorphism-card p-4">
+                    <div className="font-semibold text-sm mb-2 text-white">{card.front}</div>
+                    <div className="text-xs text-gray-300 mb-2">{card.back}</div>
+                    <div className="text-xs text-gray-500">
+                      <i className="fas fa-clock mr-1"></i>
                       {card.timestamp.toLocaleTimeString()}
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-400">Flashcards will be generated automatically...</p>
+                <div className="text-center text-gray-400 py-8">
+                  <i className="fas fa-layer-group text-4xl mb-4 opacity-50"></i>
+                  <p>Flashcards will be generated automatically...</p>
+                </div>
               )}
             </div>
           </div>
         </div>
 
         {/* Bookmarks and Highlights */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Bookmarks */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Bookmarks ({bookmarks.length})</h2>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+          <div className="glassmorphism-card p-6">
+            <h2 className="text-2xl font-semibold mb-6 text-center">
+              <i className="fas fa-bookmark mr-2 text-purple-400"></i>
+              Bookmarks ({bookmarks.length})
+            </h2>
+            <div className="space-y-4 max-h-[300px] overflow-y-auto">
               {bookmarks.length > 0 ? (
                 bookmarks.map((bookmark) => (
-                  <div key={bookmark.id} className="bg-gray-700 p-3 rounded-lg">
-                    <div className="text-sm text-gray-300 mb-1">
+                  <div key={bookmark.id} className="glassmorphism-card p-4">
+                    <div className="text-sm text-gray-400 mb-2">
+                      <i className="fas fa-clock mr-1"></i>
                       {bookmark.timestamp.toLocaleTimeString()}
                     </div>
-                    <div className="text-sm mb-2">{bookmark.transcript.slice(0, 100)}...</div>
+                    <div className="text-sm mb-2 text-gray-300">{bookmark.transcript.slice(0, 100)}...</div>
                     {bookmark.notes && (
-                      <div className="text-xs text-gray-400">{bookmark.notes}</div>
+                      <div className="text-xs text-gray-400 bg-gray-800 p-2 rounded">
+                        <i className="fas fa-sticky-note mr-1"></i>
+                        {bookmark.notes}
+                      </div>
                     )}
                   </div>
                 ))
               ) : (
-                <p className="text-gray-400">No bookmarks yet</p>
+                <div className="text-center text-gray-400 py-8">
+                  <i className="fas fa-bookmark text-4xl mb-4 opacity-50"></i>
+                  <p>No bookmarks yet</p>
+                </div>
               )}
             </div>
           </div>
 
           {/* Highlights */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Highlights ({highlights.length})</h2>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+          <div className="glassmorphism-card p-6">
+            <h2 className="text-2xl font-semibold mb-6 text-center">
+              <i className="fas fa-highlighter mr-2 text-orange-400"></i>
+              Highlights ({highlights.length})
+            </h2>
+            <div className="space-y-4 max-h-[300px] overflow-y-auto">
               {highlights.length > 0 ? (
                 highlights.map((highlight) => (
-                  <div key={highlight.id} className="bg-gray-700 p-3 rounded-lg">
-                    <div className="text-sm text-gray-300 mb-1">
+                  <div key={highlight.id} className="glassmorphism-card p-4">
+                    <div className="text-sm text-gray-400 mb-2">
+                      <i className="fas fa-clock mr-1"></i>
                       {highlight.timestamp.toLocaleTimeString()}
                     </div>
-                    <div className="text-sm font-semibold mb-2">"{highlight.text}"</div>
-                    <div className="text-xs text-gray-400">{highlight.explanation}</div>
+                    <div className="text-sm font-semibold mb-2 text-yellow-300">"{highlight.text}"</div>
+                    <div className="text-xs text-gray-300 bg-gray-800 p-2 rounded">
+                      <i className="fas fa-lightbulb mr-1"></i>
+                      {highlight.explanation}
+                    </div>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-400">No highlights yet</p>
+                <div className="text-center text-gray-400 py-8">
+                  <i className="fas fa-highlighter text-4xl mb-4 opacity-50"></i>
+                  <p>No highlights yet</p>
+                </div>
               )}
             </div>
           </div>
@@ -312,28 +406,39 @@ export default function LiveLecturePage() {
 
         {/* Lecture Status */}
         {state && (
-          <div className="mt-6 bg-gray-800 rounded-lg p-4">
-            <h3 className="font-semibold mb-2">Lecture Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-gray-400">Status:</span>
-                <span className={`ml-2 ${state.isRecording ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="glassmorphism-card p-6">
+            <h3 className="text-xl font-semibold mb-6 text-center">
+              <i className="fas fa-chart-line mr-2 text-blue-400"></i>
+              Lecture Status
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+              <div className="text-center">
+                <div className="text-gray-400 mb-1">Status</div>
+                <div className={`font-semibold ${state.isRecording ? 'text-green-400' : 'text-red-400'}`}>
+                  <i className={`fas fa-circle mr-1 ${state.isRecording ? 'text-green-400' : 'text-red-400'}`}></i>
                   {state.isRecording ? (state.isPaused ? 'Paused' : 'Recording') : 'Stopped'}
-                </span>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-400">Duration:</span>
-                <span className="ml-2">
+              <div className="text-center">
+                <div className="text-gray-400 mb-1">Duration</div>
+                <div className="font-semibold text-white">
+                  <i className="fas fa-clock mr-1"></i>
                   {Math.floor((Date.now() - state.startTime.getTime()) / 1000 / 60)} min
-                </span>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-400">Sections:</span>
-                <span className="ml-2">{state.sections.length}</span>
+              <div className="text-center">
+                <div className="text-gray-400 mb-1">Sections</div>
+                <div className="font-semibold text-white">
+                  <i className="fas fa-layer-group mr-1"></i>
+                  {state.sections.length}
+                </div>
               </div>
-              <div>
-                <span className="text-gray-400">Flashcards:</span>
-                <span className="ml-2">{state.flashcards.length}</span>
+              <div className="text-center">
+                <div className="text-gray-400 mb-1">Flashcards</div>
+                <div className="font-semibold text-white">
+                  <i className="fas fa-cards-blank mr-1"></i>
+                  {state.flashcards.length}
+                </div>
               </div>
             </div>
           </div>

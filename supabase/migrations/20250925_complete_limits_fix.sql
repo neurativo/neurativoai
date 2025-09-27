@@ -38,49 +38,50 @@ end $$;
 -- First, let's see what columns exist and update them safely
 update public.plans set 
   url_quiz_limit = case 
-    when key = 'free' then 5
-    when key = 'plus' then 50
-    when key = 'premium' then 150
-    when key = 'pro' then 500
+    when key::text = 'free' then 5
+    when key::text = 'plus' then 50
+    when key::text = 'premium' then 150
+    when key::text = 'pro' then 500
     else url_quiz_limit
   end,
   text_quiz_limit = case 
-    when key = 'free' then 10
-    when key = 'plus' then 80
-    when key = 'premium' then 250
-    when key = 'pro' then 800
+    when key::text = 'free' then 10
+    when key::text = 'plus' then 80
+    when key::text = 'premium' then 250
+    when key::text = 'pro' then 800
     else text_quiz_limit
   end,
   document_quiz_limit = case 
-    when key = 'free' then 5
-    when key = 'plus' then 30
-    when key = 'premium' then 100
-    when key = 'pro' then 300
+    when key::text = 'free' then 5
+    when key::text = 'plus' then 30
+    when key::text = 'premium' then 100
+    when key::text = 'pro' then 300
     else document_quiz_limit
   end,
   daily_quiz_generations = case 
-    when key = 'free' then 5
-    when key = 'plus' then 20
-    when key = 'premium' then 50
-    when key = 'pro' then 100
+    when key::text = 'free' then 5
+    when key::text = 'plus' then 20
+    when key::text = 'premium' then 50
+    when key::text = 'pro' then 100
     else daily_quiz_generations
   end,
   updated_at = now()
-where key in ('free', 'plus', 'premium', 'pro');
+where key::text in ('free', 'plus', 'premium', 'pro');
 
 -- 3. Insert new plans only if they don't exist, with all required columns
+-- Cast text values to plan_t enum type
 insert into public.plans (key, name, monthly_quiz_generations, max_questions_per_quiz, ai_hints, priority_generation, url_quiz_limit, text_quiz_limit, document_quiz_limit, daily_quiz_generations) 
-select 'free', 'Free', 20, 8, false, false, 5, 10, 5, 5
-where not exists (select 1 from public.plans where key = 'free')
+select 'free'::plan_t, 'Free', 20, 8, false, false, 5, 10, 5, 5
+where not exists (select 1 from public.plans where key = 'free'::plan_t)
 union all
-select 'plus', 'Plus', 100, 15, true, true, 50, 80, 30, 20
-where not exists (select 1 from public.plans where key = 'plus')
+select 'plus'::plan_t, 'Plus', 100, 15, true, true, 50, 80, 30, 20
+where not exists (select 1 from public.plans where key = 'plus'::plan_t)
 union all
-select 'premium', 'Premium', 300, 25, true, true, 150, 250, 100, 50
-where not exists (select 1 from public.plans where key = 'premium')
+select 'premium'::plan_t, 'Premium', 300, 25, true, true, 150, 250, 100, 50
+where not exists (select 1 from public.plans where key = 'premium'::plan_t)
 union all
-select 'pro', 'Pro', 1000, 50, true, true, 500, 800, 300, 100
-where not exists (select 1 from public.plans where key = 'pro');
+select 'pro'::plan_t, 'Pro', 1000, 50, true, true, 500, 800, 300, 100
+where not exists (select 1 from public.plans where key = 'pro'::plan_t);
 
 -- 3. Create source-specific usage tracking table
 create table if not exists public.user_source_usage (

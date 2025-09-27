@@ -34,21 +34,53 @@ do $$ begin
   end if;
 end $$;
 
--- 2. Insert or update plans with comprehensive limits
-insert into public.plans (key, name, monthly_quiz_generations, daily_quiz_generations, max_questions_per_quiz, url_quiz_limit, text_quiz_limit, document_quiz_limit) values
-('free', 'Free', 20, 5, 8, 5, 10, 5),
-('plus', 'Plus', 100, 20, 15, 50, 80, 30),
-('premium', 'Premium', 300, 50, 25, 150, 250, 100),
-('pro', 'Pro', 1000, 100, 50, 500, 800, 300)
-on conflict (key) do update set
-  name = excluded.name,
-  monthly_quiz_generations = excluded.monthly_quiz_generations,
-  daily_quiz_generations = excluded.daily_quiz_generations,
-  max_questions_per_quiz = excluded.max_questions_per_quiz,
-  url_quiz_limit = excluded.url_quiz_limit,
-  text_quiz_limit = excluded.text_quiz_limit,
-  document_quiz_limit = excluded.document_quiz_limit,
-  updated_at = now();
+-- 2. Update existing plans with new column values instead of inserting
+-- First, let's see what columns exist and update them safely
+update public.plans set 
+  url_quiz_limit = case 
+    when key = 'free' then 5
+    when key = 'plus' then 50
+    when key = 'premium' then 150
+    when key = 'pro' then 500
+    else url_quiz_limit
+  end,
+  text_quiz_limit = case 
+    when key = 'free' then 10
+    when key = 'plus' then 80
+    when key = 'premium' then 250
+    when key = 'pro' then 800
+    else text_quiz_limit
+  end,
+  document_quiz_limit = case 
+    when key = 'free' then 5
+    when key = 'plus' then 30
+    when key = 'premium' then 100
+    when key = 'pro' then 300
+    else document_quiz_limit
+  end,
+  daily_quiz_generations = case 
+    when key = 'free' then 5
+    when key = 'plus' then 20
+    when key = 'premium' then 50
+    when key = 'pro' then 100
+    else daily_quiz_generations
+  end,
+  updated_at = now()
+where key in ('free', 'plus', 'premium', 'pro');
+
+-- 3. Insert new plans only if they don't exist, with all required columns
+insert into public.plans (key, name, monthly_quiz_generations, max_questions_per_quiz, ai_hints, priority_generation, url_quiz_limit, text_quiz_limit, document_quiz_limit, daily_quiz_generations) 
+select 'free', 'Free', 20, 8, false, false, 5, 10, 5, 5
+where not exists (select 1 from public.plans where key = 'free')
+union all
+select 'plus', 'Plus', 100, 15, true, true, 50, 80, 30, 20
+where not exists (select 1 from public.plans where key = 'plus')
+union all
+select 'premium', 'Premium', 300, 25, true, true, 150, 250, 100, 50
+where not exists (select 1 from public.plans where key = 'premium')
+union all
+select 'pro', 'Pro', 1000, 50, true, true, 500, 800, 300, 100
+where not exists (select 1 from public.plans where key = 'pro');
 
 -- 3. Create source-specific usage tracking table
 create table if not exists public.user_source_usage (

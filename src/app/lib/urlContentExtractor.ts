@@ -742,13 +742,23 @@ export class URLContentExtractor {
 
   private static async extractGenericContent(url: string): Promise<ExtractedContent> {
     try {
-      const browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
-      });
-      const page = await browser.newPage();
-      await page.setUserAgent(this.USER_AGENT);
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+      // Try Puppeteer first, but fallback to HTTP fetch if it fails
+      let browser;
+      let page;
+      
+      try {
+        browser = await puppeteer.launch({ 
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
+        });
+        page = await browser.newPage();
+        await page.setUserAgent(this.USER_AGENT);
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+      } catch (puppeteerError) {
+        console.log('Puppeteer failed, falling back to HTTP fetch:', puppeteerError);
+        // Fallback to HTTP fetch
+        return await this.extractWithHttpFetch(url);
+      }
       
       // Extract content using smart strategies
       const result = await page.evaluate(() => {
@@ -1204,7 +1214,108 @@ export class URLContentExtractor {
         }
       };
     } catch (error) {
-      throw new Error(`Generic extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // If Puppeteer fails, try HTTP fetch as fallback
+      console.log('Puppeteer extraction failed, trying HTTP fetch fallback:', error);
+      try {
+        return await this.extractWithHttpFetch(url);
+      } catch (fallbackError) {
+        throw new Error(`Generic extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }
+
+  // HTTP fetch fallback method for serverless environments
+  private static async extractWithHttpFetch(url: string): Promise<ExtractedContent> {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': this.USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const html = await response.text();
+      const $ = cheerio.load(html);
+
+      // Remove unwanted elements
+      $('script, style, nav, header, footer, aside, .ad, .advertisement, .ads, .social, .share, .comments, .comment, .related, .recommended, .trending, .popular, .featured, .latest, .recent, .cookie, .privacy, .terms, .disclaimer, .legal, .policy, .gdpr, .consent, .accept, .decline, .analytics, .tracking, .pixel, .beacon, .noise, .junk, .spam, .irrelevant, .unrelated, .widget, .widget-container, .plugin, .addon, .site-header, .site-footer, .site-nav, .site-menu, .main-nav, .primary-nav, .secondary-nav, .content-nav, .article-nav, .page-nav, .cart, .checkout, .product-nav, .category-nav, .price, .buy-now, .add-to-cart, .purchase, .blog-nav, .post-nav, .author-bio, .author-info, .post-meta, .post-tags, .post-categories, .breaking-news, .news-ticker, .live-updates, .weather, .stock, .market-data').remove();
+
+      // Extract title
+      const title = $('h1').first().text().trim() || 
+                   $('title').text().trim() || 
+                   $('meta[property="og:title"]').attr('content') || 
+                   'Untitled';
+
+      // Extract content from common article selectors
+      let content = '';
+      const contentSelectors = [
+        'article',
+        '[role="article"]',
+        '.article-content',
+        '.post-content',
+        '.entry-content',
+        '.content',
+        '.main-content',
+        '.article-body',
+        '.post-body',
+        '.entry',
+        '.post',
+        'main',
+        '.main'
+      ];
+
+      for (const selector of contentSelectors) {
+        const element = $(selector).first();
+        if (element.length > 0) {
+          content = element.text().trim();
+          if (content.length > 100) break;
+        }
+      }
+
+      // If no content found, try to get from body
+      if (!content || content.length < 100) {
+        content = $('body').text().trim();
+      }
+
+      // Clean up content
+      content = content
+        .replace(/\s+/g, ' ')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+
+      if (!content || content.length < 50) {
+        throw new Error('No meaningful content found on this page');
+      }
+
+      return {
+        title,
+        content,
+        type: 'article',
+        metadata: {
+          wordCount: content.split(' ').length,
+          readingTime: Math.ceil(content.split(' ').length / 200),
+          analysis: {
+            type: 'general',
+            confidence: 60,
+            quality: 'medium',
+            structure: 'fair',
+            readability: 'moderate',
+            topics: [],
+            sentiment: 'neutral',
+            complexity: 'intermediate'
+          }
+        }
+      };
+    } catch (error) {
+      throw new Error(`HTTP fetch extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

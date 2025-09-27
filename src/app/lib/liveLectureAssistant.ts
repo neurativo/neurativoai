@@ -212,11 +212,22 @@ export class LiveLectureAssistant {
     if (!this.state.isRecording || this.state.isPaused) return;
 
     try {
+      console.log('Processing audio chunk:', { 
+        size: chunk.data.size, 
+        type: chunk.data.type, 
+        timestamp: chunk.timestamp 
+      });
+      
       // Send audio chunk to transcription service
       const result = await this.transcriptionService.transcribeAudio(chunk.data);
       
+      console.log('Transcription result:', result);
+      
       if (result.text && result.text.trim()) {
+        console.log('Processing transcription text:', result.text);
         await this.processTranscriptionResult(result);
+      } else {
+        console.log('No text in transcription result');
       }
     } catch (error) {
       console.error('Error processing audio chunk:', error);
@@ -228,11 +239,15 @@ export class LiveLectureAssistant {
     if (!this.state.isRecording || this.state.isPaused) return;
 
     try {
+      console.log('Processing transcription result:', result);
+      
       // 1. Process transcript
       const processedTranscript = await this.transcriptProcessor.processTranscript(result.text);
+      console.log('Processed transcript:', processedTranscript);
       
       // 2. Update current transcript
       this.state.currentTranscript += processedTranscript.cleanText + ' ';
+      console.log('Updated current transcript length:', this.state.currentTranscript.length);
       
       // 3. Check for section breaks
       const shouldCreateSection = await this.transcriptProcessor.shouldCreateSection(
@@ -241,16 +256,20 @@ export class LiveLectureAssistant {
       );
       
       if (shouldCreateSection) {
+        console.log('Creating new section');
         await this.createNewSection();
       }
       
       // 4. Generate real-time notes
+      console.log('Generating live notes');
       await this.generateLiveNotes();
       
       // 5. Generate flashcards for new concepts
+      console.log('Generating flashcards');
       await this.generateFlashcards();
       
       this.state.lastUpdate = new Date();
+      console.log('Transcription processing complete');
     } catch (error) {
       console.error('Error processing transcription result:', error);
     }

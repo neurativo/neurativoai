@@ -154,6 +154,8 @@ export class AudioRecorder {
   private processChunk(data: Blob): void {
     if (!this.onChunkCallback) return;
 
+    console.log('Audio chunk received:', { size: data.size, type: data.type });
+    
     const chunk: AudioChunk = {
       data,
       timestamp: Date.now(),

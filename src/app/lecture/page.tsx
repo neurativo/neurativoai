@@ -65,7 +65,7 @@ export default function LiveLecturePage() {
     checkAccess();
   }, [router]);
 
-  // Update state periodically
+  // Update state periodically for real-time updates
   useEffect(() => {
     if (!setupComplete) return;
     
@@ -76,7 +76,7 @@ export default function LiveLecturePage() {
       setRecentFlashcards(assistant.getRecentFlashcards());
       setBookmarks(assistant.getBookmarks());
       setHighlights(assistant.getHighlights());
-    }, 1000);
+    }, 500); // Update every 500ms for smoother real-time experience
 
     return () => clearInterval(interval);
   }, [assistant, setupComplete]);
@@ -349,42 +349,79 @@ export default function LiveLecturePage() {
           )}
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Live Notes */}
-          <div className="feature-card p-6">
-            <h2 className="text-2xl font-semibold mb-6 text-center">
-              <i className="fas fa-sticky-note mr-2 text-green-400"></i>
-              Live Notes
-            </h2>
-            <div className="feature-card p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
-              {currentNotes.length > 0 ? (
-                <ul className="space-y-3">
-                  {currentNotes.map((note, index) => (
-                    <li key={index} className="text-sm text-gray-300 leading-relaxed">
-                      {note}
-                    </li>
-                  ))}
-                </ul>
+        {/* Real-Time Lecture Environment */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+          {/* Live Transcript - Left Side */}
+          <div className="feature-card p-6 h-[600px] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                <i className="fas fa-microphone mr-2 text-blue-400"></i>
+                Live Transcript
+              </h2>
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${state?.isRecording ? (state.isPaused ? 'bg-yellow-400' : 'bg-green-400 animate-pulse') : 'bg-gray-400'}`}></div>
+                <span className="text-sm text-gray-400">
+                  {state?.isRecording ? (state.isPaused ? 'Paused' : 'Recording') : 'Stopped'}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+              {state?.currentTranscript ? (
+                <div className="text-gray-200 leading-relaxed whitespace-pre-wrap">
+                  {state.currentTranscript}
+                  <span className="inline-block w-2 h-4 bg-blue-400 animate-pulse ml-1"></span>
+                </div>
               ) : (
-                <div className="text-center text-gray-400 py-8">
-                  <i className="fas fa-sticky-note text-4xl mb-4 opacity-50"></i>
-                  <p>Notes will appear here as the lecture progresses...</p>
+                <div className="text-center text-gray-500 py-8">
+                  <i className="fas fa-microphone text-3xl mb-3 opacity-50"></i>
+                  <p>Transcript will appear here as you speak...</p>
                 </div>
               )}
             </div>
           </div>
 
+          {/* Live Notes - Right Side */}
+          <div className="feature-card p-6 h-[600px] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                <i className="fas fa-sticky-note mr-2 text-green-400"></i>
+                Live Notes
+              </h2>
+              <div className="text-sm text-gray-400">
+                {currentNotes.length} notes
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+              {currentNotes.length > 0 ? (
+                <div className="space-y-3">
+                  {currentNotes.map((note, index) => (
+                    <div key={index} className="bg-gray-800/50 rounded-lg p-3 border-l-4 border-green-400">
+                      <div className="text-sm text-gray-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: note.replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-300">$1</strong>') }}></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  <i className="fas fa-sticky-note text-3xl mb-3 opacity-50"></i>
+                  <p>AI-generated notes will appear here...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary Content Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Recent Flashcards */}
           <div className="feature-card p-6">
-            <h2 className="text-2xl font-semibold mb-6 text-center">
+            <h2 className="text-xl font-semibold mb-4">
               <i className="fas fa-layer-group mr-2 text-purple-400"></i>
-              Recent Flashcards
+              Auto-Generated Flashcards
             </h2>
-            <div className="space-y-4 max-h-[400px] overflow-y-auto">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
               {recentFlashcards.length > 0 ? (
-                recentFlashcards.map((card) => (
-                  <div key={card.id} className="feature-card p-4">
+                recentFlashcards.slice(-5).map((card) => (
+                  <div key={card.id} className="bg-gray-800/50 rounded-lg p-3 border border-purple-400/30">
                     <div className="font-semibold text-sm mb-2 text-white">{card.front}</div>
                     <div className="text-xs text-gray-300 mb-2">{card.back}</div>
                     <div className="text-xs text-gray-500">
@@ -394,34 +431,70 @@ export default function LiveLecturePage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center text-gray-400 py-8">
-                  <i className="fas fa-layer-group text-4xl mb-4 opacity-50"></i>
-                  <p>Flashcards will be generated automatically...</p>
+                <div className="text-center text-gray-500 py-6">
+                  <i className="fas fa-layer-group text-2xl mb-2 opacity-50"></i>
+                  <p className="text-sm">Flashcards will appear automatically...</p>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Live Stats */}
+          <div className="feature-card p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              <i className="fas fa-chart-line mr-2 text-orange-400"></i>
+              Live Stats
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-400">{state?.sections.length || 0}</div>
+                <div className="text-sm text-gray-400">Sections</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-400">{state?.flashcards.length || 0}</div>
+                <div className="text-sm text-gray-400">Flashcards</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-400">{bookmarks.length}</div>
+                <div className="text-sm text-gray-400">Bookmarks</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-400">{highlights.length}</div>
+                <div className="text-sm text-gray-400">Highlights</div>
+              </div>
+            </div>
+            {state?.isRecording && (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-white">
+                    {Math.floor((Date.now() - state.startTime.getTime()) / 1000 / 60)} min
+                  </div>
+                  <div className="text-sm text-gray-400">Recording Time</div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Bookmarks and Highlights */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Bookmarks and Highlights - Collapsible */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Bookmarks */}
           <div className="feature-card p-6">
-            <h2 className="text-2xl font-semibold mb-6 text-center">
+            <h2 className="text-xl font-semibold mb-4">
               <i className="fas fa-bookmark mr-2 text-purple-400"></i>
               Bookmarks ({bookmarks.length})
             </h2>
-            <div className="space-y-4 max-h-[300px] overflow-y-auto">
+            <div className="space-y-3 max-h-[250px] overflow-y-auto">
               {bookmarks.length > 0 ? (
-                bookmarks.map((bookmark) => (
-                  <div key={bookmark.id} className="feature-card p-4">
-                    <div className="text-sm text-gray-400 mb-2">
+                bookmarks.slice(-3).map((bookmark) => (
+                  <div key={bookmark.id} className="bg-gray-800/50 rounded-lg p-3 border border-purple-400/30">
+                    <div className="text-xs text-gray-400 mb-2">
                       <i className="fas fa-clock mr-1"></i>
                       {bookmark.timestamp.toLocaleTimeString()}
                     </div>
-                    <div className="text-sm mb-2 text-gray-300">{bookmark.transcript.slice(0, 100)}...</div>
+                    <div className="text-sm mb-2 text-gray-300">{bookmark.transcript.slice(0, 80)}...</div>
                     {bookmark.notes && (
-                      <div className="text-xs text-gray-400 bg-gray-800 p-2 rounded">
+                      <div className="text-xs text-gray-400 bg-gray-700/50 p-2 rounded">
                         <i className="fas fa-sticky-note mr-1"></i>
                         {bookmark.notes}
                       </div>
@@ -429,9 +502,9 @@ export default function LiveLecturePage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center text-gray-400 py-8">
-                  <i className="fas fa-bookmark text-4xl mb-4 opacity-50"></i>
-                  <p>No bookmarks yet</p>
+                <div className="text-center text-gray-500 py-6">
+                  <i className="fas fa-bookmark text-2xl mb-2 opacity-50"></i>
+                  <p className="text-sm">No bookmarks yet</p>
                 </div>
               )}
             </div>
@@ -439,74 +512,34 @@ export default function LiveLecturePage() {
 
           {/* Highlights */}
           <div className="feature-card p-6">
-            <h2 className="text-2xl font-semibold mb-6 text-center">
+            <h2 className="text-xl font-semibold mb-4">
               <i className="fas fa-highlighter mr-2 text-orange-400"></i>
               Highlights ({highlights.length})
             </h2>
-            <div className="space-y-4 max-h-[300px] overflow-y-auto">
+            <div className="space-y-3 max-h-[250px] overflow-y-auto">
               {highlights.length > 0 ? (
-                highlights.map((highlight) => (
-                  <div key={highlight.id} className="feature-card p-4">
-                    <div className="text-sm text-gray-400 mb-2">
+                highlights.slice(-3).map((highlight) => (
+                  <div key={highlight.id} className="bg-gray-800/50 rounded-lg p-3 border border-orange-400/30">
+                    <div className="text-xs text-gray-400 mb-2">
                       <i className="fas fa-clock mr-1"></i>
                       {highlight.timestamp.toLocaleTimeString()}
                     </div>
                     <div className="text-sm font-semibold mb-2 text-yellow-300">"{highlight.text}"</div>
-                    <div className="text-xs text-gray-300 bg-gray-800 p-2 rounded">
+                    <div className="text-xs text-gray-300 bg-gray-700/50 p-2 rounded">
                       <i className="fas fa-lightbulb mr-1"></i>
                       {highlight.explanation}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-gray-400 py-8">
-                  <i className="fas fa-highlighter text-4xl mb-4 opacity-50"></i>
-                  <p>No highlights yet</p>
+                <div className="text-center text-gray-500 py-6">
+                  <i className="fas fa-highlighter text-2xl mb-2 opacity-50"></i>
+                  <p className="text-sm">No highlights yet</p>
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        {/* Lecture Status */}
-        {state && (
-          <div className="feature-card p-6">
-            <h3 className="text-xl font-semibold mb-6 text-center">
-              <i className="fas fa-chart-line mr-2 text-blue-400"></i>
-              Lecture Status
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-              <div className="text-center">
-                <div className="text-gray-400 mb-1">Status</div>
-                <div className={`font-semibold ${state.isRecording ? 'text-green-400' : 'text-red-400'}`}>
-                  <i className={`fas fa-circle mr-1 ${state.isRecording ? 'text-green-400' : 'text-red-400'}`}></i>
-                  {state.isRecording ? (state.isPaused ? 'Paused' : 'Recording') : 'Stopped'}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-gray-400 mb-1">Duration</div>
-                <div className="font-semibold text-white">
-                  <i className="fas fa-clock mr-1"></i>
-                  {Math.floor((Date.now() - state.startTime.getTime()) / 1000 / 60)} min
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-gray-400 mb-1">Sections</div>
-                <div className="font-semibold text-white">
-                  <i className="fas fa-layer-group mr-1"></i>
-                  {state.sections.length}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-gray-400 mb-1">Flashcards</div>
-                <div className="font-semibold text-white">
-                  <i className="fas fa-cards-blank mr-1"></i>
-                  {state.flashcards.length}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

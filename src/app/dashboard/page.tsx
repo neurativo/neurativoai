@@ -10,6 +10,26 @@ type Usage = {
   daily_used: number;
   daily_limit: number;
   max_questions_per_quiz: number;
+  source_usage?: {
+    url: number;
+    text: number;
+    document: number;
+  };
+  source_limits?: {
+    url: number;
+    text: number;
+    document: number;
+  };
+  daily_source_usage?: {
+    url: number;
+    text: number;
+    document: number;
+  };
+  daily_source_limits?: {
+    url: number;
+    text: number;
+    document: number;
+  };
 };
 
 export default function DashboardPage() {
@@ -45,6 +65,10 @@ export default function DashboardPage() {
           daily_used: json.data.daily_used,
           daily_limit: json.data.daily_limit,
           max_questions_per_quiz: json.data.max_questions_per_quiz,
+          source_usage: json.data.source_usage,
+          source_limits: json.data.source_limits,
+          daily_source_usage: json.data.daily_source_usage,
+          daily_source_limits: json.data.daily_source_limits,
         });
       }
 
@@ -177,6 +201,74 @@ export default function DashboardPage() {
           <div className="stat-label">Max questions/quiz</div>
         </div>
       </div>
+
+      {/* Source-specific usage */}
+      {usage?.source_usage && usage?.source_limits && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Source-Specific Usage</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* URL Quizzes */}
+            <div className="feature-card">
+              <div className="flex items-center gap-2 mb-2">
+                <i className="fas fa-link text-blue-400"></i>
+                <span className="font-semibold">URL Quizzes</span>
+              </div>
+              <div className="text-2xl font-bold mb-1">
+                {usage.source_usage.url}/{usage.source_limits.url}
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-blue-400 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${Math.min(100, (usage.source_usage.url / usage.source_limits.url) * 100)}%` }}
+                ></div>
+              </div>
+              <div className="text-sm text-gray-400 mt-1">
+                {usage.daily_source_usage?.url || 0}/{usage.daily_source_limits?.url || 5} today
+              </div>
+            </div>
+
+            {/* Text Quizzes */}
+            <div className="feature-card">
+              <div className="flex items-center gap-2 mb-2">
+                <i className="fas fa-file-text text-green-400"></i>
+                <span className="font-semibold">Text Quizzes</span>
+              </div>
+              <div className="text-2xl font-bold mb-1">
+                {usage.source_usage.text}/{usage.source_limits.text}
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-green-400 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${Math.min(100, (usage.source_usage.text / usage.source_limits.text) * 100)}%` }}
+                ></div>
+              </div>
+              <div className="text-sm text-gray-400 mt-1">
+                {usage.daily_source_usage?.text || 0}/{usage.daily_source_limits?.text || 5} today
+              </div>
+            </div>
+
+            {/* Document Quizzes */}
+            <div className="feature-card">
+              <div className="flex items-center gap-2 mb-2">
+                <i className="fas fa-file-pdf text-purple-400"></i>
+                <span className="font-semibold">Document Quizzes</span>
+              </div>
+              <div className="text-2xl font-bold mb-1">
+                {usage.source_usage.document}/{usage.source_limits.document}
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-purple-400 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${Math.min(100, (usage.source_usage.document / usage.source_limits.document) * 100)}%` }}
+                ></div>
+              </div>
+              <div className="text-sm text-gray-400 mt-1">
+                {usage.daily_source_usage?.document || 0}/{usage.daily_source_limits?.document || 5} today
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="feature-card text-left">

@@ -1,35 +1,7 @@
 -- Comprehensive usage limits for all quiz generation methods
 -- This extends the existing user_usage system to track different source types
 
--- 1. Create plans table with comprehensive limits
-create table if not exists public.plans (
-  key text primary key,
-  name text not null,
-  monthly_quiz_generations integer not null default 20,
-  daily_quiz_generations integer not null default 5,
-  max_questions_per_quiz integer not null default 8,
-  url_quiz_limit integer not null default 5,  -- URL-based quizzes per month
-  text_quiz_limit integer not null default 10, -- Text-based quizzes per month  
-  document_quiz_limit integer not null default 5, -- Document-based quizzes per month
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
--- Insert default plans with comprehensive limits
-insert into public.plans (key, name, monthly_quiz_generations, daily_quiz_generations, max_questions_per_quiz, url_quiz_limit, text_quiz_limit, document_quiz_limit) values
-('free', 'Free', 20, 5, 8, 5, 10, 5),
-('plus', 'Plus', 100, 20, 15, 50, 80, 30),
-('premium', 'Premium', 300, 50, 25, 150, 250, 100),
-('pro', 'Pro', 1000, 100, 50, 500, 800, 300)
-on conflict (key) do update set
-  name = excluded.name,
-  monthly_quiz_generations = excluded.monthly_quiz_generations,
-  daily_quiz_generations = excluded.daily_quiz_generations,
-  max_questions_per_quiz = excluded.max_questions_per_quiz,
-  url_quiz_limit = excluded.url_quiz_limit,
-  text_quiz_limit = excluded.text_quiz_limit,
-  document_quiz_limit = excluded.document_quiz_limit,
-  updated_at = now();
+-- 1. Plans table is handled in separate migration (20250925_fix_plans_table.sql)
 
 -- 2. Create source-specific usage tracking table
 create table if not exists public.user_source_usage (

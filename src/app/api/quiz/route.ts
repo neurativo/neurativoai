@@ -59,9 +59,11 @@ export async function POST(req: Request) {
             
             let finalContent = content;
             let contentTitle = "Quiz Content";
+            let sourceType = "text"; // Default to text for limit tracking
             
             // Handle URL content extraction
             if (source === "url" && url) {
+                sourceType = "url";
                 try {
                     const extractedContent = await URLContentExtractor.extractContent(url);
                     
@@ -92,11 +94,17 @@ export async function POST(req: Request) {
                     }, { status: 400 });
                 }
             } else if (source === "text") {
+                sourceType = "text";
+                if (!content || content.trim().length < 10) {
+                    return NextResponse.json({ success: false, error: "Please provide more content (at least 10 characters)" }, { status: 400 });
+                }
+            } else if (source === "document") {
+                sourceType = "document";
                 if (!content || content.trim().length < 10) {
                     return NextResponse.json({ success: false, error: "Please provide more content (at least 10 characters)" }, { status: 400 });
                 }
             } else {
-                return NextResponse.json({ success: false, error: "Only 'By Text' and 'By URL' are supported right now" }, { status: 400 });
+                return NextResponse.json({ success: false, error: "Only 'By Text', 'By URL', and 'By Document' are supported" }, { status: 400 });
             }
 
 		if (!process.env.OPENAI_API_KEY) {
@@ -150,31 +158,32 @@ export async function POST(req: Request) {
  	daily_quiz_generations?: number; // 👈 allow daily_quiz_generations
  };
   
-  // Get plan limits
-  const { data: planData, error: planError } = await supabase
- 	.from("plans")
- 	.select("monthly_quiz_generations, max_questions_per_quiz")
- 	.eq("key", currentPlan)
- 	.single<PlanData>(); // 👈 cast as PlanData
+		// Get comprehensive plan limits
+		const { data: planData, error: planError } = await supabase
+			.from("plans")
+			.select("monthly_quiz_generations, max_questions_per_quiz, url_quiz_limit, text_quiz_limit, document_quiz_limit, daily_quiz_generations")
+			.eq("key", currentPlan)
+			.single();
   
-  if (planError) {
- 	console.error("Plan error:", planError);
- 	return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
-  }
+		if (planError) {
+			console.error("Plan error:", planError);
+			return NextResponse.json({ success: false, error: "Plan configuration not found" }, { status: 500 });
+		}
   
-  if (!planData) {
- 	return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
-  }
-  
+		if (!planData) {
+			return NextResponse.json({ success: false, error: "Plan data not found" }, { status: 500 });
+		}
 
-
-		// Period start (normalize to first day of this month)
-		const monthDate = new Date();
-		monthDate.setDate(1);
-		const periodStart = monthDate.toISOString().split('T')[0]; // YYYY-MM-01
+		// Get source-specific limits based on source type
+		const sourceLimits = {
+			url: planData.url_quiz_limit || 5,
+			text: planData.text_quiz_limit || 10,
+			document: planData.document_quiz_limit || 5
+		};
+		
 		const monthlyLimit = planData.monthly_quiz_generations || 20;
-		const dailyLimitMap: Record<string, number> = { free: 5, plus: 20, premium: 50, pro: 100 };
-		const dailyLimit = dailyLimitMap[currentPlan] ?? 5;
+		const dailyLimit = planData.daily_quiz_generations || 5;
+		const sourceLimit = sourceLimits[sourceType as keyof typeof sourceLimits] || 5;
 
 		// Enforce plan-based question limit
 		const requestedQuestions = Math.max(1, Math.min(20, Number((formData?.get("num_questions") || body?.num_questions || 10))));
@@ -191,82 +200,95 @@ export async function POST(req: Request) {
 
             const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
-		// Reserve MONTHLY via new RPC user_usage_claim
-		const { data: claimData, error: claimErr } = await supabase.rpc('user_usage_claim', {
+		// Reserve SOURCE-SPECIFIC usage via new RPC user_source_usage_claim
+		const { data: sourceClaimData, error: sourceClaimErr } = await supabase.rpc('user_source_usage_claim', {
 			p_user_id: user.id,
 			p_plan_id: currentPlan,
-			p_plan_limit: monthlyLimit,
+			p_source_type: sourceType,
+			p_source_limit: sourceLimit,
 		});
-		let reservationUsage = { monthly_used: 0, monthly_limit: monthlyLimit } as { monthly_used: number; monthly_limit: number };
-		if (claimErr) {
-			console.error('claim_quiz_slot error:', claimErr);
-			// Fallback: guarded manual increment on user_usage
+		
+		let sourceUsage = { source_used: 0, source_limit: sourceLimit } as { source_used: number; source_limit: number };
+		let monthlyUsage = { monthly_used: 0, monthly_limit: monthlyLimit } as { monthly_used: number; monthly_limit: number };
+		
+		if (sourceClaimErr) {
+			console.error('user_source_usage_claim error:', sourceClaimErr);
+			// Fallback: proceed without source-specific limits but still check monthly
 			try {
-				const monthDate2 = new Date(); monthDate2.setDate(1);
-				const monthStart = monthDate2.toISOString().split('T')[0];
-				await supabase.from('user_usage').upsert({ user_id: user.id, month_start: monthStart, plan_id: currentPlan, used_count: 0 }, { onConflict: 'user_id,month_start' });
-				const { data: updated } = await supabase
-					.from('user_usage')
-					.update({ used_count: (undefined as any), plan_id: currentPlan })
-					.eq('user_id', user.id)
-					.eq('month_start', monthStart)
-					.lt('used_count', monthlyLimit)
-					.select('used_count')
-					.maybeSingle();
-				if (!updated) {
-					return NextResponse.json({ success: false, error: `Monthly quiz limit reached (${monthlyLimit}/month).`, usage: { monthly_used: monthlyLimit, monthly_limit: monthlyLimit } }, { status: 429 });
+				const { data: claimData, error: claimErr } = await supabase.rpc('user_usage_claim', {
+					p_user_id: user.id,
+					p_plan_id: currentPlan,
+					p_plan_limit: monthlyLimit,
+				});
+				if (claimErr || !claimData) {
+					return NextResponse.json({ success: false, error: "Failed to reserve quiz slot" }, { status: 500 });
 				}
-				// Re-read used_count after increment (Supabase update with select returns new values)
-				reservationUsage = { monthly_used: updated.used_count, monthly_limit: monthlyLimit };
+				const claim = Array.isArray(claimData) ? claimData[0] : claimData;
+				if (!claim.allowed) {
+					return NextResponse.json({
+						success: false,
+						error: `Monthly quiz limit reached (${claim.monthly_limit ?? monthlyLimit}/month).`,
+						usage: { monthly_used: claim.monthly_used ?? 0, monthly_limit: claim.monthly_limit ?? monthlyLimit }
+					}, { status: 429 });
+				}
+				monthlyUsage = { monthly_used: claim.monthly_used, monthly_limit: claim.monthly_limit };
 			} catch (e) {
-				console.error('manual user_usage increment failed:', e);
+				console.error('fallback monthly claim failed:', e);
+				return NextResponse.json({ success: false, error: "Failed to reserve quiz slot" }, { status: 500 });
 			}
 		} else {
-			const claim = Array.isArray(claimData) ? claimData[0] : claimData;
-			if (!claim || typeof claim.allowed !== 'boolean') {
-				console.error('claim_quiz_slot invalid response:', claimData);
-				// Fallback: guarded manual increment on user_usage
-				try {
-					const monthDate2 = new Date(); monthDate2.setDate(1);
-					const monthStart = monthDate2.toISOString().split('T')[0];
-					await supabase.from('user_usage').upsert({ user_id: user.id, month_start: monthStart, plan_id: currentPlan, used_count: 0 }, { onConflict: 'user_id,month_start' });
-					const { data: updated } = await supabase
-						.from('user_usage')
-						.update({ used_count: (undefined as any), plan_id: currentPlan })
-						.eq('user_id', user.id)
-						.eq('month_start', monthStart)
-						.lt('used_count', monthlyLimit)
-						.select('used_count')
-						.maybeSingle();
-					if (updated) reservationUsage = { monthly_used: updated.used_count, monthly_limit: monthlyLimit };
-				} catch {}
-			} else if (!claim.allowed) {
+			const sourceClaim = Array.isArray(sourceClaimData) ? sourceClaimData[0] : sourceClaimData;
+			if (!sourceClaim || typeof sourceClaim.allowed !== 'boolean') {
+				console.error('user_source_usage_claim invalid response:', sourceClaimData);
+				return NextResponse.json({ success: false, error: "Failed to reserve quiz slot" }, { status: 500 });
+			}
+			
+			if (!sourceClaim.allowed) {
+				const limitType = sourceType === 'url' ? 'URL' : sourceType === 'text' ? 'Text' : 'Document';
 				return NextResponse.json({
 					success: false,
-					error: `Monthly quiz limit reached (${claim.monthly_limit ?? monthlyLimit}/month).`,
-					usage: { monthly_used: claim.monthly_used ?? 0, monthly_limit: claim.monthly_limit ?? monthlyLimit }
+					error: `${limitType} quiz limit reached (${sourceClaim.source_used}/${sourceClaim.source_limit}). Try a different source type or upgrade your plan.`,
+					usage: { 
+						monthly_used: sourceClaim.monthly_used, 
+						monthly_limit: sourceClaim.monthly_limit,
+						source_used: sourceClaim.source_used,
+						source_limit: sourceClaim.source_limit,
+						source_type: sourceType
+					}
 				}, { status: 429 });
-			} else {
-				reservationUsage = { monthly_used: claim.monthly_used, monthly_limit: claim.monthly_limit };
 			}
+			
+			sourceUsage = { source_used: sourceClaim.source_used, source_limit: sourceClaim.source_limit };
+			monthlyUsage = { monthly_used: sourceClaim.monthly_used, monthly_limit: sourceClaim.monthly_limit };
 		}
 
-		// Reserve DAILY via new RPC user_daily_claim
-		const { data: dailyData, error: dailyErr } = await supabase.rpc('user_daily_claim', {
+		// Reserve DAILY SOURCE-SPECIFIC usage via new RPC user_daily_source_usage_claim
+		const { data: dailySourceData, error: dailySourceErr } = await supabase.rpc('user_daily_source_usage_claim', {
 			p_user_id: user.id,
+			p_source_type: sourceType,
 			p_daily_limit: dailyLimit,
 		});
+		
 		let dailyUsage: { daily_used?: number; daily_limit?: number } = {};
-		if (dailyErr) {
-			console.error('user_daily_claim error:', dailyErr);
+		if (dailySourceErr) {
+			console.error('user_daily_source_usage_claim error:', dailySourceErr);
 			// On RPC error, do not block. Dashboard will still display daily usage via API.
 		} else {
-			const d = Array.isArray(dailyData) ? dailyData[0] : dailyData;
+			const d = Array.isArray(dailySourceData) ? dailySourceData[0] : dailySourceData;
 			if (d && typeof d.allowed === 'boolean' && !d.allowed) {
+				const limitType = sourceType === 'url' ? 'URL' : sourceType === 'text' ? 'Text' : 'Document';
 				return NextResponse.json({
 					success: false,
-					error: `Daily quiz limit reached (${d.daily_limit ?? dailyLimit}/day).`,
-					usage: { monthly_used: reservationUsage.monthly_used, monthly_limit: reservationUsage.monthly_limit, daily_used: d.daily_used ?? 0, daily_limit: d.daily_limit ?? dailyLimit }
+					error: `Daily ${limitType} quiz limit reached (${d.daily_used}/${d.daily_limit}). Try tomorrow or a different source type.`,
+					usage: { 
+						monthly_used: monthlyUsage.monthly_used, 
+						monthly_limit: monthlyUsage.monthly_limit, 
+						source_used: sourceUsage.source_used,
+						source_limit: sourceUsage.source_limit,
+						source_type: sourceType,
+						daily_used: d.daily_used ?? 0, 
+						daily_limit: d.daily_limit ?? dailyLimit 
+					}
 				}, { status: 429 });
 			}
 			if (d && typeof d.daily_used === 'number') {
@@ -296,8 +318,13 @@ export async function POST(req: Request) {
 
 			// Save to ephemeral store with unique id
 			const saved = saveQuiz(parsed);
-			// Return usage (monthly from claim, daily best-effort via daily RPC)
-			let usagePayload: any = { ...reservationUsage, ...dailyUsage };
+			// Return comprehensive usage data
+			let usagePayload: any = { 
+				...monthlyUsage, 
+				...sourceUsage, 
+				...dailyUsage,
+				source_type: sourceType
+			};
 			return NextResponse.json({ success: true, data: saved, usage: usagePayload });
 		} catch (err: any) {
             console.error('API/quiz error:', err);

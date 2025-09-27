@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { LiveLectureAssistant, LiveLectureState, Flashcard, Bookmark, Highlight } from "@/app/lib/liveLectureAssistant";
 
 export default function LiveLecturePage() {
-  const [assistant] = useState(() => new LiveLectureAssistant());
+  const [assistant] = useState(() => new LiveLectureAssistant('openai')); // Use OpenAI Whisper by default
   const [state, setState] = useState<LiveLectureState | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentNotes, setCurrentNotes] = useState<string[]>([]);

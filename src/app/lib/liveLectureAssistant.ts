@@ -2,6 +2,7 @@
 // For university students during live lectures
 
 import { AILectureService, createAILectureService } from './aiLectureService';
+import { AudioTranscriptionService, StreamingTranscriptionService, createTranscriptionService } from './audioTranscriptionService';
 
 export interface LiveLectureState {
   isRecording: boolean;
@@ -100,15 +101,16 @@ export interface QuizQuestion {
 
 export class LiveLectureAssistant {
   private state: LiveLectureState;
-  private audioProcessor: AudioProcessor;
   private transcriptProcessor: TranscriptProcessor;
   private noteGenerator: NoteGenerator;
   private flashcardGenerator: FlashcardGenerator;
   private quizGenerator: QuizGenerator;
   private revisionPackGenerator: RevisionPackGenerator;
   private aiService: AILectureService;
+  private transcriptionService: AudioTranscriptionService;
+  private streamingService: StreamingTranscriptionService;
 
-  constructor() {
+  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' = 'openai') {
     this.state = {
       isRecording: false,
       isPaused: false,
@@ -122,38 +124,43 @@ export class LiveLectureAssistant {
       lastUpdate: new Date()
     };
 
-    this.audioProcessor = new AudioProcessor();
     this.transcriptProcessor = new TranscriptProcessor();
     this.noteGenerator = new NoteGenerator();
     this.flashcardGenerator = new FlashcardGenerator();
     this.quizGenerator = new QuizGenerator();
     this.revisionPackGenerator = new RevisionPackGenerator();
     this.aiService = createAILectureService();
+    this.transcriptionService = createTranscriptionService(transcriptionProvider);
+    this.streamingService = new StreamingTranscriptionService(this.transcriptionService);
   }
 
   // Core workflow methods
   async startLecture(): Promise<void> {
     this.state.isRecording = true;
     this.state.startTime = new Date();
-    await this.audioProcessor.startRecording();
+    
+    // Start streaming transcription
+    await this.streamingService.startStreaming(async (result) => {
+      await this.processTranscriptionResult(result);
+    });
+    
     console.log('Live lecture assistant started');
   }
 
   async pauseLecture(): Promise<void> {
     this.state.isPaused = true;
-    await this.audioProcessor.pauseRecording();
+    // Note: Streaming service doesn't have pause, but we can track state
     console.log('Lecture paused');
   }
 
   async resumeLecture(): Promise<void> {
     this.state.isPaused = false;
-    await this.audioProcessor.resumeRecording();
     console.log('Lecture resumed');
   }
 
   async stopLecture(): Promise<RevisionPack> {
     this.state.isRecording = false;
-    await this.audioProcessor.stopRecording();
+    await this.streamingService.stopStreaming();
     
     // Generate final revision pack
     const revisionPack = await this.revisionPackGenerator.generateRevisionPack(this.state);
@@ -162,21 +169,18 @@ export class LiveLectureAssistant {
     return revisionPack;
   }
 
-  // Real-time processing
-  async processAudioChunk(audioChunk: Blob): Promise<void> {
+  // Process transcription results from streaming service
+  async processTranscriptionResult(result: any): Promise<void> {
     if (!this.state.isRecording || this.state.isPaused) return;
 
     try {
-      // 1. Transcribe audio
-      const transcript = await this.audioProcessor.transcribeAudio(audioChunk);
+      // 1. Process transcript
+      const processedTranscript = await this.transcriptProcessor.processTranscript(result.text);
       
-      // 2. Process transcript
-      const processedTranscript = await this.transcriptProcessor.processTranscript(transcript);
-      
-      // 3. Update current transcript
+      // 2. Update current transcript
       this.state.currentTranscript += processedTranscript.cleanText + ' ';
       
-      // 4. Check for section breaks
+      // 3. Check for section breaks
       const shouldCreateSection = await this.transcriptProcessor.shouldCreateSection(
         this.state.currentTranscript,
         this.state.sections
@@ -186,13 +190,28 @@ export class LiveLectureAssistant {
         await this.createNewSection();
       }
       
-      // 5. Generate real-time notes
+      // 4. Generate real-time notes
       await this.generateLiveNotes();
       
-      // 6. Generate flashcards for new concepts
+      // 5. Generate flashcards for new concepts
       await this.generateFlashcards();
       
       this.state.lastUpdate = new Date();
+    } catch (error) {
+      console.error('Error processing transcription result:', error);
+    }
+  }
+
+  // Legacy method for manual audio chunk processing
+  async processAudioChunk(audioChunk: Blob): Promise<void> {
+    if (!this.state.isRecording || this.state.isPaused) return;
+
+    try {
+      // 1. Transcribe audio
+      const result = await this.transcriptionService.transcribeAudio(audioChunk);
+      
+      // 2. Process the result
+      await this.processTranscriptionResult(result);
     } catch (error) {
       console.error('Error processing audio chunk:', error);
     }
@@ -330,48 +349,6 @@ export class LiveLectureAssistant {
 }
 
 // Supporting classes
-class AudioProcessor {
-  private mediaRecorder: MediaRecorder | null = null;
-  private audioStream: MediaStream | null = null;
-
-  async startRecording(): Promise<void> {
-    try {
-      this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.mediaRecorder = new MediaRecorder(this.audioStream);
-      this.mediaRecorder.start(1000); // Process every second
-    } catch (error) {
-      console.error('Error starting audio recording:', error);
-      throw error;
-    }
-  }
-
-  async pauseRecording(): Promise<void> {
-    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-      this.mediaRecorder.pause();
-    }
-  }
-
-  async resumeRecording(): Promise<void> {
-    if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
-      this.mediaRecorder.resume();
-    }
-  }
-
-  async stopRecording(): Promise<void> {
-    if (this.mediaRecorder) {
-      this.mediaRecorder.stop();
-    }
-    if (this.audioStream) {
-      this.audioStream.getTracks().forEach(track => track.stop());
-    }
-  }
-
-  async transcribeAudio(audioChunk: Blob): Promise<string> {
-    // This would integrate with speech-to-text service
-    // For now, return placeholder
-    return "Transcribed text would appear here";
-  }
-}
 
 class TranscriptProcessor {
   private aiService: AILectureService;

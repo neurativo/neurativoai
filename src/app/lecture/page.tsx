@@ -21,6 +21,8 @@ export default function LiveLecturePage() {
   const [setupComplete, setSetupComplete] = useState(false);
   const [userPlan, setUserPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [micTested, setMicTested] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
 
   // Check user plan and setup
   useEffect(() => {
@@ -86,13 +88,42 @@ export default function LiveLecturePage() {
     };
   }, [assistant]);
 
+  const testMicrophone = async () => {
+    try {
+      setMicError(null);
+      console.log('Testing microphone access...');
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Microphone test successful');
+      
+      // Stop the test stream
+      stream.getTracks().forEach(track => track.stop());
+      setMicTested(true);
+    } catch (error: any) {
+      console.error('Microphone test failed:', error);
+      let errorMessage = 'Microphone test failed. ';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow microphone access and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No microphone found. Please connect a microphone.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage += 'Audio recording not supported in this browser.';
+      } else {
+        errorMessage += error.message;
+      }
+      
+      setMicError(errorMessage);
+    }
+  };
+
   const startLecture = async () => {
     try {
       await assistant.startLecture();
       setIsInitialized(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start lecture:", error);
-      alert("Failed to start lecture. Please check microphone permissions and try again.");
+      setMicError(error.message || "Failed to start lecture. Please check microphone permissions and try again.");
     }
   };
 
@@ -169,13 +200,46 @@ export default function LiveLecturePage() {
           <h2 className="text-2xl font-semibold mb-6 text-center">Lecture Controls</h2>
           <div className="flex justify-center gap-4 mb-6">
             {!isInitialized ? (
-              <button
-                onClick={startLecture}
-                className="cta-button btn-lg px-8 py-3 text-lg font-semibold"
-              >
-                <i className="fas fa-microphone mr-2"></i>
-                Start Lecture
-              </button>
+              <div className="flex flex-col items-center gap-4">
+                {!micTested && (
+                  <button
+                    onClick={testMicrophone}
+                    className="btn btn-outline btn-lg px-6 py-3 text-lg font-semibold"
+                  >
+                    <i className="fas fa-microphone mr-2"></i>
+                    Test Microphone
+                  </button>
+                )}
+                {micTested && (
+                  <div className="text-center">
+                    <div className="text-green-400 mb-2">
+                      <i className="fas fa-check-circle mr-2"></i>
+                      Microphone Ready
+                    </div>
+                    <button
+                      onClick={startLecture}
+                      className="cta-button btn-lg px-8 py-3 text-lg font-semibold"
+                    >
+                      <i className="fas fa-play mr-2"></i>
+                      Start Lecture
+                    </button>
+                  </div>
+                )}
+                {micError && (
+                  <div className="text-center">
+                    <div className="text-red-400 mb-2">
+                      <i className="fas fa-exclamation-triangle mr-2"></i>
+                      {micError}
+                    </div>
+                    <button
+                      onClick={testMicrophone}
+                      className="btn btn-outline btn-sm px-4 py-2"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 {state?.isPaused ? (

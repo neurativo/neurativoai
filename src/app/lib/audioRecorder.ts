@@ -33,22 +33,30 @@ export class AudioRecorder {
 
   async initialize(): Promise<void> {
     try {
-      // Request microphone access
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia is not supported in this browser');
+      }
+
+      // Request microphone access with more compatible constraints
       this.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: this.config.sampleRate,
-          channelCount: this.config.channels,
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          // Remove specific sample rate and channel constraints for better compatibility
         }
       });
 
+      console.log('Microphone access granted');
+
       // Create MediaRecorder with appropriate MIME type
       const mimeType = this.getSupportedMimeType();
+      console.log('Using MIME type:', mimeType);
+      
       this.mediaRecorder = new MediaRecorder(this.audioStream, {
-        mimeType,
-        audioBitsPerSecond: this.config.sampleRate * this.config.channels * this.config.bitsPerSample
+        mimeType
+        // Remove audioBitsPerSecond for better compatibility
       });
 
       // Set up event handlers
@@ -65,11 +73,24 @@ export class AudioRecorder {
 
       this.mediaRecorder.onerror = (event) => {
         console.error('MediaRecorder error:', event);
+        throw new Error('MediaRecorder error occurred');
       };
+
+      console.log('AudioRecorder initialized successfully');
 
     } catch (error) {
       console.error('Failed to initialize audio recorder:', error);
-      throw new Error('Microphone access denied or not available');
+      
+      // Provide more specific error messages
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Microphone access denied. Please allow microphone access and try again.');
+      } else if (error.name === 'NotFoundError') {
+        throw new Error('No microphone found. Please connect a microphone and try again.');
+      } else if (error.name === 'NotSupportedError') {
+        throw new Error('Audio recording not supported in this browser. Please use a modern browser.');
+      } else {
+        throw new Error(`Microphone error: ${error.message}`);
+      }
     }
   }
 

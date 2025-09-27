@@ -147,10 +147,14 @@ export class LiveLectureAssistant {
   // Core workflow methods
   async startLecture(): Promise<void> {
     try {
+      console.log('Starting lecture...');
+      
       // Initialize audio recorder if not already done
       if (!this.isInitialized) {
+        console.log('Initializing audio recorder...');
         await this.audioRecorder.initialize();
         this.isInitialized = true;
+        console.log('Audio recorder initialized');
       }
 
       this.state.isRecording = true;
@@ -158,13 +162,17 @@ export class LiveLectureAssistant {
       this.state.startTime = new Date();
       
       // Start audio recording with real-time transcription
+      console.log('Starting audio recording...');
       this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
+        console.log('Processing audio chunk...');
         await this.processAudioChunk(chunk);
       });
       
       console.log('Live lecture assistant started with real audio recording');
     } catch (error) {
       console.error('Failed to start lecture:', error);
+      this.state.isRecording = false;
+      this.state.isPaused = false;
       throw error;
     }
   }

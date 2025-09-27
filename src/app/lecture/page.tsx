@@ -7,7 +7,7 @@ import { LiveLectureAssistant, LiveLectureState, Flashcard, Bookmark, Highlight 
 
 export default function LiveLecturePage() {
   const router = useRouter();
-  const [assistant] = useState(() => new LiveLectureAssistant('openai')); // Use OpenAI Whisper by default
+  const [assistant] = useState(() => new LiveLectureAssistant('assemblyai')); // Use AssemblyAI by default
   const [state, setState] = useState<LiveLectureState | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentNotes, setCurrentNotes] = useState<string[]>([]);
@@ -48,17 +48,9 @@ export default function LiveLecturePage() {
           return;
         }
 
-        // Check if API keys are configured
-        const hasOpenAI = !!process.env.NEXT_PUBLIC_OPENAI_API_KEY || !!process.env.OPENAI_API_KEY;
-        const hasGoogle = !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || !!process.env.GOOGLE_API_KEY;
-        const hasAzure = !!process.env.NEXT_PUBLIC_AZURE_API_KEY || !!process.env.AZURE_API_KEY;
-        const hasAssemblyAI = !!process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || !!process.env.ASSEMBLYAI_API_KEY;
-        
-        if (!hasOpenAI && !hasGoogle && !hasAzure && !hasAssemblyAI) {
-          router.push('/lecture/landing');
-          return;
-        }
-        
+        // Check if API keys are configured (client-side can only access NEXT_PUBLIC_ variables)
+        // For now, we'll assume AssemblyAI is configured since user added it to .env.local
+        // In production, you'd want to check this server-side
         setSetupComplete(true);
       } catch (error) {
         console.error('Error checking access:', error);
@@ -87,12 +79,20 @@ export default function LiveLecturePage() {
     return () => clearInterval(interval);
   }, [assistant, setupComplete]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      assistant.cleanup();
+    };
+  }, [assistant]);
+
   const startLecture = async () => {
     try {
       await assistant.startLecture();
       setIsInitialized(true);
     } catch (error) {
       console.error("Failed to start lecture:", error);
+      alert("Failed to start lecture. Please check microphone permissions and try again.");
     }
   };
 
@@ -132,8 +132,8 @@ export default function LiveLecturePage() {
 
   if (isLoading || !setupComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white flex items-center justify-center">
-        <div className="text-center glassmorphism-card p-8">
+      <div className="min-h-screen text-white flex items-center justify-center">
+        <div className="text-center feature-card p-8">
           <div className="loading loading-spinner loading-lg mb-4"></div>
           <p className="text-gray-300">
             {isLoading ? 'Checking access...' : 'Setting up Live Lecture Assistant...'}
@@ -144,16 +144,16 @@ export default function LiveLecturePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white">
+    <div className="min-h-screen text-white">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="glassmorphism-card p-8 mb-8">
+        <div className="feature-card p-8 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-blue-300">
               Live Lecture Assistant
             </h1>
             <Link 
               href="/lecture/landing" 
-              className="btn btn-outline btn-sm glassmorphism-btn"
+              className="btn btn-outline btn-sm"
             >
               <i className="fas fa-info-circle mr-2"></i>
               Setup Guide
@@ -165,13 +165,13 @@ export default function LiveLecturePage() {
         </div>
         
         {/* Control Panel */}
-        <div className="glassmorphism-card p-6 mb-8">
+        <div className="feature-card p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-center">Lecture Controls</h2>
           <div className="flex justify-center gap-4 mb-6">
             {!isInitialized ? (
               <button
                 onClick={startLecture}
-                className="btn btn-primary btn-lg glassmorphism-btn px-8 py-3 text-lg font-semibold"
+                className="cta-button btn-lg px-8 py-3 text-lg font-semibold"
               >
                 <i className="fas fa-microphone mr-2"></i>
                 Start Lecture
@@ -181,7 +181,7 @@ export default function LiveLecturePage() {
                 {state?.isPaused ? (
                   <button
                     onClick={resumeLecture}
-                    className="btn btn-info btn-lg glassmorphism-btn px-6 py-3 text-lg font-semibold"
+                    className="btn btn-info btn-lg px-6 py-3 text-lg font-semibold"
                   >
                     <i className="fas fa-play mr-2"></i>
                     Resume
@@ -189,7 +189,7 @@ export default function LiveLecturePage() {
                 ) : (
                   <button
                     onClick={pauseLecture}
-                    className="btn btn-warning btn-lg glassmorphism-btn px-6 py-3 text-lg font-semibold"
+                    className="btn btn-warning btn-lg px-6 py-3 text-lg font-semibold"
                   >
                     <i className="fas fa-pause mr-2"></i>
                     Pause
@@ -197,7 +197,7 @@ export default function LiveLecturePage() {
                 )}
                 <button
                   onClick={stopLecture}
-                  className="btn btn-error btn-lg glassmorphism-btn px-6 py-3 text-lg font-semibold"
+                  className="btn btn-error btn-lg px-6 py-3 text-lg font-semibold"
                 >
                   <i className="fas fa-stop mr-2"></i>
                   End Lecture
@@ -208,7 +208,7 @@ export default function LiveLecturePage() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Bookmark */}
-            <div className="glassmorphism-card p-4">
+            <div className="feature-card p-4">
               <h3 className="font-semibold mb-3 text-center">
                 <i className="fas fa-bookmark mr-2 text-purple-400"></i>
                 Add Bookmark
@@ -217,12 +217,12 @@ export default function LiveLecturePage() {
                 value={bookmarkNotes}
                 onChange={(e) => setBookmarkNotes(e.target.value)}
                 placeholder="Add notes for this bookmark..."
-                className="w-full glassmorphism-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
+                className="w-full form-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
                 rows={2}
               />
               <button
                 onClick={addBookmark}
-                className="btn btn-primary w-full glassmorphism-btn"
+                className="btn btn-primary w-full btn"
               >
                 <i className="fas fa-bookmark mr-2"></i>
                 Bookmark
@@ -230,7 +230,7 @@ export default function LiveLecturePage() {
             </div>
 
             {/* Highlight */}
-            <div className="glassmorphism-card p-4">
+            <div className="feature-card p-4">
               <h3 className="font-semibold mb-3 text-center">
                 <i className="fas fa-highlighter mr-2 text-orange-400"></i>
                 Highlight & Explain
@@ -240,11 +240,11 @@ export default function LiveLecturePage() {
                 value={highlightText}
                 onChange={(e) => setHighlightText(e.target.value)}
                 placeholder="Highlight text for explanation..."
-                className="w-full glassmorphism-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
+                className="w-full form-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
               />
               <button
                 onClick={addHighlight}
-                className="btn btn-warning w-full glassmorphism-btn"
+                className="btn btn-warning w-full btn"
               >
                 <i className="fas fa-highlighter mr-2"></i>
                 Highlight
@@ -252,7 +252,7 @@ export default function LiveLecturePage() {
             </div>
 
             {/* Ask Question */}
-            <div className="glassmorphism-card p-4">
+            <div className="feature-card p-4">
               <h3 className="font-semibold mb-3 text-center">
                 <i className="fas fa-question-circle mr-2 text-cyan-400"></i>
                 Ask Question
@@ -262,11 +262,11 @@ export default function LiveLecturePage() {
                 value={studentQuestion}
                 onChange={(e) => setStudentQuestion(e.target.value)}
                 placeholder="Ask a question about the lecture..."
-                className="w-full glassmorphism-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
+                className="w-full form-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
               />
               <button
                 onClick={askQuestion}
-                className="btn btn-info w-full glassmorphism-btn"
+                className="btn btn-info w-full btn"
               >
                 <i className="fas fa-question-circle mr-2"></i>
                 Ask
@@ -275,7 +275,7 @@ export default function LiveLecturePage() {
           </div>
 
           {questionAnswer && (
-            <div className="mt-6 glassmorphism-card p-4">
+            <div className="mt-6 feature-card p-4">
               <h4 className="font-semibold mb-2 text-cyan-400">
                 <i className="fas fa-robot mr-2"></i>
                 AI Answer:
@@ -288,12 +288,12 @@ export default function LiveLecturePage() {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Live Notes */}
-          <div className="glassmorphism-card p-6">
+          <div className="feature-card p-6">
             <h2 className="text-2xl font-semibold mb-6 text-center">
               <i className="fas fa-sticky-note mr-2 text-green-400"></i>
               Live Notes
             </h2>
-            <div className="glassmorphism-card p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
+            <div className="feature-card p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
               {currentNotes.length > 0 ? (
                 <ul className="space-y-3">
                   {currentNotes.map((note, index) => (
@@ -312,7 +312,7 @@ export default function LiveLecturePage() {
           </div>
 
           {/* Recent Flashcards */}
-          <div className="glassmorphism-card p-6">
+          <div className="feature-card p-6">
             <h2 className="text-2xl font-semibold mb-6 text-center">
               <i className="fas fa-layer-group mr-2 text-purple-400"></i>
               Recent Flashcards
@@ -320,7 +320,7 @@ export default function LiveLecturePage() {
             <div className="space-y-4 max-h-[400px] overflow-y-auto">
               {recentFlashcards.length > 0 ? (
                 recentFlashcards.map((card) => (
-                  <div key={card.id} className="glassmorphism-card p-4">
+                  <div key={card.id} className="feature-card p-4">
                     <div className="font-semibold text-sm mb-2 text-white">{card.front}</div>
                     <div className="text-xs text-gray-300 mb-2">{card.back}</div>
                     <div className="text-xs text-gray-500">
@@ -342,7 +342,7 @@ export default function LiveLecturePage() {
         {/* Bookmarks and Highlights */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Bookmarks */}
-          <div className="glassmorphism-card p-6">
+          <div className="feature-card p-6">
             <h2 className="text-2xl font-semibold mb-6 text-center">
               <i className="fas fa-bookmark mr-2 text-purple-400"></i>
               Bookmarks ({bookmarks.length})
@@ -350,7 +350,7 @@ export default function LiveLecturePage() {
             <div className="space-y-4 max-h-[300px] overflow-y-auto">
               {bookmarks.length > 0 ? (
                 bookmarks.map((bookmark) => (
-                  <div key={bookmark.id} className="glassmorphism-card p-4">
+                  <div key={bookmark.id} className="feature-card p-4">
                     <div className="text-sm text-gray-400 mb-2">
                       <i className="fas fa-clock mr-1"></i>
                       {bookmark.timestamp.toLocaleTimeString()}
@@ -374,7 +374,7 @@ export default function LiveLecturePage() {
           </div>
 
           {/* Highlights */}
-          <div className="glassmorphism-card p-6">
+          <div className="feature-card p-6">
             <h2 className="text-2xl font-semibold mb-6 text-center">
               <i className="fas fa-highlighter mr-2 text-orange-400"></i>
               Highlights ({highlights.length})
@@ -382,7 +382,7 @@ export default function LiveLecturePage() {
             <div className="space-y-4 max-h-[300px] overflow-y-auto">
               {highlights.length > 0 ? (
                 highlights.map((highlight) => (
-                  <div key={highlight.id} className="glassmorphism-card p-4">
+                  <div key={highlight.id} className="feature-card p-4">
                     <div className="text-sm text-gray-400 mb-2">
                       <i className="fas fa-clock mr-1"></i>
                       {highlight.timestamp.toLocaleTimeString()}
@@ -406,7 +406,7 @@ export default function LiveLecturePage() {
 
         {/* Lecture Status */}
         {state && (
-          <div className="glassmorphism-card p-6">
+          <div className="feature-card p-6">
             <h3 className="text-xl font-semibold mb-6 text-center">
               <i className="fas fa-chart-line mr-2 text-blue-400"></i>
               Lecture Status

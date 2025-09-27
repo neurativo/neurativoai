@@ -1,8 +1,11 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { LiveLectureAssistant, LiveLectureState, Flashcard, Bookmark, Highlight } from "@/app/lib/liveLectureAssistant";
 
 export default function LiveLecturePage() {
+  const router = useRouter();
   const [assistant] = useState(() => new LiveLectureAssistant('openai')); // Use OpenAI Whisper by default
   const [state, setState] = useState<LiveLectureState | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -14,9 +17,31 @@ export default function LiveLecturePage() {
   const [questionAnswer, setQuestionAnswer] = useState("");
   const [highlightText, setHighlightText] = useState("");
   const [bookmarkNotes, setBookmarkNotes] = useState("");
+  const [setupComplete, setSetupComplete] = useState(false);
+
+  // Check if setup is complete
+  useEffect(() => {
+    const checkSetup = () => {
+      const hasOpenAI = !!process.env.NEXT_PUBLIC_OPENAI_API_KEY || !!process.env.OPENAI_API_KEY;
+      const hasGoogle = !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY || !!process.env.GOOGLE_API_KEY;
+      const hasAzure = !!process.env.NEXT_PUBLIC_AZURE_API_KEY || !!process.env.AZURE_API_KEY;
+      const hasAssemblyAI = !!process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || !!process.env.ASSEMBLYAI_API_KEY;
+      
+      if (!hasOpenAI && !hasGoogle && !hasAzure && !hasAssemblyAI) {
+        router.push('/lecture/landing');
+        return;
+      }
+      
+      setSetupComplete(true);
+    };
+
+    checkSetup();
+  }, [router]);
 
   // Update state periodically
   useEffect(() => {
+    if (!setupComplete) return;
+    
     const interval = setInterval(() => {
       const newState = assistant.getState();
       setState(newState);
@@ -27,7 +52,7 @@ export default function LiveLecturePage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [assistant]);
+  }, [assistant, setupComplete]);
 
   const startLecture = async () => {
     try {
@@ -72,10 +97,30 @@ export default function LiveLecturePage() {
     }
   };
 
+  if (!setupComplete) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading loading-spinner loading-lg mb-4"></div>
+          <p className="text-gray-400">Checking setup...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Live Lecture Assistant</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Live Lecture Assistant</h1>
+          <Link 
+            href="/lecture/landing" 
+            className="btn btn-outline btn-sm"
+          >
+            <i className="fas fa-info-circle mr-2"></i>
+            Setup Guide
+          </Link>
+        </div>
         
         {/* Control Panel */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">

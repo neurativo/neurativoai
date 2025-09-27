@@ -118,6 +118,7 @@ export default function Navbar() {
 						<ul className="menu menu-horizontal gap-2">
 							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`}>Home</Link></li>
 							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`}>Quiz</Link></li>
+							<li><Link href="/lecture" className={`nav-link ${isActive("/lecture") ? "active" : ""}`}>Live Lecture</Link></li>
 							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`}>Pricing</Link></li>
 							<li><Link href="/library" className={`nav-link ${isActive("/library") ? "active" : ""}`}>Library</Link></li>
 							<li><Link href="/about" className={`nav-link ${isActive("/about") ? "active" : ""}`}>About</Link></li>
@@ -144,6 +145,7 @@ export default function Navbar() {
 									</div>
 									<ul className="menu menu-sm">
 										<li><Link href="/dashboard"><i className="fas fa-tachometer-alt w-4"/> Dashboard</Link></li>
+										<li><Link href="/lecture"><i className="fas fa-microphone w-4"/> Live Lecture</Link></li>
 										<li><Link href="/profile"><i className="fas fa-user w-4"/> Profile</Link></li>
 										<li><Link href="/settings"><i className="fas fa-cog w-4"/> Settings</Link></li>
 										<li><Link href="/pricing"><i className="fas fa-crown w-4"/> Upgrade Plan</Link></li>
@@ -175,6 +177,7 @@ export default function Navbar() {
 						<ul className="menu menu-vertical">
 							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`}>Home</Link></li>
 							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`}>Quiz</Link></li>
+							<li><Link href="/lecture" className={`nav-link ${isActive("/lecture") ? "active" : ""}`}>Live Lecture</Link></li>
 							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`}>Pricing</Link></li>
 							<li><Link href="/library" className={`nav-link ${isActive("/library") ? "active" : ""}`}>Library</Link></li>
 							<li><Link href="/about" className={`nav-link ${isActive("/about") ? "active" : ""}`}>About</Link></li>

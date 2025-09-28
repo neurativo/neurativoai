@@ -228,6 +228,15 @@ export class AudioTranscriptionService {
 export function createTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai'): AudioTranscriptionService {
   const apiKey = process.env[`${provider.toUpperCase()}_API_KEY`] || '';
   
+  console.log(`Creating transcription service for ${provider}`, { 
+    hasApiKey: !!apiKey, 
+    keyLength: apiKey.length 
+  });
+  
+  if (!apiKey) {
+    throw new Error(`API key not found for ${provider}. Please check your environment variables.`);
+  }
+  
   return new AudioTranscriptionService({
     provider,
     apiKey,

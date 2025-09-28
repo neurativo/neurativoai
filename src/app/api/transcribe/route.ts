@@ -3,9 +3,18 @@ import { createTranscriptionService } from '@/app/lib/audioTranscriptionService'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Transcription API called');
+    
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     const provider = formData.get('provider') as string || 'openai';
+
+    console.log('Transcription request:', { 
+      hasAudioFile: !!audioFile, 
+      provider, 
+      fileSize: audioFile?.size,
+      fileType: audioFile?.type 
+    });
 
     if (!audioFile) {
       return NextResponse.json(
@@ -19,26 +28,31 @@ export async function POST(request: NextRequest) {
       type: audioFile.type 
     });
 
+    console.log('Audio blob created:', { size: audioBlob.size, type: audioBlob.type });
+
     // Create transcription service
+    console.log('Creating transcription service for provider:', provider);
     const transcriptionService = createTranscriptionService(
       provider as 'openai' | 'google' | 'azure' | 'assemblyai'
     );
 
     // Transcribe audio
+    console.log('Starting transcription...');
     const result = await transcriptionService.transcribeAudio(audioBlob);
+    console.log('Transcription completed:', result);
 
     return NextResponse.json({
-      success: true,
-      transcription: result
+      transcript: result.text,
+      language: result.language,
+      confidence: result.confidence
     });
 
   } catch (error) {
     console.error('Transcription error:', error);
     return NextResponse.json(
       { 
-        success: false, 
-        error: 'Transcription failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Transcription failed',
+        details: error instanceof Error ? error.stack : 'Unknown error'
       },
       { status: 500 }
     );

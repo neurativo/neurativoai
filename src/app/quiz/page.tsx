@@ -253,9 +253,19 @@ export default function QuizPage() {
 
 									{sourceTab === "document" && (
 										<div className="md:col-span-2">
-											<label className="text-white font-semibold mb-2 block">Upload Document</label>
-											<input onChange={(e) => setSourceFile(e.target.files?.[0] || null)} type="file" accept=".txt,.md,.pdf,.doc,.docx" className="file-input file-input-bordered w-full bg-white/5 text-white" />
-											<p className="text-gray-400 text-sm mt-2">Text and Markdown will be read in-browser; PDF/Word will be passed to the API.</p>
+											<div className="text-center py-8">
+												<div className="text-6xl mb-4">📄</div>
+												<h3 className="text-xl font-semibold mb-4">Document Quiz Generator</h3>
+												<p className="text-gray-400 mb-6">
+													Upload a document and get an intelligent quiz generated from its content
+												</p>
+												<button
+													onClick={() => window.location.href = '/quiz/document'}
+													className="btn btn-primary btn-lg"
+												>
+													Go to Document Quiz
+												</button>
+											</div>
 										</div>
 									)}
 

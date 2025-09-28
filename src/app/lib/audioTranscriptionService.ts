@@ -351,6 +351,7 @@ export class StreamingTranscriptionService {
   private sessionId: string | null = null;
   private audioBuffer: Blob[] = [];
   private lastChunkTime: number = 0;
+  private sendTimer: NodeJS.Timeout | null = null;
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -387,39 +388,64 @@ export class StreamingTranscriptionService {
 
       this.mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0 && this.websocket && this.isConnected) {
-          try {
-            // Add chunk to buffer
-            this.audioBuffer.push(event.data);
-            const currentTime = Date.now();
-            
-            // Only send if we have enough duration (at least 50ms worth)
-            // Since we're using 500ms chunks, this should be sufficient
-            if (currentTime - this.lastChunkTime >= 500) {
-              // Combine buffered chunks
-              const combinedBlob = new Blob(this.audioBuffer, { type: 'audio/webm' });
-              const arrayBuffer = await combinedBlob.arrayBuffer();
-              
-              // Only send if the chunk is substantial enough
-              if (arrayBuffer.byteLength > 100) { // At least 100 bytes
-                this.websocket.send(arrayBuffer);
-                console.log('Audio chunk sent to AssemblyAI v3:', arrayBuffer.byteLength, 'bytes');
-                this.lastChunkTime = currentTime;
-              }
-              
-              // Clear buffer
-              this.audioBuffer = [];
-            }
-          } catch (error) {
-            console.error('Error sending audio chunk:', error);
-            if (this.onErrorCallback) {
-              this.onErrorCallback(error as Error);
-            }
+          // Add chunk to buffer
+          this.audioBuffer.push(event.data);
+          
+          // Clear existing timer
+          if (this.sendTimer) {
+            clearTimeout(this.sendTimer);
           }
+          
+          // Set timer to send buffered audio after 500ms
+          this.sendTimer = setTimeout(async () => {
+            if (this.audioBuffer.length > 0 && this.websocket && this.isConnected) {
+              try {
+                // Combine buffered chunks
+                const combinedBlob = new Blob(this.audioBuffer, { type: 'audio/webm' });
+                const arrayBuffer = await combinedBlob.arrayBuffer();
+                
+                // Only send if the chunk is substantial enough
+                if (arrayBuffer.byteLength > 200) { // At least 200 bytes for better quality
+                  this.websocket.send(arrayBuffer);
+                  console.log('Audio chunk sent to AssemblyAI v3:', arrayBuffer.byteLength, 'bytes');
+                  
+                  // Clear buffer
+                  this.audioBuffer = [];
+                }
+              } catch (error) {
+                console.error('Error sending audio chunk:', error);
+                if (this.onErrorCallback) {
+                  this.onErrorCallback(error as Error);
+                }
+              }
+            }
+          }, 500); // Send every 500ms
         }
       };
 
-      this.mediaRecorder.onstop = () => {
+      this.mediaRecorder.onstop = async () => {
         console.log('Streaming transcription stopped');
+        
+        // Clear timer
+        if (this.sendTimer) {
+          clearTimeout(this.sendTimer);
+          this.sendTimer = null;
+        }
+        
+        // Send any remaining buffered audio
+        if (this.audioBuffer.length > 0 && this.websocket && this.isConnected) {
+          try {
+            const combinedBlob = new Blob(this.audioBuffer, { type: 'audio/webm' });
+            const arrayBuffer = await combinedBlob.arrayBuffer();
+            if (arrayBuffer.byteLength > 0) {
+              this.websocket.send(arrayBuffer);
+              console.log('Final audio chunk sent:', arrayBuffer.byteLength, 'bytes');
+            }
+          } catch (error) {
+            console.error('Error sending final audio chunk:', error);
+          }
+        }
+        
         this.disconnectWebSocket();
       };
 
@@ -541,6 +567,12 @@ export class StreamingTranscriptionService {
 
   async stopStreaming(): Promise<void> {
     console.log('Stopping AssemblyAI streaming transcription...');
+    
+    // Clear timer
+    if (this.sendTimer) {
+      clearTimeout(this.sendTimer);
+      this.sendTimer = null;
+    }
     
     if (this.mediaRecorder && this.isRecording) {
       this.mediaRecorder.stop();

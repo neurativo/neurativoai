@@ -137,6 +137,49 @@ export async function POST(req: Request) {
 			return NextResponse.json({ success: false, error: "User not found" }, { status: 401 });
 		}
 
+		// Handle document file uploads
+		if (source === "document") {
+			const file = formData?.get("file") as File;
+			if (file) {
+				// Use the document analysis API to extract content
+				try {
+					const docFormData = new FormData();
+					docFormData.append('file', file);
+					docFormData.append('userId', user.id);
+					
+					const docResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/document/analyze`, {
+						method: 'POST',
+						body: docFormData,
+					});
+					
+					if (!docResponse.ok) {
+						const errorData = await docResponse.json();
+						return NextResponse.json({ 
+							success: false, 
+							error: `Document processing failed: ${errorData.error || 'Unknown error'}` 
+						}, { status: 400 });
+					}
+					
+					const docData = await docResponse.json();
+					finalContent = docData.document?.analysis?.summary || 'Document processed successfully';
+					contentTitle = docData.document?.fileName || 'Document';
+					
+					console.log('Document processed successfully:', {
+						fileName: docData.document?.fileName,
+						pageCount: docData.document?.pageCount,
+						wordCount: docData.document?.wordCount
+					});
+					
+				} catch (error) {
+					console.error('Document processing error:', error);
+					return NextResponse.json({ 
+						success: false, 
+						error: `Failed to process document: ${error instanceof Error ? error.message : 'Unknown error'}` 
+					}, { status: 400 });
+				}
+			}
+		}
+
 		// Get user's current plan and usage
 		const { data: subscription, error: subError } = await supabase
 			.from("subscriptions")

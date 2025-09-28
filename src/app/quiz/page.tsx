@@ -50,6 +50,24 @@ export default function QuizPage() {
 		});
 	}
 
+	async function extractDocumentContent(file: File): Promise<string | null> {
+		try {
+			// For text files, use the existing method
+			if (file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".md")) {
+				return await readFileToText(file);
+			}
+			
+			// For PDFs and other documents, we need to send to our document analysis API
+			// This is a temporary solution - in production, you'd want to handle this client-side
+			// or use a different approach
+			console.log("Document type not supported for client-side extraction:", file.type);
+			return null;
+		} catch (error) {
+			console.error("Error extracting document content:", error);
+			return null;
+		}
+	}
+
     async function checkLimits(): Promise<LimitState> {
         const supabase = getSupabaseBrowser();
         const [{ data: { user } }, { data: { session } }] = await Promise.all([
@@ -132,9 +150,16 @@ export default function QuizPage() {
 			if (sourceTab === "document" && sourceFile) {
 				form.set("file_name", sourceFile.name);
 				form.set("file_size", String(sourceFile.size));
-				if (sourceFile.type.startsWith("text/") || sourceFile.name.endsWith(".txt") || sourceFile.name.endsWith(".md")) {
-					const text = await readFileToText(sourceFile);
-					if (text) form.set("content", text);
+				form.set("file_type", sourceFile.type);
+				
+				// Try to extract content client-side
+				const content = await extractDocumentContent(sourceFile);
+				if (content) {
+					form.set("content", content);
+				} else {
+					// For PDFs and other documents, we need to send the file to the server
+					// The server will handle the extraction
+					form.set("file", sourceFile);
 				}
 			}
 

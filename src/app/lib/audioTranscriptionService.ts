@@ -418,21 +418,20 @@ export class StreamingTranscriptionService {
   private async connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // AssemblyAI streaming WebSocket endpoint
-        const wsUrl = 'wss://api.assemblyai.com/v2/realtime/ws';
+        // AssemblyAI streaming WebSocket endpoint with API key in URL
+        const wsUrl = `wss://api.assemblyai.com/v2/realtime/ws?token=${this.apiKey}`;
         this.websocket = new WebSocket(wsUrl);
 
         this.websocket.onopen = (event) => {
           console.log('WebSocket connected to AssemblyAI');
           this.isConnected = true;
           
-          // Send authentication and configuration message
+          // Send configuration message
           const config = {
             sample_rate: 16000,
             word_boost: ['lecture', 'professor', 'student', 'university', 'course', 'study', 'exam', 'assignment'],
             encoding: 'pcm_s16le',
-            channels: 1,
-            token: this.apiKey
+            channels: 1
           };
           
           this.websocket!.send(JSON.stringify(config));
@@ -472,7 +471,7 @@ export class StreamingTranscriptionService {
           if (this.onErrorCallback) {
             this.onErrorCallback(new Error('WebSocket connection failed'));
           }
-          reject(error);
+          reject(new Error('WebSocket connection failed'));
         };
 
         this.websocket.onclose = (event) => {

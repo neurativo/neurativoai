@@ -352,6 +352,7 @@ export class StreamingTranscriptionService {
   private audioBuffer: Blob[] = [];
   private lastChunkTime: number = 0;
   private sendTimer: NodeJS.Timeout | null = null;
+  private totalAudioDuration: number = 0; // Track total audio duration in ms
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -391,35 +392,35 @@ export class StreamingTranscriptionService {
           // Add chunk to buffer
           this.audioBuffer.push(event.data);
           
+          // Estimate audio duration based on sample rate and data size
+          // For 16kHz, 16-bit audio: 1 second = 32,000 bytes
+          // So 1ms = 32 bytes
+          const estimatedDuration = Math.max(500, (event.data.size / 32) * 1000); // At least 500ms
+          this.totalAudioDuration += estimatedDuration;
+          
+          console.log('Audio chunk received:', {
+            size: event.data.size,
+            estimatedDuration: Math.round(estimatedDuration),
+            totalDuration: Math.round(this.totalAudioDuration),
+            bufferChunks: this.audioBuffer.length
+          });
+          
           // Clear existing timer
           if (this.sendTimer) {
             clearTimeout(this.sendTimer);
           }
           
-          // Set timer to send buffered audio after 500ms
-          this.sendTimer = setTimeout(async () => {
-            if (this.audioBuffer.length > 0 && this.websocket && this.isConnected) {
-              try {
-                // Combine buffered chunks
-                const combinedBlob = new Blob(this.audioBuffer, { type: 'audio/webm' });
-                const arrayBuffer = await combinedBlob.arrayBuffer();
-                
-                // Only send if the chunk is substantial enough
-                if (arrayBuffer.byteLength > 200) { // At least 200 bytes for better quality
-                  this.websocket.send(arrayBuffer);
-                  console.log('Audio chunk sent to AssemblyAI v3:', arrayBuffer.byteLength, 'bytes');
-                  
-                  // Clear buffer
-                  this.audioBuffer = [];
-                }
-              } catch (error) {
-                console.error('Error sending audio chunk:', error);
-                if (this.onErrorCallback) {
-                  this.onErrorCallback(error as Error);
-                }
+          // Only send if we have accumulated at least 1000ms of audio
+          if (this.totalAudioDuration >= 1000) {
+            this.sendBufferedAudio();
+          } else {
+            // Set fallback timer to send after 2 seconds regardless
+            this.sendTimer = setTimeout(() => {
+              if (this.audioBuffer.length > 0) {
+                this.sendBufferedAudio();
               }
-            }
-          }, 500); // Send every 500ms
+            }, 2000);
+          }
         }
       };
 
@@ -449,9 +450,10 @@ export class StreamingTranscriptionService {
         this.disconnectWebSocket();
       };
 
-      // Initialize timing
+      // Initialize timing and duration tracking
       this.lastChunkTime = Date.now();
       this.audioBuffer = [];
+      this.totalAudioDuration = 0;
       
       // Start recording with chunks that meet AssemblyAI requirements (50-1000ms)
       this.mediaRecorder.start(500); // 500ms chunks - within AssemblyAI's 50-1000ms range
@@ -586,6 +588,36 @@ export class StreamingTranscriptionService {
 
     this.disconnectWebSocket();
     console.log('AssemblyAI streaming transcription stopped');
+  }
+
+  private async sendBufferedAudio(): Promise<void> {
+    if (this.audioBuffer.length === 0 || !this.websocket || !this.isConnected) {
+      return;
+    }
+
+    try {
+      // Combine buffered chunks
+      const combinedBlob = new Blob(this.audioBuffer, { type: 'audio/webm' });
+      const arrayBuffer = await combinedBlob.arrayBuffer();
+      
+      if (arrayBuffer.byteLength > 0) {
+        this.websocket.send(arrayBuffer);
+        console.log('Audio chunk sent to AssemblyAI v3:', {
+          bytes: arrayBuffer.byteLength,
+          estimatedDuration: Math.round(this.totalAudioDuration),
+          chunks: this.audioBuffer.length
+        });
+        
+        // Clear buffer and reset duration
+        this.audioBuffer = [];
+        this.totalAudioDuration = 0;
+      }
+    } catch (error) {
+      console.error('Error sending audio chunk:', error);
+      if (this.onErrorCallback) {
+        this.onErrorCallback(error as Error);
+      }
+    }
   }
 
   private getSupportedMimeType(): string {

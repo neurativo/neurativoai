@@ -418,8 +418,9 @@ export class StreamingTranscriptionService {
   private async connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // AssemblyAI streaming WebSocket v3 endpoint with lecture-optimized settings
-        const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&keyterms_prompt=lecture,professor,student,university,course,study,exam,assignment,mathematics,physics,chemistry,biology,history,literature,research,analysis,theory,concept,formula,equation,definition,example,problem,solution&format_turns=true&end_of_turn_confidence_threshold=0.3&min_end_of_turn_silence_when_confident=600&max_turn_silence=2000&token=${this.apiKey}`;
+        // AssemblyAI streaming WebSocket v3 endpoint with basic settings
+        // Advanced configuration will be sent as messages after connection
+        const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&token=${this.apiKey}`;
         console.log('Connecting to AssemblyAI v3 WebSocket:', wsUrl.replace(this.apiKey, '***'));
         this.websocket = new WebSocket(wsUrl);
 
@@ -427,7 +428,31 @@ export class StreamingTranscriptionService {
           console.log('WebSocket connected to AssemblyAI v3');
           this.isConnected = true;
           
-          // No need to send configuration - it's in the URL parameters
+          // Send configuration messages after connection
+          const configs = [
+            {
+              type: 'UpdateConfiguration',
+              keyterms_prompt: [
+                'lecture', 'professor', 'student', 'university', 'course', 'study', 'exam', 'assignment',
+                'mathematics', 'physics', 'chemistry', 'biology', 'history', 'literature', 'research',
+                'analysis', 'theory', 'concept', 'formula', 'equation', 'definition', 'example',
+                'problem', 'solution', 'chapter', 'section', 'topic', 'subject', 'class', 'lesson'
+              ]
+            },
+            {
+              type: 'UpdateConfiguration',
+              format_turns: true,
+              end_of_turn_confidence_threshold: 0.3,
+              min_end_of_turn_silence_when_confident: 600,
+              max_turn_silence: 2000
+            }
+          ];
+          
+          configs.forEach(config => {
+            this.websocket!.send(JSON.stringify(config));
+          });
+          
+          console.log('Configuration messages sent');
           resolve();
         };
 

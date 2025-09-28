@@ -386,10 +386,10 @@ export class StreamingTranscriptionService {
       this.mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0 && this.websocket && this.isConnected) {
           try {
-            // Convert blob to ArrayBuffer for WebSocket
+            // Convert blob to ArrayBuffer for WebSocket v3
             const arrayBuffer = await event.data.arrayBuffer();
             this.websocket.send(arrayBuffer);
-            console.log('Audio chunk sent to AssemblyAI:', arrayBuffer.byteLength, 'bytes');
+            console.log('Audio chunk sent to AssemblyAI v3:', arrayBuffer.byteLength, 'bytes');
           } catch (error) {
             console.error('Error sending audio chunk:', error);
             if (this.onErrorCallback) {
@@ -418,46 +418,33 @@ export class StreamingTranscriptionService {
   private async connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // AssemblyAI streaming WebSocket endpoint with API key in URL
-        const wsUrl = `wss://api.assemblyai.com/v2/realtime/ws?token=${this.apiKey}`;
+        // AssemblyAI streaming WebSocket v3 endpoint
+        const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&keyterms_prompt=lecture,professor,student,university,course,study,exam,assignment&token=${this.apiKey}`;
         this.websocket = new WebSocket(wsUrl);
 
         this.websocket.onopen = (event) => {
-          console.log('WebSocket connected to AssemblyAI');
+          console.log('WebSocket connected to AssemblyAI v3');
           this.isConnected = true;
           
-          // Send configuration message
-          const config = {
-            sample_rate: 16000,
-            word_boost: ['lecture', 'professor', 'student', 'university', 'course', 'study', 'exam', 'assignment'],
-            encoding: 'pcm_s16le',
-            channels: 1
-          };
-          
-          this.websocket!.send(JSON.stringify(config));
+          // No need to send configuration - it's in the URL parameters
           resolve();
         };
 
         this.websocket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log('AssemblyAI WebSocket message:', data);
+            console.log('AssemblyAI WebSocket v3 message:', data);
 
-            if (data.message_type === 'SessionBegins') {
-              this.sessionId = data.session_id;
-              console.log('AssemblyAI session started:', this.sessionId);
-            } else if (data.message_type === 'PartialTranscript') {
+            if (data.type === 'Begin') {
+              this.sessionId = data.id;
+              console.log('AssemblyAI v3 session started:', this.sessionId);
+            } else if (data.type === 'Turn') {
               if (data.text && this.onTranscriptCallback) {
-                console.log('Partial transcript:', data.text);
+                console.log('Turn transcript:', data.text);
                 this.onTranscriptCallback(data.text);
               }
-            } else if (data.message_type === 'FinalTranscript') {
-              if (data.text && this.onTranscriptCallback) {
-                console.log('Final transcript:', data.text);
-                this.onTranscriptCallback(data.text);
-              }
-            } else if (data.message_type === 'SessionTerminated') {
-              console.log('AssemblyAI session terminated');
+            } else if (data.type === 'Termination') {
+              console.log('AssemblyAI v3 session terminated');
               this.isConnected = false;
             }
           } catch (error) {
@@ -488,9 +475,9 @@ export class StreamingTranscriptionService {
 
   private disconnectWebSocket(): void {
     if (this.websocket) {
-      // Send termination message
+      // Send termination message for v3 API
       if (this.isConnected) {
-        this.websocket.send(JSON.stringify({ terminate_session: true }));
+        this.websocket.send(JSON.stringify({ type: 'SessionTermination' }));
       }
       this.websocket.close();
       this.websocket = null;

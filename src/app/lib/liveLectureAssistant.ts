@@ -163,26 +163,39 @@ export class LiveLectureAssistant {
       this.state.isPaused = false;
       this.state.startTime = new Date();
       
-      // For AssemblyAI, use the chunk-based approach with faster processing
+      // For AssemblyAI, use the streaming WebSocket v3 service
       if (this.transcriptionService.getProvider() === 'assemblyai') {
-        console.log('Starting AssemblyAI chunk-based transcription...');
+        console.log('Starting AssemblyAI streaming transcription v3...');
         
-        // Initialize audio recorder for chunk-based processing
-        if (!this.isInitialized) {
-          console.log('Initializing audio recorder...');
-          await this.audioRecorder.initialize();
-          this.isInitialized = true;
-          console.log('Audio recorder initialized');
-        }
-        
-        // Start audio recording with faster chunk processing
-        console.log('Starting audio recording...');
-        this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
-          console.log('Processing audio chunk...');
-          await this.processAudioChunk(chunk);
+        // Get API key from environment (this will be handled by the API route)
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_api_key' })
         });
         
-        console.log('AssemblyAI chunk-based transcription started');
+        if (!response.ok) {
+          throw new Error('Failed to get API key for streaming');
+        }
+        
+        const { apiKey } = await response.json();
+        console.log('API key retrieved for streaming:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
+        
+        // Initialize streaming service with API key
+        this.streamingService = new StreamingTranscriptionService(apiKey);
+        
+        // Start streaming transcription
+        await this.streamingService.startStreaming(
+          (transcript: string) => {
+            console.log('Real-time transcript received:', transcript);
+            this.processRealTimeTranscript(transcript);
+          },
+          (error: Error) => {
+            console.error('Streaming transcription error:', error);
+          }
+        );
+        
+        console.log('AssemblyAI streaming transcription v3 started');
       } else {
         // For other providers, use the chunk-based approach
         if (!this.isInitialized) {

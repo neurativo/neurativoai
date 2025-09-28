@@ -228,11 +228,11 @@ export class AudioTranscriptionService {
       console.log('Transcription started with ID:', transcriptId);
 
       // Step 3: Poll for completion (with timeout)
-      const maxAttempts = 30; // 30 seconds max
+      const maxAttempts = 10; // 10 seconds max for faster processing
       let attempts = 0;
       
       while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms for faster response
         
         const statusResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
           headers: {

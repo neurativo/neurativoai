@@ -26,7 +26,7 @@ export class AudioRecorder {
     sampleRate: 44100,
     channels: 1,
     bitsPerSample: 16,
-    chunkSize: 1000 // 1 second chunks
+    chunkSize: 500 // 500ms chunks for more real-time processing
   }) {
     this.config = config;
   }

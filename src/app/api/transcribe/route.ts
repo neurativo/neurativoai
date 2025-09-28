@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       const body = await request.json();
       if (body.action === 'get_api_key') {
         const apiKey = process.env.ASSEMBLYAI_API_KEY;
+        console.log('API key request:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
         if (!apiKey) {
           return NextResponse.json({ error: 'AssemblyAI API key not found' }, { status: 500 });
         }

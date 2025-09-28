@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createTranscriptionService } from '@/app/lib/audioTranscriptionService';
+import { createServerTranscriptionService } from '@/app/lib/audioTranscriptionService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Create transcription service
     console.log('Creating transcription service for provider:', provider);
-    const transcriptionService = createTranscriptionService(
+    const transcriptionService = createServerTranscriptionService(
       provider as 'openai' | 'google' | 'azure' | 'assemblyai'
     );
 

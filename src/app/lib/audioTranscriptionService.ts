@@ -226,9 +226,25 @@ export class AudioTranscriptionService {
 
 // Factory function for creating transcription service
 export function createTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai'): AudioTranscriptionService {
+  // For client-side usage, we don't need the API key here since we use the /api/transcribe route
+  // The API key validation happens on the server-side in the API route
+  const apiKey = 'client-side-placeholder'; // This won't be used for client-side calls
+  
+  console.log(`Creating transcription service for ${provider} (client-side)`);
+  
+  return new AudioTranscriptionService({
+    provider,
+    apiKey,
+    language: 'en-US',
+    model: provider === 'openai' ? 'whisper-1' : undefined
+  });
+}
+
+// Server-side factory function for API routes
+export function createServerTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai'): AudioTranscriptionService {
   const apiKey = process.env[`${provider.toUpperCase()}_API_KEY`] || '';
   
-  console.log(`Creating transcription service for ${provider}`, { 
+  console.log(`Creating transcription service for ${provider} (server-side)`, { 
     hasApiKey: !!apiKey, 
     keyLength: apiKey.length 
   });

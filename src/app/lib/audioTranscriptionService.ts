@@ -349,6 +349,8 @@ export class StreamingTranscriptionService {
   private onTranscriptCallback: ((transcript: string) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private sessionId: string | null = null;
+  private audioBuffer: Blob[] = [];
+  private lastChunkTime: number = 0;
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -386,10 +388,27 @@ export class StreamingTranscriptionService {
       this.mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0 && this.websocket && this.isConnected) {
           try {
-            // Convert blob to ArrayBuffer for WebSocket v3
-            const arrayBuffer = await event.data.arrayBuffer();
-            this.websocket.send(arrayBuffer);
-            console.log('Audio chunk sent to AssemblyAI v3:', arrayBuffer.byteLength, 'bytes');
+            // Add chunk to buffer
+            this.audioBuffer.push(event.data);
+            const currentTime = Date.now();
+            
+            // Only send if we have enough duration (at least 50ms worth)
+            // Since we're using 500ms chunks, this should be sufficient
+            if (currentTime - this.lastChunkTime >= 500) {
+              // Combine buffered chunks
+              const combinedBlob = new Blob(this.audioBuffer, { type: 'audio/webm' });
+              const arrayBuffer = await combinedBlob.arrayBuffer();
+              
+              // Only send if the chunk is substantial enough
+              if (arrayBuffer.byteLength > 100) { // At least 100 bytes
+                this.websocket.send(arrayBuffer);
+                console.log('Audio chunk sent to AssemblyAI v3:', arrayBuffer.byteLength, 'bytes');
+                this.lastChunkTime = currentTime;
+              }
+              
+              // Clear buffer
+              this.audioBuffer = [];
+            }
           } catch (error) {
             console.error('Error sending audio chunk:', error);
             if (this.onErrorCallback) {
@@ -404,8 +423,12 @@ export class StreamingTranscriptionService {
         this.disconnectWebSocket();
       };
 
-      // Start recording with small time slices for real-time processing
-      this.mediaRecorder.start(250); // 250ms chunks for real-time feel
+      // Initialize timing
+      this.lastChunkTime = Date.now();
+      this.audioBuffer = [];
+      
+      // Start recording with chunks that meet AssemblyAI requirements (50-1000ms)
+      this.mediaRecorder.start(500); // 500ms chunks - within AssemblyAI's 50-1000ms range
       this.isRecording = true;
 
       console.log('AssemblyAI streaming transcription started');

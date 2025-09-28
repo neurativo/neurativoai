@@ -86,27 +86,63 @@ export async function POST(request: NextRequest) {
     let pageCount = 0;
     let wordCount = 0;
 
-    if (file.type === 'application/pdf') {
-      const result = await processPDF(file);
-      documentContent = result.content;
-      pageCount = result.pageCount;
-      wordCount = result.wordCount;
-    } else if (file.type.includes('text/') || file.name.endsWith('.txt')) {
-      const result = await processTextFile(file);
-      documentContent = result.content;
-      pageCount = result.pageCount;
-      wordCount = result.wordCount;
-    } else if (file.type.includes('application/vnd.openxmlformats') || file.name.endsWith('.docx')) {
-      const result = await processWordDocument(file);
-      documentContent = result.content;
-      pageCount = result.pageCount;
-      wordCount = result.wordCount;
-    } else {
+    try {
+      if (file.type === 'application/pdf') {
+        const result = await processPDF(file);
+        documentContent = result.content;
+        pageCount = result.pageCount;
+        wordCount = result.wordCount;
+      } else if (file.type.includes('text/') || file.name.endsWith('.txt')) {
+        const result = await processTextFile(file);
+        documentContent = result.content;
+        pageCount = result.pageCount;
+        wordCount = result.wordCount;
+      } else if (file.type.includes('application/vnd.openxmlformats') || file.name.endsWith('.docx')) {
+        const result = await processWordDocument(file);
+        documentContent = result.content;
+        pageCount = result.pageCount;
+        wordCount = result.wordCount;
+      } else {
+        return NextResponse.json(
+          { error: 'Unsupported file type. Please upload PDF, TXT, or DOCX files.' },
+          { status: 400 }
+        );
+      }
+    } catch (processingError) {
+      console.error('Document processing error:', processingError);
       return NextResponse.json(
-        { error: 'Unsupported file type. Please upload PDF, TXT, or DOCX files.' },
+        { 
+          error: 'Failed to process document',
+          details: processingError instanceof Error ? processingError.message : 'Unknown processing error',
+          fileName: file.name,
+          fileType: file.type
+        },
         { status: 400 }
       );
     }
+
+    // Validate document content
+    if (!documentContent || documentContent.trim().length < 10) {
+      return NextResponse.json(
+        { 
+          error: 'Document appears to be empty or contains insufficient text. Please ensure your document has readable content.',
+          details: {
+            contentLength: documentContent?.length || 0,
+            fileType: file.type,
+            fileName: file.name
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log('Document processed successfully:', {
+      fileName: file.name,
+      contentLength: documentContent.length,
+      pageCount,
+      wordCount,
+      fileType: file.type
+    });
 
     // Check page and word limits based on plan
     const planKey = plan.key || 'free';
@@ -207,16 +243,28 @@ async function processPDF(file: File): Promise<{ content: string; pageCount: num
     // Parse PDF
     const data = await pdfParse.default(buffer);
     
+    // Clean and validate the extracted text
+    let cleanText = data.text || '';
+    
+    // Remove excessive whitespace and normalize
+    cleanText = cleanText.replace(/\s+/g, ' ').trim();
+    
+    // Check if we got meaningful content
+    if (cleanText.length < 10) {
+      throw new Error('PDF appears to contain no readable text. It might be image-based or corrupted.');
+    }
+    
     console.log('PDF parsed successfully:', {
       pages: data.numpages,
-      textLength: data.text.length,
-      wordCount: data.text.split(/\s+/).length
+      textLength: cleanText.length,
+      wordCount: cleanText.split(/\s+/).length,
+      originalTextLength: data.text?.length || 0
     });
     
     return {
-      content: data.text,
+      content: cleanText,
       pageCount: data.numpages,
-      wordCount: data.text.split(/\s+/).length
+      wordCount: cleanText.split(/\s+/).length
     };
     
   } catch (error) {
@@ -233,11 +281,27 @@ async function processPDF(file: File): Promise<{ content: string; pageCount: num
 
 async function processTextFile(file: File): Promise<{ content: string; pageCount: number; wordCount: number }> {
   const text = await file.text();
-  const wordCount = text.split(/\s+/).length;
+  
+  // Clean and validate the text
+  let cleanText = text.replace(/\s+/g, ' ').trim();
+  
+  // Check if we got meaningful content
+  if (cleanText.length < 10) {
+    throw new Error('Text file appears to be empty or contains insufficient content.');
+  }
+  
+  const wordCount = cleanText.split(/\s+/).length;
   const pageCount = Math.ceil(wordCount / 250); // Estimate 250 words per page
   
+  console.log('Text file processed successfully:', {
+    fileName: file.name,
+    contentLength: cleanText.length,
+    wordCount,
+    pageCount
+  });
+  
   return {
-    content: text,
+    content: cleanText,
     pageCount,
     wordCount
   };
@@ -245,7 +309,14 @@ async function processTextFile(file: File): Promise<{ content: string; pageCount
 
 async function processWordDocument(file: File): Promise<{ content: string; pageCount: number; wordCount: number }> {
   // For now, return a placeholder - you can integrate with a DOCX processing library
-  const text = `Word document processing not implemented yet. File: ${file.name}`;
+  const text = `Word document processing not implemented yet. File: ${file.name}. Please convert your document to PDF or TXT format for analysis.`;
+  
+  console.log('Word document processing not available:', {
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type
+  });
+  
   return {
     content: text,
     pageCount: 1, // Placeholder

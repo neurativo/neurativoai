@@ -38,6 +38,10 @@ export class AudioTranscriptionService {
     }
   }
 
+  getProvider(): string {
+    return this.config.provider;
+  }
+
   // OpenAI Whisper API
   private async transcribeWithOpenAI(audioBlob: Blob): Promise<TranscriptionResult> {
     try {
@@ -161,7 +165,22 @@ export class AudioTranscriptionService {
   // AssemblyAI API (Real-time streaming)
   private async transcribeWithAssemblyAI(audioBlob: Blob): Promise<TranscriptionResult> {
     try {
-      console.log('Starting AssemblyAI transcription...', { blobSize: audioBlob.size, type: audioBlob.type });
+      console.log('Starting AssemblyAI streaming transcription...', { blobSize: audioBlob.size, type: audioBlob.type });
+      
+      // For now, fall back to batch processing for individual chunks
+      // Real-time streaming will be implemented in the StreamingTranscriptionService
+      return await this.transcribeWithAssemblyAIBatch(audioBlob);
+      
+    } catch (error) {
+      console.error('AssemblyAI transcription error:', error);
+      throw error;
+    }
+  }
+
+  // AssemblyAI Batch API (fallback for individual chunks)
+  private async transcribeWithAssemblyAIBatch(audioBlob: Blob): Promise<TranscriptionResult> {
+    try {
+      console.log('Using AssemblyAI batch API for chunk...', { blobSize: audioBlob.size, type: audioBlob.type });
       
       // Step 1: Upload audio file to AssemblyAI
       const uploadFormData = new FormData();
@@ -246,7 +265,7 @@ export class AudioTranscriptionService {
       throw new Error('Transcription timeout - took too long to complete');
       
     } catch (error) {
-      console.error('AssemblyAI transcription error:', error);
+      console.error('AssemblyAI batch transcription error:', error);
       throw error;
     }
   }
@@ -319,65 +338,198 @@ export function createServerTranscriptionService(provider: 'openai' | 'google' |
   });
 }
 
-// Real-time streaming transcription for continuous audio
+// Real-time streaming transcription for continuous audio using AssemblyAI WebSocket
 export class StreamingTranscriptionService {
-  private transcriptionService: AudioTranscriptionService;
+  private apiKey: string;
+  private websocket: WebSocket | null = null;
   private mediaRecorder: MediaRecorder | null = null;
-  private audioChunks: Blob[] = [];
+  private audioStream: MediaStream | null = null;
   private isRecording: boolean = false;
-  private onTranscriptionCallback?: (result: TranscriptionResult) => void;
+  private isConnected: boolean = false;
+  private onTranscriptCallback: ((transcript: string) => void) | null = null;
+  private onErrorCallback: ((error: Error) => void) | null = null;
+  private sessionId: string | null = null;
 
-  constructor(transcriptionService: AudioTranscriptionService) {
-    this.transcriptionService = transcriptionService;
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
   }
 
-  async startStreaming(onTranscription: (result: TranscriptionResult) => void): Promise<void> {
-    this.onTranscriptionCallback = onTranscription;
-    
+  async startStreaming(
+    onTranscript: (transcript: string) => void,
+    onError: ((error: Error) => void) | null = null
+  ): Promise<void> {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      console.log('Starting AssemblyAI streaming transcription...');
+      this.onTranscriptCallback = onTranscript;
+      this.onErrorCallback = onError;
+
+      // Connect to AssemblyAI streaming WebSocket
+      await this.connectWebSocket();
+
+      // Get microphone access
+      this.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 48000,
-          channelCount: 1,
           echoCancellation: true,
-          noiseSuppression: true
-        } 
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000, // AssemblyAI requires 16kHz
+        }
       });
 
-      this.mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
+      // Set up MediaRecorder for continuous recording
+      const mimeType = this.getSupportedMimeType();
+      this.mediaRecorder = new MediaRecorder(this.audioStream, { 
+        mimeType,
+        audioBitsPerSecond: 16000 // 16kHz sample rate
       });
 
-      this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          this.audioChunks.push(event.data);
-          this.processAudioChunk(event.data);
+      this.mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0 && this.websocket && this.isConnected) {
+          try {
+            // Convert blob to ArrayBuffer for WebSocket
+            const arrayBuffer = await event.data.arrayBuffer();
+            this.websocket.send(arrayBuffer);
+            console.log('Audio chunk sent to AssemblyAI:', arrayBuffer.byteLength, 'bytes');
+          } catch (error) {
+            console.error('Error sending audio chunk:', error);
+            if (this.onErrorCallback) {
+              this.onErrorCallback(error as Error);
+            }
+          }
         }
       };
 
-      this.mediaRecorder.start(1000); // Process every second
+      this.mediaRecorder.onstop = () => {
+        console.log('Streaming transcription stopped');
+        this.disconnectWebSocket();
+      };
+
+      // Start recording with small time slices for real-time processing
+      this.mediaRecorder.start(250); // 250ms chunks for real-time feel
       this.isRecording = true;
+
+      console.log('AssemblyAI streaming transcription started');
     } catch (error) {
-      console.error('Error starting audio stream:', error);
+      console.error('Failed to start streaming transcription:', error);
       throw error;
     }
   }
 
+  private async connectWebSocket(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // AssemblyAI streaming WebSocket endpoint
+        const wsUrl = 'wss://api.assemblyai.com/v2/realtime/ws';
+        this.websocket = new WebSocket(wsUrl);
+
+        this.websocket.onopen = (event) => {
+          console.log('WebSocket connected to AssemblyAI');
+          this.isConnected = true;
+          
+          // Send authentication and configuration message
+          const config = {
+            sample_rate: 16000,
+            word_boost: ['lecture', 'professor', 'student', 'university', 'course', 'study', 'exam', 'assignment'],
+            encoding: 'pcm_s16le',
+            channels: 1,
+            token: this.apiKey
+          };
+          
+          this.websocket!.send(JSON.stringify(config));
+          resolve();
+        };
+
+        this.websocket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('AssemblyAI WebSocket message:', data);
+
+            if (data.message_type === 'SessionBegins') {
+              this.sessionId = data.session_id;
+              console.log('AssemblyAI session started:', this.sessionId);
+            } else if (data.message_type === 'PartialTranscript') {
+              if (data.text && this.onTranscriptCallback) {
+                console.log('Partial transcript:', data.text);
+                this.onTranscriptCallback(data.text);
+              }
+            } else if (data.message_type === 'FinalTranscript') {
+              if (data.text && this.onTranscriptCallback) {
+                console.log('Final transcript:', data.text);
+                this.onTranscriptCallback(data.text);
+              }
+            } else if (data.message_type === 'SessionTerminated') {
+              console.log('AssemblyAI session terminated');
+              this.isConnected = false;
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+
+        this.websocket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          this.isConnected = false;
+          if (this.onErrorCallback) {
+            this.onErrorCallback(new Error('WebSocket connection failed'));
+          }
+          reject(error);
+        };
+
+        this.websocket.onclose = (event) => {
+          console.log('WebSocket closed:', event.code, event.reason);
+          this.isConnected = false;
+        };
+
+      } catch (error) {
+        console.error('Failed to connect WebSocket:', error);
+        reject(error);
+      }
+    });
+  }
+
+  private disconnectWebSocket(): void {
+    if (this.websocket) {
+      // Send termination message
+      if (this.isConnected) {
+        this.websocket.send(JSON.stringify({ terminate_session: true }));
+      }
+      this.websocket.close();
+      this.websocket = null;
+    }
+    this.isConnected = false;
+  }
+
   async stopStreaming(): Promise<void> {
+    console.log('Stopping AssemblyAI streaming transcription...');
+    
     if (this.mediaRecorder && this.isRecording) {
       this.mediaRecorder.stop();
       this.isRecording = false;
     }
+
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => track.stop());
+      this.audioStream = null;
+    }
+
+    this.disconnectWebSocket();
+    console.log('AssemblyAI streaming transcription stopped');
   }
 
-  private async processAudioChunk(audioChunk: Blob): Promise<void> {
-    try {
-      const result = await this.transcriptionService.transcribeAudio(audioChunk);
-      if (this.onTranscriptionCallback) {
-        this.onTranscriptionCallback(result);
+  private getSupportedMimeType(): string {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/wav'
+    ];
+
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
       }
-    } catch (error) {
-      console.error('Error processing audio chunk:', error);
     }
+
+    return 'audio/webm'; // fallback
   }
 }

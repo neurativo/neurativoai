@@ -109,11 +109,11 @@ export class LiveLectureAssistant {
   private revisionPackGenerator: RevisionPackGenerator;
   private aiService: AILectureService;
   private transcriptionService: AudioTranscriptionService;
-  private streamingService: StreamingTranscriptionService;
+  private streamingService: StreamingTranscriptionService | null;
   private audioRecorder: AudioRecorder;
   private isInitialized: boolean = false;
 
-  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' = 'openai') {
+  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' = 'assemblyai') {
     this.state = {
       isRecording: false,
       isPaused: false,
@@ -134,7 +134,17 @@ export class LiveLectureAssistant {
     this.revisionPackGenerator = new RevisionPackGenerator();
     this.aiService = createAILectureService();
     this.transcriptionService = createTranscriptionService(transcriptionProvider);
-    this.streamingService = new StreamingTranscriptionService(this.transcriptionService);
+    
+    // For AssemblyAI, we'll use the streaming service directly
+    // For other providers, we'll use the chunk-based approach
+    if (transcriptionProvider === 'assemblyai') {
+      // We'll initialize the streaming service when we have the API key
+      this.streamingService = null;
+    } else {
+      // For non-AssemblyAI providers, we'll use the chunk-based approach
+      this.streamingService = null;
+    }
+    
     this.audioRecorder = new AudioRecorder();
   }
 
@@ -149,26 +159,59 @@ export class LiveLectureAssistant {
     try {
       console.log('Starting lecture...');
       
-      // Initialize audio recorder if not already done
-      if (!this.isInitialized) {
-        console.log('Initializing audio recorder...');
-        await this.audioRecorder.initialize();
-        this.isInitialized = true;
-        console.log('Audio recorder initialized');
-      }
-
       this.state.isRecording = true;
       this.state.isPaused = false;
       this.state.startTime = new Date();
       
-      // Start audio recording with real-time transcription
-      console.log('Starting audio recording...');
-      this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
-        console.log('Processing audio chunk...');
-        await this.processAudioChunk(chunk);
-      });
+      // For AssemblyAI, use the streaming WebSocket service
+      if (this.transcriptionService.getProvider() === 'assemblyai') {
+        console.log('Starting AssemblyAI streaming transcription...');
+        
+        // Get API key from environment (this will be handled by the API route)
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_api_key' })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to get API key for streaming');
+        }
+        
+        const { apiKey } = await response.json();
+        
+        // Initialize streaming service with API key
+        this.streamingService = new StreamingTranscriptionService(apiKey);
+        
+        // Start streaming transcription
+        await this.streamingService.startStreaming(
+          (transcript: string) => {
+            console.log('Real-time transcript received:', transcript);
+            this.processRealTimeTranscript(transcript);
+          },
+          (error: Error) => {
+            console.error('Streaming transcription error:', error);
+          }
+        );
+        
+        console.log('AssemblyAI streaming transcription started');
+      } else {
+        // For other providers, use the chunk-based approach
+        if (!this.isInitialized) {
+          console.log('Initializing audio recorder...');
+          await this.audioRecorder.initialize();
+          this.isInitialized = true;
+          console.log('Audio recorder initialized');
+        }
+        
+        console.log('Starting audio recording...');
+        this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
+          console.log('Processing audio chunk...');
+          await this.processAudioChunk(chunk);
+        });
+      }
       
-      console.log('Live lecture assistant started with real audio recording');
+      console.log('Live lecture assistant started');
     } catch (error) {
       console.error('Failed to start lecture:', error);
       this.state.isRecording = false;
@@ -180,16 +223,27 @@ export class LiveLectureAssistant {
   async pauseLecture(): Promise<void> {
     if (this.state.isRecording && !this.state.isPaused) {
       this.state.isPaused = true;
-      this.audioRecorder.pauseRecording();
-      console.log('Lecture paused');
+      
+      if (this.streamingService) {
+        // For streaming service, we can't pause the WebSocket, but we can stop processing
+        console.log('Lecture paused (streaming continues)');
+      } else {
+        this.audioRecorder.pauseRecording();
+        console.log('Lecture paused');
+      }
     }
   }
 
   async resumeLecture(): Promise<void> {
     if (this.state.isRecording && this.state.isPaused) {
       this.state.isPaused = false;
-      this.audioRecorder.resumeRecording();
-      console.log('Lecture resumed');
+      
+      if (this.streamingService) {
+        console.log('Lecture resumed (streaming continues)');
+      } else {
+        this.audioRecorder.resumeRecording();
+        console.log('Lecture resumed');
+      }
     }
   }
 
@@ -197,14 +251,55 @@ export class LiveLectureAssistant {
     this.state.isRecording = false;
     this.state.isPaused = false;
     
-    // Stop audio recording
-    this.audioRecorder.stopRecording();
+    // Stop audio recording or streaming
+    if (this.streamingService) {
+      await this.streamingService.stopStreaming();
+      this.streamingService = null;
+      console.log('Lecture stopped (streaming ended)');
+    } else {
+      this.audioRecorder.stopRecording();
+      console.log('Lecture stopped');
+    }
     
     // Generate final revision pack
     const revisionPack = await this.revisionPackGenerator.generateRevisionPack(this.state);
     
     console.log('Live lecture assistant stopped');
     return revisionPack;
+  }
+
+  // Process real-time transcript from streaming service
+  private async processRealTimeTranscript(transcript: string): Promise<void> {
+    if (!this.state.isRecording || this.state.isPaused) return;
+    
+    try {
+      console.log('Processing real-time transcript:', transcript);
+      
+      // Add to current transcript
+      this.state.currentTranscript += transcript + ' ';
+      
+      // Check if we should create a new section
+      const shouldCreateSection = await this.transcriptProcessor.shouldCreateSection(
+        this.state.currentTranscript,
+        this.state.sections
+      );
+      
+      if (shouldCreateSection) {
+        console.log('Creating new section from real-time transcript');
+        await this.createNewSection();
+      }
+      
+      // Generate live notes
+      await this.generateLiveNotes();
+      
+      // Generate flashcards
+      await this.generateFlashcards();
+      
+      this.state.lastUpdate = new Date();
+      console.log('Real-time transcript processing complete');
+    } catch (error) {
+      console.error('Error processing real-time transcript:', error);
+    }
   }
 
   // Process audio chunks for real-time transcription

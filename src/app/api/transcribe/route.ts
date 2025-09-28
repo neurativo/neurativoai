@@ -5,6 +5,19 @@ export async function POST(request: NextRequest) {
   try {
     console.log('Transcription API called');
     
+    // Check if this is a request for API key (for streaming)
+    const contentType = request.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      const body = await request.json();
+      if (body.action === 'get_api_key') {
+        const apiKey = process.env.ASSEMBLYAI_API_KEY;
+        if (!apiKey) {
+          return NextResponse.json({ error: 'AssemblyAI API key not found' }, { status: 500 });
+        }
+        return NextResponse.json({ apiKey });
+      }
+    }
+    
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     const provider = formData.get('provider') as string || 'openai';

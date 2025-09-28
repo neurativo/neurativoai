@@ -418,8 +418,9 @@ export class StreamingTranscriptionService {
   private async connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // AssemblyAI streaming WebSocket v3 endpoint
-        const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&keyterms_prompt=lecture,professor,student,university,course,study,exam,assignment&token=${this.apiKey}`;
+        // AssemblyAI streaming WebSocket v3 endpoint with lecture-optimized settings
+        const wsUrl = `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&keyterms_prompt=lecture,professor,student,university,course,study,exam,assignment,mathematics,physics,chemistry,biology,history,literature,research,analysis,theory,concept,formula,equation,definition,example,problem,solution&format_turns=true&end_of_turn_confidence_threshold=0.3&min_end_of_turn_silence_when_confident=600&max_turn_silence=2000&token=${this.apiKey}`;
+        console.log('Connecting to AssemblyAI v3 WebSocket:', wsUrl.replace(this.apiKey, '***'));
         this.websocket = new WebSocket(wsUrl);
 
         this.websocket.onopen = (event) => {
@@ -439,9 +440,14 @@ export class StreamingTranscriptionService {
               this.sessionId = data.id;
               console.log('AssemblyAI v3 session started:', this.sessionId);
             } else if (data.type === 'Turn') {
-              if (data.text && this.onTranscriptCallback) {
-                console.log('Turn transcript:', data.text);
-                this.onTranscriptCallback(data.text);
+              if (data.transcript && this.onTranscriptCallback) {
+                console.log('Turn transcript:', data.transcript);
+                console.log('Turn details:', { 
+                  end_of_turn: data.end_of_turn, 
+                  confidence: data.end_of_turn_confidence,
+                  turn_order: data.turn_order 
+                });
+                this.onTranscriptCallback(data.transcript);
               }
             } else if (data.type === 'Termination') {
               console.log('AssemblyAI v3 session terminated');
@@ -477,7 +483,7 @@ export class StreamingTranscriptionService {
     if (this.websocket) {
       // Send termination message for v3 API
       if (this.isConnected) {
-        this.websocket.send(JSON.stringify({ type: 'SessionTermination' }));
+        this.websocket.send(JSON.stringify({ type: 'Terminate' }));
       }
       this.websocket.close();
       this.websocket = null;

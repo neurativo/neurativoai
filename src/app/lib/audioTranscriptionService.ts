@@ -2,7 +2,7 @@
 // Handles real-time audio to text conversion using various APIs
 
 export interface TranscriptionConfig {
-  provider: 'openai' | 'google' | 'azure' | 'assemblyai';
+  provider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram';
   apiKey: string;
   language?: string;
   model?: string;
@@ -33,6 +33,8 @@ export class AudioTranscriptionService {
         return await this.transcribeWithAzure(audioBlob);
       case 'assemblyai':
         return await this.transcribeWithAssemblyAI(audioBlob);
+      case 'deepgram':
+        return await this.transcribeWithDeepgram(audioBlob);
       default:
         throw new Error(`Unsupported transcription provider: ${this.config.provider}`);
     }
@@ -270,6 +272,48 @@ export class AudioTranscriptionService {
     }
   }
 
+  // Deepgram API (Real-time streaming)
+  private async transcribeWithDeepgram(audioBlob: Blob): Promise<TranscriptionResult> {
+    try {
+      console.log('Starting Deepgram transcription...', { blobSize: audioBlob.size, type: audioBlob.type });
+      
+      // Convert blob to ArrayBuffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      
+      // Call Deepgram API
+      const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=en&smart_format=true&punctuate=true', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${this.config.apiKey}`,
+          'Content-Type': 'audio/webm'
+        },
+        body: arrayBuffer
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Deepgram API error: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+      const confidence = result.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0.8;
+
+      console.log('Deepgram transcription completed:', { transcript, confidence });
+
+      return {
+        text: transcript,
+        confidence: confidence,
+        language: 'en',
+        timestamp: Date.now()
+      };
+
+    } catch (error) {
+      console.error('Deepgram transcription error:', error);
+      throw error;
+    }
+  }
+
   // Helper methods
   private async blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -302,7 +346,7 @@ export class AudioTranscriptionService {
 }
 
 // Factory function for creating transcription service
-export function createTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai'): AudioTranscriptionService {
+export function createTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram'): AudioTranscriptionService {
   // For client-side usage, we don't need the API key here since we use the /api/transcribe route
   // The API key validation happens on the server-side in the API route
   const apiKey = 'client-side-placeholder'; // This won't be used for client-side calls
@@ -318,7 +362,7 @@ export function createTranscriptionService(provider: 'openai' | 'google' | 'azur
 }
 
 // Server-side factory function for API routes
-export function createServerTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai'): AudioTranscriptionService {
+export function createServerTranscriptionService(provider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram'): AudioTranscriptionService {
   const apiKey = process.env[`${provider.toUpperCase()}_API_KEY`] || '';
   
   console.log(`Creating transcription service for ${provider} (server-side)`, { 

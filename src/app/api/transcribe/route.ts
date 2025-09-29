@@ -17,6 +17,15 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ apiKey });
       }
+      
+      if (body.action === 'get_deepgram_key') {
+        const apiKey = process.env.DEEPGRAM_API_KEY;
+        console.log('Deepgram API key request:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
+        if (!apiKey) {
+          return NextResponse.json({ error: 'Deepgram API key not found' }, { status: 500 });
+        }
+        return NextResponse.json({ apiKey });
+      }
     }
     
     const formData = await request.formData();

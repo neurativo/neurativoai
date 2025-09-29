@@ -81,7 +81,7 @@ async function listPayments(params: {
           symbol,
           network
         ),
-        plans (
+        plans!crypto_payments_plan_key_fkey (
           name,
           key
         ),

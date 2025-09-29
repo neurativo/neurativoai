@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.crypto_payments (
     to_address VARCHAR(100) NOT NULL,
     amount DECIMAL(20, 8) NOT NULL,
     amount_usd DECIMAL(10, 2),
-    plan_id UUID REFERENCES public.plans(id),
+    plan_key plan_t REFERENCES public.plans(key),
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verifying', 'confirmed', 'failed', 'rejected', 'expired')),
     confirmation_count INTEGER DEFAULT 0,
     required_confirmations INTEGER NOT NULL,
@@ -189,7 +189,8 @@ CREATE OR REPLACE FUNCTION public.update_payment_status(
     confirmation_count INTEGER DEFAULT NULL,
     block_height BIGINT DEFAULT NULL,
     block_hash VARCHAR(255) DEFAULT NULL,
-    admin_notes TEXT DEFAULT NULL
+    admin_notes TEXT DEFAULT NULL,
+    admin_override BOOLEAN DEFAULT false
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -204,6 +205,7 @@ BEGIN
         block_height = COALESCE(block_height, crypto_payments.block_height),
         block_hash = COALESCE(block_hash, crypto_payments.block_hash),
         admin_notes = COALESCE(admin_notes, crypto_payments.admin_notes),
+        admin_override = COALESCE(admin_override, crypto_payments.admin_override),
         verified_at = CASE WHEN new_status = 'confirmed' THEN NOW() ELSE verified_at END,
         updated_at = NOW()
     WHERE id = payment_id;

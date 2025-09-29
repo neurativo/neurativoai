@@ -146,6 +146,7 @@ export default function Navbar() {
 									<ul className="menu menu-sm">
 										<li><Link href="/dashboard"><i className="fas fa-tachometer-alt w-4"/> Dashboard</Link></li>
 										<li><Link href="/lecture"><i className="fas fa-microphone w-4"/> Live Lecture</Link></li>
+										<li><Link href="/lecture-simple"><i className="fas fa-microphone w-4"/> Simple Lecture</Link></li>
 										<li><Link href="/profile"><i className="fas fa-user w-4"/> Profile</Link></li>
 										<li><Link href="/settings"><i className="fas fa-cog w-4"/> Settings</Link></li>
 										<li><Link href="/pricing"><i className="fas fa-crown w-4"/> Upgrade Plan</Link></li>

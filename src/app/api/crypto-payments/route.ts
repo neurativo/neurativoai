@@ -39,10 +39,10 @@ async function submitPayment(data: {
   paymentMethodId: string;
   txId: string;
   fromAddress?: string;
-  planId?: string;
+  planKey?: string;
 }) {
   try {
-    const { userId, paymentMethodId, txId, fromAddress, planId } = data;
+    const { userId, paymentMethodId, txId, fromAddress, planKey } = data;
 
     // Get payment method details
     const { data: paymentMethod, error: methodError } = await supabase
@@ -83,7 +83,7 @@ async function submitPayment(data: {
         from_address: fromAddress,
         to_address: paymentMethod.deposit_address,
         amount: 0, // Will be updated after verification
-        plan_id: planId,
+        plan_key: planKey,
         required_confirmations: paymentMethod.confirmation_blocks,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
       })
@@ -282,7 +282,7 @@ async function getUserPayments(data: { userId: string; limit?: number; offset?: 
           symbol,
           network
         ),
-        plans (
+        plans!crypto_payments_plan_key_fkey (
           name,
           key
         )

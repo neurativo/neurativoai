@@ -3,6 +3,7 @@
 
 import { AILectureService, createAILectureService } from './aiLectureService';
 import { AudioTranscriptionService, StreamingTranscriptionService, createTranscriptionService } from './audioTranscriptionService';
+import { DeepgramTranscriptionService, createDeepgramService } from './deepgramService';
 import { AudioRecorder, AudioChunk } from './audioRecorder';
 
 export interface LiveLectureState {
@@ -110,10 +111,11 @@ export class LiveLectureAssistant {
   private aiService: AILectureService;
   private transcriptionService: AudioTranscriptionService;
   private streamingService: StreamingTranscriptionService | null;
+  private deepgramService: DeepgramTranscriptionService | null;
   private audioRecorder: AudioRecorder;
   private isInitialized: boolean = false;
 
-  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' = 'assemblyai') {
+  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram' = 'deepgram') {
     this.state = {
       isRecording: false,
       isPaused: false,

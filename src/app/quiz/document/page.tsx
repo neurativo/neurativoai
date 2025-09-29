@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/lib/auth';
+import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 
 interface DocumentAnalysis {
   summary: string;
@@ -43,13 +43,31 @@ interface DocumentQuizData {
 
 export default function DocumentQuizPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analysis, setAnalysis] = useState<DocumentQuizData | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Get user from Supabase
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        const supabase = getSupabaseBrowser();
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (error) {
+        console.error('Error getting user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    getUser();
+  }, []);
   const [dragActive, setDragActive] = useState(false);
 
   if (loading) {

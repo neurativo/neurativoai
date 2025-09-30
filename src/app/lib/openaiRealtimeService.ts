@@ -399,6 +399,50 @@ Guidelines:
     console.log('Transcript cache cleared');
   }
 
+  // Convert AudioBuffer to WAV format
+  private audioBufferToWav(audioBuffer: AudioBuffer): Blob {
+    const numberOfChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const length = audioBuffer.length;
+    
+    // Create a WAV file header
+    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+    const view = new DataView(arrayBuffer);
+    
+    // WAV file header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+    
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numberOfChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+    view.setUint16(32, numberOfChannels * 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, length * numberOfChannels * 2, true);
+    
+    // Convert audio data to 16-bit PCM
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
   sendAudioChunk(audioChunk: Blob): void {
     if (this.isPaused) {
       console.log('Audio processing paused, skipping chunk');
@@ -440,8 +484,24 @@ Guidelines:
       this.bufferTimer = null;
     }
 
-    // Combine all buffered chunks into one blob
-    const combinedBlob = new Blob(this.audioChunkBuffer, { type: 'audio/webm' });
+    // Convert each chunk to ArrayBuffer and combine them
+    const arrayBuffers: ArrayBuffer[] = [];
+    for (const chunk of this.audioChunkBuffer) {
+      const arrayBuffer = await chunk.arrayBuffer();
+      arrayBuffers.push(arrayBuffer);
+    }
+
+    // Combine all ArrayBuffers into one
+    const totalLength = arrayBuffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
+    const combinedArrayBuffer = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const buffer of arrayBuffers) {
+      combinedArrayBuffer.set(new Uint8Array(buffer), offset);
+      offset += buffer.byteLength;
+    }
+
+    // Create a new blob with proper MIME type
+    const combinedBlob = new Blob([combinedArrayBuffer], { type: 'audio/webm' });
     console.log('Processing buffered audio:', this.audioChunkBuffer.length, 'chunks, total size:', combinedBlob.size, 'bytes');
 
     // Clear buffer
@@ -461,11 +521,27 @@ Guidelines:
         return;
       }
       
+      // Try to convert WebM to WAV format for better compatibility
+      let processedBlob: Blob;
+      try {
+        // Create an AudioContext to process the audio
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const arrayBuffer = await audioChunk.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Convert to WAV format
+        const wavBlob = this.audioBufferToWav(audioBuffer);
+        processedBlob = wavBlob;
+        console.log('Converted WebM to WAV:', wavBlob.size, 'bytes');
+      } catch (error) {
+        console.log('Audio conversion failed, using original WebM:', error);
+        // Fallback to original blob
+        processedBlob = new Blob([audioChunk], { type: 'audio/webm' });
+      }
+      
       // Create FormData for Whisper API
       const formData = new FormData();
-      // Create a new blob with the correct MIME type for Whisper API
-      const webmBlob = new Blob([audioChunk], { type: 'audio/webm' });
-      formData.append('file', webmBlob, 'audio.webm');
+      formData.append('file', processedBlob, processedBlob.type === 'audio/wav' ? 'audio.wav' : 'audio.webm');
       formData.append('model', 'whisper-1');
       formData.append('language', 'en');
       formData.append('response_format', 'json');

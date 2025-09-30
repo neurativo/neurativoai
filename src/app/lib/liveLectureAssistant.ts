@@ -5,6 +5,7 @@ import { AILectureService, createAILectureService } from './aiLectureService';
 import { AudioTranscriptionService, StreamingTranscriptionService, createTranscriptionService } from './audioTranscriptionService';
 import { DeepgramTranscriptionService, createDeepgramService } from './deepgramService';
 import { OpenAIRealtimeService, createOpenAIRealtimeService, RealtimeTranscript } from './openaiRealtimeService';
+import { WebSocketProxyService } from './websocketProxyService';
 import { AudioRecorder, AudioChunk } from './audioRecorder';
 
 export interface LiveLectureState {
@@ -112,8 +113,9 @@ export class LiveLectureAssistant {
   private aiService: AILectureService;
   private transcriptionService: AudioTranscriptionService;
   private streamingService: StreamingTranscriptionService | null;
-  private deepgramService: DeepgramTranscriptionService | null;
-  private openaiRealtimeService: OpenAIRealtimeService | null;
+  private deepgramService: DeepgramTranscriptionService | null = null;
+  private openaiRealtimeService: OpenAIRealtimeService | null = null;
+  private websocketProxyService: WebSocketProxyService | null = null;
   private audioRecorder: AudioRecorder;
   private isInitialized: boolean = false;
   private onStateChangeCallback: (() => void) | null = null;
@@ -138,7 +140,9 @@ export class LiveLectureAssistant {
     this.quizGenerator = new QuizGenerator();
     this.revisionPackGenerator = new RevisionPackGenerator();
     this.aiService = createAILectureService();
-    this.transcriptionService = createTranscriptionService(transcriptionProvider);
+    // For openai-realtime, use a fallback provider for the base transcription service
+    const baseProvider = transcriptionProvider === 'openai-realtime' ? 'openai' : transcriptionProvider;
+    this.transcriptionService = createTranscriptionService(baseProvider);
     
     // For AssemblyAI, we'll use the streaming service directly
     // For other providers, we'll use the chunk-based approach
@@ -168,9 +172,9 @@ export class LiveLectureAssistant {
       this.state.isPaused = false;
       this.state.startTime = new Date();
       
-      // Use OpenAI Realtime for the best real-time transcription experience
+      // Use WebSocket proxy for the best real-time transcription experience
       if (this.transcriptionService.getProvider() === 'openai-realtime') {
-        console.log('Starting OpenAI Realtime streaming transcription...');
+        console.log('Starting WebSocket proxy streaming transcription...');
         
         // Initialize audio recorder first
         if (!this.isInitialized) {
@@ -180,42 +184,30 @@ export class LiveLectureAssistant {
           console.log('Audio recorder initialized');
         }
         
-        // Get OpenAI API key from environment
-        const response = await fetch('/api/transcribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_openai_key' })
+        // Initialize WebSocket proxy service
+        this.websocketProxyService = new WebSocketProxyService({
+          proxyUrl: '/api/realtime-proxy'
         });
         
-        if (!response.ok) {
-          throw new Error('Failed to get OpenAI API key for realtime streaming');
-        }
-        
-        const { apiKey } = await response.json();
-        console.log('OpenAI API key retrieved for realtime:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
-        
-        // Initialize OpenAI Realtime service
-        this.openaiRealtimeService = createOpenAIRealtimeService(apiKey);
-        
-        // Start realtime streaming transcription
-        await this.openaiRealtimeService.startStreaming(
+        // Start proxy streaming transcription
+        await this.websocketProxyService.startStreaming(
           (transcript: RealtimeTranscript) => {
-            console.log('OpenAI Realtime transcript received:', transcript);
+            console.log('WebSocket proxy transcript received:', transcript);
             this.processRealTimeTranscript(transcript.text);
           },
           (error: Error) => {
-            console.error('OpenAI Realtime transcription error:', error);
+            console.error('WebSocket proxy transcription error:', error);
           }
         );
         
         // Start audio recording to feed the streaming service
-        console.log('Starting audio recording for OpenAI Realtime...');
+        console.log('Starting audio recording for WebSocket proxy...');
         this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
-          console.log('Processing audio chunk for OpenAI Realtime...');
+          console.log('Processing audio chunk for WebSocket proxy...');
           await this.processAudioChunk(chunk);
         });
         
-        console.log('OpenAI Realtime streaming transcription started');
+        console.log('WebSocket proxy streaming transcription started');
       } else if (this.transcriptionService.getProvider() === 'deepgram') {
         console.log('Starting Deepgram streaming transcription...');
         
@@ -292,7 +284,10 @@ export class LiveLectureAssistant {
     if (this.state.isRecording && !this.state.isPaused) {
       this.state.isPaused = true;
       
-      if (this.openaiRealtimeService) {
+      if (this.websocketProxyService) {
+        // For WebSocket proxy, we can't pause the WebSocket, but we can stop processing
+        console.log('Lecture paused (WebSocket proxy streaming continues)');
+      } else if (this.openaiRealtimeService) {
         // For OpenAI Realtime, we can't pause the WebSocket, but we can stop processing
         console.log('Lecture paused (OpenAI Realtime streaming continues)');
       } else if (this.streamingService) {
@@ -309,7 +304,9 @@ export class LiveLectureAssistant {
     if (this.state.isRecording && this.state.isPaused) {
       this.state.isPaused = false;
       
-      if (this.openaiRealtimeService) {
+      if (this.websocketProxyService) {
+        console.log('Lecture resumed (WebSocket proxy streaming continues)');
+      } else if (this.openaiRealtimeService) {
         console.log('Lecture resumed (OpenAI Realtime streaming continues)');
       } else if (this.streamingService) {
         console.log('Lecture resumed (streaming continues)');
@@ -325,7 +322,11 @@ export class LiveLectureAssistant {
     this.state.isPaused = false;
     
     // Stop audio recording or streaming
-    if (this.openaiRealtimeService) {
+    if (this.websocketProxyService) {
+      this.websocketProxyService.stopStreaming();
+      this.websocketProxyService = null;
+      console.log('Lecture stopped (WebSocket proxy streaming ended)');
+    } else if (this.openaiRealtimeService) {
       this.openaiRealtimeService.stopStreaming();
       this.openaiRealtimeService = null;
       console.log('Lecture stopped (OpenAI Realtime streaming ended)');
@@ -392,6 +393,12 @@ export class LiveLectureAssistant {
         type: chunk.data.type, 
         timestamp: chunk.timestamp 
       });
+      
+      // For WebSocket proxy, send audio directly to the proxy service
+      if (this.websocketProxyService) {
+        this.websocketProxyService.sendAudioChunk(chunk.data);
+        return;
+      }
       
       // For OpenAI Realtime, send audio directly to the streaming service
       if (this.openaiRealtimeService) {

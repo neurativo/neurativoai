@@ -73,6 +73,17 @@ export default function LiveLecturePage() {
   useEffect(() => {
     if (!setupComplete) return;
     
+    // Set up callback for immediate state updates
+    assistant.setOnStateChange(() => {
+      const newState = assistant.getState();
+      setState(newState);
+      setCurrentNotes(assistant.getCurrentNotes());
+      setRecentFlashcards(assistant.getRecentFlashcards());
+      setBookmarks(assistant.getBookmarks());
+      setHighlights(assistant.getHighlights());
+    });
+    
+    // Also update periodically as backup
     const interval = setInterval(() => {
       const newState = assistant.getState();
       setState(newState);
@@ -82,7 +93,10 @@ export default function LiveLecturePage() {
       setHighlights(assistant.getHighlights());
     }, 500); // Update every 500ms for smoother real-time experience
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      assistant.setOnStateChange(null);
+    };
   }, [assistant, setupComplete]);
 
   // Cleanup on unmount

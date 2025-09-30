@@ -116,6 +116,7 @@ export class LiveLectureAssistant {
   private openaiRealtimeService: OpenAIRealtimeService | null;
   private audioRecorder: AudioRecorder;
   private isInitialized: boolean = false;
+  private onStateChangeCallback: (() => void) | null = null;
 
   constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram' | 'openai-realtime' = 'openai-realtime') {
     this.state = {
@@ -373,6 +374,9 @@ export class LiveLectureAssistant {
       
       this.state.lastUpdate = new Date();
       console.log('Real-time transcript processing complete');
+      
+      // Trigger state change notification
+      this.notifyStateChange();
     } catch (error) {
       console.error('Error processing real-time transcript:', error);
     }
@@ -564,6 +568,19 @@ export class LiveLectureAssistant {
   // Getters for UI
   getState(): LiveLectureState {
     return { ...this.state };
+  }
+
+  // Set callback for state changes
+  setOnStateChange(callback: (() => void) | null): void {
+    this.onStateChangeCallback = callback;
+  }
+
+  // Notify state change (for UI updates)
+  private notifyStateChange(): void {
+    console.log('State changed, current transcript length:', this.state.currentTranscript.length);
+    if (this.onStateChangeCallback) {
+      this.onStateChangeCallback();
+    }
   }
 
   getCurrentNotes(): string[] {

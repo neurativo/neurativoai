@@ -409,6 +409,12 @@ Guidelines:
     try {
       console.log('Processing audio chunk with Whisper API:', audioChunk.size, 'bytes');
       
+      // Skip very small chunks that are likely silence
+      if (audioChunk.size < 100) {
+        console.log('Skipping small audio chunk (likely silence):', audioChunk.size, 'bytes');
+        return;
+      }
+      
       // Create FormData for Whisper API
       const formData = new FormData();
       formData.append('file', audioChunk, 'audio.webm');
@@ -416,6 +422,8 @@ Guidelines:
       formData.append('language', 'en');
       formData.append('response_format', 'json');
       formData.append('temperature', '0.0');
+      
+      console.log('Sending request to Whisper API...');
       
       // Call OpenAI Whisper API
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -426,18 +434,26 @@ Guidelines:
         body: formData
       });
 
+      console.log('Whisper API response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Whisper API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Whisper API error response:', errorText);
+        throw new Error(`Whisper API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('Whisper API result:', result);
+      
       const transcript = result.text;
       
       if (transcript && transcript.trim()) {
-        console.log('Whisper transcription:', transcript);
+        console.log('Whisper transcription received:', transcript);
         
         const cleanedTranscript = this.cleanTranscript(transcript);
         const finalTranscript = this.postProcessTranscript(cleanedTranscript);
+        
+        console.log('Final processed transcript:', finalTranscript);
         
         const transcriptData: RealtimeTranscript = {
           text: finalTranscript,
@@ -456,8 +472,11 @@ Guidelines:
         }
         
         if (this.onTranscriptCallback) {
+          console.log('Calling transcript callback with:', transcriptData);
           this.onTranscriptCallback(transcriptData);
         }
+      } else {
+        console.log('No transcript text received from Whisper API');
       }
     } catch (error) {
       console.error('Error processing audio chunk with Whisper:', error);

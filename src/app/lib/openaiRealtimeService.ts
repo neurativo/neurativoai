@@ -35,10 +35,6 @@ export class OpenAIRealtimeService {
   private lastCacheTime: number = 0;
   private cacheInterval: number = 2 * 60 * 1000; // Cache every 2 minutes
   private isPaused: boolean = false;
-  private audioChunkBuffer: Blob[] = [];
-  private bufferTimer: NodeJS.Timeout | null = null;
-  private minBufferSize: number = 5; // Minimum number of chunks to buffer
-  private maxBufferTime: number = 2000; // Maximum time to wait (2 seconds)
 
   constructor(config: OpenAIRealtimeConfig) {
     this.config = {
@@ -81,23 +77,10 @@ export class OpenAIRealtimeService {
   private async connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // For now, let's use a fallback approach since OpenAI Realtime API
-        // might not be available or might have different authentication requirements
-        // We'll implement a chunk-based approach using regular OpenAI API
-        console.log('OpenAI Realtime API not available, using fallback approach');
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-        this.sessionId = this.generateSessionId();
-        this.sessionStartTime = Date.now();
-        
-        // Start session management
-        this.startSessionManagement();
-        
-        resolve();
-        return;
-        
-        // Original WebSocket approach (commented out for now)
+        // Use the proper OpenAI Realtime API with WebSocket
         const wsUrl = `wss://api.openai.com/v1/realtime?model=${this.config.model}`;
+        console.log('Connecting to OpenAI Realtime API:', wsUrl);
+        
         this.websocket = new WebSocket(wsUrl);
 
         this.websocket.onopen = () => {
@@ -272,6 +255,18 @@ Guidelines:
         }
         break;
 
+      case 'conversation.item.input_audio_buffer.speech_started':
+        console.log('Speech started in OpenAI Realtime');
+        break;
+
+      case 'conversation.item.input_audio_buffer.speech_stopped':
+        console.log('Speech stopped in OpenAI Realtime');
+        break;
+
+      case 'conversation.item.input_audio_buffer.committed':
+        console.log('Audio buffer committed in OpenAI Realtime');
+        break;
+
       case 'error':
         console.error('OpenAI Realtime error:', message.error);
         if (this.onErrorCallback) {
@@ -399,49 +394,6 @@ Guidelines:
     console.log('Transcript cache cleared');
   }
 
-  // Convert AudioBuffer to WAV format
-  private audioBufferToWav(audioBuffer: AudioBuffer): Blob {
-    const numberOfChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-    const length = audioBuffer.length;
-    
-    // Create a WAV file header
-    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
-    const view = new DataView(arrayBuffer);
-    
-    // WAV file header
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-    
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + length * numberOfChannels * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numberOfChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numberOfChannels * 2, true);
-    view.setUint16(32, numberOfChannels * 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, length * numberOfChannels * 2, true);
-    
-    // Convert audio data to 16-bit PCM
-    let offset = 44;
-    for (let i = 0; i < length; i++) {
-      for (let channel = 0; channel < numberOfChannels; channel++) {
-        const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
-        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-    
-    return new Blob([arrayBuffer], { type: 'audio/wav' });
-  }
 
   sendAudioChunk(audioChunk: Blob): void {
     if (this.isPaused) {
@@ -449,166 +401,28 @@ Guidelines:
       return;
     }
 
-    // Skip very small chunks
-    if (audioChunk.size < 100) {
-      console.log('Skipping small audio chunk (likely silence):', audioChunk.size, 'bytes');
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      console.log('OpenAI Realtime WebSocket not connected, buffering audio chunk');
+      this.audioBuffer.push(audioChunk);
       return;
     }
 
-    // Add to buffer
-    this.audioChunkBuffer.push(audioChunk);
-    console.log('Added audio chunk to buffer:', audioChunk.size, 'bytes, buffer size:', this.audioChunkBuffer.length);
-
-    // Clear existing timer
-    if (this.bufferTimer) {
-      clearTimeout(this.bufferTimer);
-    }
-
-    // Process buffer if we have enough chunks or set a timer
-    if (this.audioChunkBuffer.length >= this.minBufferSize) {
-      this.processBufferedAudio();
-    } else {
-      // Set timer to process buffer after max wait time
-      this.bufferTimer = setTimeout(() => {
-        this.processBufferedAudio();
-      }, this.maxBufferTime);
-    }
-  }
-
-  private async processBufferedAudio(): Promise<void> {
-    if (this.audioChunkBuffer.length === 0) return;
-
-    // Clear timer
-    if (this.bufferTimer) {
-      clearTimeout(this.bufferTimer);
-      this.bufferTimer = null;
-    }
-
-    // Convert each chunk to ArrayBuffer and combine them
-    const arrayBuffers: ArrayBuffer[] = [];
-    for (const chunk of this.audioChunkBuffer) {
-      const arrayBuffer = await chunk.arrayBuffer();
-      arrayBuffers.push(arrayBuffer);
-    }
-
-    // Combine all ArrayBuffers into one
-    const totalLength = arrayBuffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
-    const combinedArrayBuffer = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const buffer of arrayBuffers) {
-      combinedArrayBuffer.set(new Uint8Array(buffer), offset);
-      offset += buffer.byteLength;
-    }
-
-    // Create a new blob with proper MIME type
-    const combinedBlob = new Blob([combinedArrayBuffer], { type: 'audio/webm' });
-    console.log('Processing buffered audio:', this.audioChunkBuffer.length, 'chunks, total size:', combinedBlob.size, 'bytes');
-
-    // Clear buffer
-    this.audioChunkBuffer = [];
-
-    // Process the combined audio
-    await this.processAudioChunkWithWhisper(combinedBlob);
-  }
-
-  private async processAudioChunkWithWhisper(audioChunk: Blob): Promise<void> {
-    try {
-      console.log('Processing audio chunk with Whisper API:', audioChunk.size, 'bytes');
-      
-      // Skip very small chunks that are likely silence
-      if (audioChunk.size < 100) {
-        console.log('Skipping small audio chunk (likely silence):', audioChunk.size, 'bytes');
-        return;
-      }
-      
-      // Try to convert WebM to WAV format for better compatibility
-      let processedBlob: Blob;
-      try {
-        // Create an AudioContext to process the audio
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const arrayBuffer = await audioChunk.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        
-        // Convert to WAV format
-        const wavBlob = this.audioBufferToWav(audioBuffer);
-        processedBlob = wavBlob;
-        console.log('Converted WebM to WAV:', wavBlob.size, 'bytes');
-      } catch (error) {
-        console.log('Audio conversion failed, using original WebM:', error);
-        // Fallback to original blob
-        processedBlob = new Blob([audioChunk], { type: 'audio/webm' });
-      }
-      
-      // Create FormData for Whisper API
-      const formData = new FormData();
-      formData.append('file', processedBlob, processedBlob.type === 'audio/wav' ? 'audio.wav' : 'audio.webm');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'en');
-      formData.append('response_format', 'json');
-      formData.append('temperature', '0.0');
-      
-      console.log('Sending request to Whisper API...');
-      
-      // Call OpenAI Whisper API
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`
-        },
-        body: formData
-      });
-
-      console.log('Whisper API response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Whisper API error response:', errorText);
-        throw new Error(`Whisper API error: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('Whisper API result:', result);
-      
-      const transcript = result.text;
-      
-      if (transcript && transcript.trim()) {
-        console.log('Whisper transcription received:', transcript);
-        
-        const cleanedTranscript = this.cleanTranscript(transcript);
-        const finalTranscript = this.postProcessTranscript(cleanedTranscript);
-        
-        console.log('Final processed transcript:', finalTranscript);
-        
-        const transcriptData: RealtimeTranscript = {
-          text: finalTranscript,
-          isFinal: true,
-          confidence: 0.9,
-          timestamp: Date.now()
+    // Convert blob to base64 for OpenAI Realtime API
+    this.blobToBase64(audioChunk).then(base64Audio => {
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        const message = {
+          type: 'input_audio_buffer.append',
+          audio: base64Audio
         };
         
-        // Cache the transcript
-        this.transcriptCache.push(transcriptData);
-        
-        // Auto-save cache periodically
-        if (Date.now() - this.lastCacheTime > this.cacheInterval) {
-          this.saveTranscriptCache();
-          this.lastCacheTime = Date.now();
-        }
-        
-        if (this.onTranscriptCallback) {
-          console.log('Calling transcript callback with:', transcriptData);
-          this.onTranscriptCallback(transcriptData);
-        }
-      } else {
-        console.log('No transcript text received from Whisper API');
+        this.websocket.send(JSON.stringify(message));
+        console.log(`Audio chunk sent to OpenAI Realtime: ${audioChunk.size} bytes`);
       }
-    } catch (error) {
-      console.error('Error processing audio chunk with Whisper:', error);
-      if (this.onErrorCallback) {
-        this.onErrorCallback(error as Error);
-      }
-    }
+    }).catch(error => {
+      console.error('Error sending audio chunk to OpenAI Realtime:', error);
+    });
   }
+
 
   pauseStreaming(): void {
     this.isPaused = true;
@@ -739,18 +553,6 @@ Guidelines:
     this.isStreaming = false;
     this.isPaused = false;
     
-    // Process any remaining buffered audio
-    if (this.audioChunkBuffer.length > 0) {
-      console.log('Processing remaining buffered audio before stopping...');
-      this.processBufferedAudio();
-    }
-    
-    // Clear buffer timer
-    if (this.bufferTimer) {
-      clearTimeout(this.bufferTimer);
-      this.bufferTimer = null;
-    }
-    
     // Stop heartbeat
     this.stopHeartbeat();
     
@@ -772,7 +574,6 @@ Guidelines:
     this.onTranscriptCallback = null;
     this.onErrorCallback = null;
     this.audioBuffer = [];
-    this.audioChunkBuffer = [];
     this.reconnectAttempts = 0;
     
     console.log('OpenAI Realtime streaming stopped and cleaned up');

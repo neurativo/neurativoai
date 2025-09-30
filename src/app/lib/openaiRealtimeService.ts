@@ -56,10 +56,10 @@ export class OpenAIRealtimeService {
         this.onErrorCallback = onError;
         this.isStreaming = true;
 
-        // Connect to OpenAI Realtime API
+        // Connect to OpenAI Realtime API (now includes ephemeral key generation)
         this.connectWebSocket()
           .then(() => {
-            console.log('OpenAI Realtime WebSocket connected');
+            console.log('OpenAI Realtime streaming started');
             resolve();
           })
           .catch((error) => {
@@ -75,10 +75,30 @@ export class OpenAIRealtimeService {
   }
 
   private async connectWebSocket(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        // Use the proper OpenAI Realtime API with WebSocket
-        const wsUrl = `wss://api.openai.com/v1/realtime?model=${this.config.model}`;
+        // First, get an ephemeral key from our backend
+        console.log('Requesting ephemeral key for OpenAI Realtime API...');
+        const keyResponse = await fetch('/api/realtime-key', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: this.config.model
+          })
+        });
+
+        if (!keyResponse.ok) {
+          const errorData = await keyResponse.json();
+          throw new Error(`Failed to get ephemeral key: ${errorData.error || 'Unknown error'}`);
+        }
+
+        const { ephemeralKey } = await keyResponse.json();
+        console.log('Ephemeral key received, connecting to OpenAI Realtime API...');
+
+        // Use the ephemeral key in the WebSocket URL
+        const wsUrl = `wss://api.openai.com/v1/realtime?model=${this.config.model}&authorization=Bearer+${encodeURIComponent(ephemeralKey)}`;
         console.log('Connecting to OpenAI Realtime API:', wsUrl);
         
         this.websocket = new WebSocket(wsUrl);

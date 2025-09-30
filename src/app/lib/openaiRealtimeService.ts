@@ -35,6 +35,10 @@ export class OpenAIRealtimeService {
   private lastCacheTime: number = 0;
   private cacheInterval: number = 2 * 60 * 1000; // Cache every 2 minutes
   private isPaused: boolean = false;
+  private audioChunkBuffer: Blob[] = [];
+  private bufferTimer: NodeJS.Timeout | null = null;
+  private minBufferSize: number = 5; // Minimum number of chunks to buffer
+  private maxBufferTime: number = 2000; // Maximum time to wait (2 seconds)
 
   constructor(config: OpenAIRealtimeConfig) {
     this.config = {
@@ -401,8 +405,50 @@ Guidelines:
       return;
     }
 
-    // Use fallback approach with regular OpenAI Whisper API
-    this.processAudioChunkWithWhisper(audioChunk);
+    // Skip very small chunks
+    if (audioChunk.size < 100) {
+      console.log('Skipping small audio chunk (likely silence):', audioChunk.size, 'bytes');
+      return;
+    }
+
+    // Add to buffer
+    this.audioChunkBuffer.push(audioChunk);
+    console.log('Added audio chunk to buffer:', audioChunk.size, 'bytes, buffer size:', this.audioChunkBuffer.length);
+
+    // Clear existing timer
+    if (this.bufferTimer) {
+      clearTimeout(this.bufferTimer);
+    }
+
+    // Process buffer if we have enough chunks or set a timer
+    if (this.audioChunkBuffer.length >= this.minBufferSize) {
+      this.processBufferedAudio();
+    } else {
+      // Set timer to process buffer after max wait time
+      this.bufferTimer = setTimeout(() => {
+        this.processBufferedAudio();
+      }, this.maxBufferTime);
+    }
+  }
+
+  private async processBufferedAudio(): Promise<void> {
+    if (this.audioChunkBuffer.length === 0) return;
+
+    // Clear timer
+    if (this.bufferTimer) {
+      clearTimeout(this.bufferTimer);
+      this.bufferTimer = null;
+    }
+
+    // Combine all buffered chunks into one blob
+    const combinedBlob = new Blob(this.audioChunkBuffer, { type: 'audio/webm' });
+    console.log('Processing buffered audio:', this.audioChunkBuffer.length, 'chunks, total size:', combinedBlob.size, 'bytes');
+
+    // Clear buffer
+    this.audioChunkBuffer = [];
+
+    // Process the combined audio
+    await this.processAudioChunkWithWhisper(combinedBlob);
   }
 
   private async processAudioChunkWithWhisper(audioChunk: Blob): Promise<void> {
@@ -417,7 +463,9 @@ Guidelines:
       
       // Create FormData for Whisper API
       const formData = new FormData();
-      formData.append('file', audioChunk, 'audio.webm');
+      // Create a new blob with the correct MIME type for Whisper API
+      const webmBlob = new Blob([audioChunk], { type: 'audio/webm' });
+      formData.append('file', webmBlob, 'audio.webm');
       formData.append('model', 'whisper-1');
       formData.append('language', 'en');
       formData.append('response_format', 'json');
@@ -615,6 +663,18 @@ Guidelines:
     this.isStreaming = false;
     this.isPaused = false;
     
+    // Process any remaining buffered audio
+    if (this.audioChunkBuffer.length > 0) {
+      console.log('Processing remaining buffered audio before stopping...');
+      this.processBufferedAudio();
+    }
+    
+    // Clear buffer timer
+    if (this.bufferTimer) {
+      clearTimeout(this.bufferTimer);
+      this.bufferTimer = null;
+    }
+    
     // Stop heartbeat
     this.stopHeartbeat();
     
@@ -636,6 +696,7 @@ Guidelines:
     this.onTranscriptCallback = null;
     this.onErrorCallback = null;
     this.audioBuffer = [];
+    this.audioChunkBuffer = [];
     this.reconnectAttempts = 0;
     
     console.log('OpenAI Realtime streaming stopped and cleaned up');

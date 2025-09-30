@@ -97,14 +97,16 @@ export class OpenAIRealtimeService {
         const { ephemeralKey } = await keyResponse.json();
         console.log('Ephemeral key received, connecting to OpenAI Realtime API...');
 
-        // Use the ephemeral key in the WebSocket URL
-        const wsUrl = `wss://api.openai.com/v1/realtime?model=${this.config.model}&authorization=Bearer+${encodeURIComponent(ephemeralKey)}`;
+        // Use the ephemeral key via WebSocket subprotocols (the correct way)
+        const wsUrl = `wss://api.openai.com/v1/realtime?model=${this.config.model}`;
         console.log('Connecting to OpenAI Realtime API:', wsUrl);
         
-        this.websocket = new WebSocket(wsUrl);
+        // Use subprotocols for authentication - this is the official way
+        this.websocket = new WebSocket(wsUrl, ['realtime', `Bearer ${ephemeralKey}`]);
 
         this.websocket.onopen = () => {
           console.log('OpenAI Realtime WebSocket connected');
+          console.log('WebSocket protocol:', this.websocket?.protocol);
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.sessionId = this.generateSessionId();

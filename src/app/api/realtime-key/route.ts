@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({
       ephemeralKey: session.client_secret.value,
+      client_secret: session.client_secret.value, // Also provide as client_secret for compatibility
       expiresIn: 60 // 1 minute
     });
 

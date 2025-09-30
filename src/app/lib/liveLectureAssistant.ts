@@ -171,6 +171,14 @@ export class LiveLectureAssistant {
       if (this.transcriptionService.getProvider() === 'openai-realtime') {
         console.log('Starting OpenAI Realtime streaming transcription...');
         
+        // Initialize audio recorder first
+        if (!this.isInitialized) {
+          console.log('Initializing audio recorder...');
+          await this.audioRecorder.initialize();
+          this.isInitialized = true;
+          console.log('Audio recorder initialized');
+        }
+        
         // Get OpenAI API key from environment
         const response = await fetch('/api/transcribe', {
           method: 'POST',
@@ -199,9 +207,24 @@ export class LiveLectureAssistant {
           }
         );
         
+        // Start audio recording to feed the streaming service
+        console.log('Starting audio recording for OpenAI Realtime...');
+        this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
+          console.log('Processing audio chunk for OpenAI Realtime...');
+          await this.processAudioChunk(chunk);
+        });
+        
         console.log('OpenAI Realtime streaming transcription started');
       } else if (this.transcriptionService.getProvider() === 'deepgram') {
         console.log('Starting Deepgram streaming transcription...');
+        
+        // Initialize audio recorder first
+        if (!this.isInitialized) {
+          console.log('Initializing audio recorder...');
+          await this.audioRecorder.initialize();
+          this.isInitialized = true;
+          console.log('Audio recorder initialized');
+        }
         
         // Get Deepgram API key from environment
         const response = await fetch('/api/transcribe', {
@@ -230,6 +253,13 @@ export class LiveLectureAssistant {
             console.error('Deepgram streaming error:', error);
           }
         );
+        
+        // Start audio recording to feed the streaming service
+        console.log('Starting audio recording for Deepgram...');
+        this.audioRecorder.startRecording(async (chunk: AudioChunk) => {
+          console.log('Processing audio chunk for Deepgram...');
+          await this.processAudioChunk(chunk);
+        });
         
         console.log('Deepgram streaming transcription started');
       } else {

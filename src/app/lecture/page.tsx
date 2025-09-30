@@ -23,6 +23,10 @@ export default function LiveLecturePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [micTested, setMicTested] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'reconnecting'>('disconnected');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState(0);
 
   // Check user plan and setup
   useEffect(() => {

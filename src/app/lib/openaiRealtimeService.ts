@@ -23,11 +23,18 @@ export class OpenAIRealtimeService {
   private onTranscriptCallback: ((transcript: RealtimeTranscript) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 5;
+  private maxReconnectAttempts: number = 10;
   private reconnectDelay: number = 1000;
   private sessionId: string | null = null;
   private audioBuffer: Blob[] = [];
   private lastProcessedTime: number = 0;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private sessionStartTime: number = 0;
+  private maxSessionDuration: number = 30 * 60 * 1000; // 30 minutes
+  private transcriptCache: RealtimeTranscript[] = [];
+  private lastCacheTime: number = 0;
+  private cacheInterval: number = 2 * 60 * 1000; // Cache every 2 minutes
+  private isPaused: boolean = false;
 
   constructor(config: OpenAIRealtimeConfig) {
     this.config = {
@@ -85,9 +92,17 @@ export class OpenAIRealtimeService {
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.sessionId = this.generateSessionId();
+          this.sessionStartTime = Date.now();
           
           // Send initial configuration
           this.sendConfiguration();
+          
+          // Start heartbeat to keep connection alive
+          this.startHeartbeat();
+          
+          // Start session management
+          this.startSessionManagement();
+          
           resolve();
         };
 
@@ -109,8 +124,23 @@ export class OpenAIRealtimeService {
         this.websocket.onclose = (event) => {
           console.log('OpenAI Realtime WebSocket closed:', event.code, event.reason);
           this.isConnected = false;
+          this.stopHeartbeat();
           
-          if (event.code !== 1000 && this.isStreaming) {
+          // Handle different close codes
+          if (event.code === 1000) {
+            console.log('WebSocket closed normally');
+          } else if (event.code === 1001) {
+            console.log('WebSocket closed due to page navigation');
+          } else if (event.code === 1006) {
+            console.log('WebSocket closed abnormally, attempting reconnection');
+            this.handleReconnection();
+          } else if (event.code === 1011) {
+            console.log('WebSocket closed due to server error, attempting reconnection');
+            this.handleReconnection();
+          } else if (event.code === 1012) {
+            console.log('WebSocket closed due to service restart, attempting reconnection');
+            this.handleReconnection();
+          } else if (this.isStreaming) {
             this.handleReconnection();
           }
         };
@@ -200,13 +230,27 @@ Guidelines:
             if (transcript && transcript.trim()) {
               console.log('OpenAI Realtime transcript:', transcript);
               
+              const cleanedTranscript = this.cleanTranscript(transcript);
+              const finalTranscript = this.postProcessTranscript(cleanedTranscript);
+              
+              const transcriptData: RealtimeTranscript = {
+                text: finalTranscript,
+                isFinal: true,
+                confidence: 0.95,
+                timestamp: Date.now()
+              };
+              
+              // Cache the transcript
+              this.transcriptCache.push(transcriptData);
+              
+              // Auto-save cache periodically
+              if (Date.now() - this.lastCacheTime > this.cacheInterval) {
+                this.saveTranscriptCache();
+                this.lastCacheTime = Date.now();
+              }
+              
               if (this.onTranscriptCallback) {
-                this.onTranscriptCallback({
-                  text: this.cleanTranscript(transcript),
-                  isFinal: true,
-                  confidence: 0.95,
-                  timestamp: Date.now()
-                });
+                this.onTranscriptCallback(transcriptData);
               }
             }
           }
@@ -251,7 +295,101 @@ Guidelines:
       .join(' ');
   }
 
+  private postProcessTranscript(text: string): string {
+    // Additional post-processing for better quality
+    let processed = text;
+    
+    // Fix common academic term misspellings
+    const academicTerms: { [key: string]: string } = {
+      'mitokondria': 'mitochondria',
+      'photosintesis': 'photosynthesis',
+      'photosintetic': 'photosynthetic',
+      'mitokondrial': 'mitochondrial',
+      'ribosom': 'ribosome',
+      'ribosomal': 'ribosomal',
+      'enzim': 'enzyme',
+      'enzimatic': 'enzymatic',
+      'kromosom': 'chromosome',
+      'kromosomal': 'chromosomal',
+      'nukleus': 'nucleus',
+      'nuklear': 'nuclear',
+      'sitoplasma': 'cytoplasm',
+      'sitoplasmic': 'cytoplasmic',
+      'membran': 'membrane',
+      'membranous': 'membranous',
+      'organel': 'organelle',
+      'organellar': 'organellar',
+      'vakuol': 'vacuole',
+      'vakuolar': 'vacuolar',
+      'klorofil': 'chlorophyll',
+      'klorofilous': 'chlorophyllous',
+      'kloroplast': 'chloroplast',
+      'kloroplastic': 'chloroplastic'
+    };
+    
+    // Replace misspelled terms
+    Object.entries(academicTerms).forEach(([wrong, correct]) => {
+      const regex = new RegExp(`\\b${wrong}\\b`, 'gi');
+      processed = processed.replace(regex, correct);
+    });
+    
+    // Fix common punctuation issues
+    processed = processed
+      .replace(/\s+([.!?])/g, '$1') // Remove spaces before punctuation
+      .replace(/([.!?])\s*([a-z])/g, '$1 $2') // Add space after punctuation
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+    
+    return processed;
+  }
+
+  // Download transcript functionality
+  downloadTranscript(): void {
+    if (this.transcriptCache.length === 0) {
+      console.log('No transcript data to download');
+      return;
+    }
+    
+    const fullTranscript = this.transcriptCache
+      .map(t => t.text)
+      .join(' ')
+      .trim();
+    
+    if (!fullTranscript) {
+      console.log('No transcript content to download');
+      return;
+    }
+    
+    const blob = new Blob([fullTranscript], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lecture-transcript-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('Transcript downloaded');
+  }
+
+  // Get current transcript cache
+  getTranscriptCache(): RealtimeTranscript[] {
+    return [...this.transcriptCache];
+  }
+
+  // Clear transcript cache
+  clearTranscriptCache(): void {
+    this.transcriptCache = [];
+    console.log('Transcript cache cleared');
+  }
+
   sendAudioChunk(audioChunk: Blob): void {
+    if (this.isPaused) {
+      console.log('Audio processing paused, skipping chunk');
+      return;
+    }
+
     if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
       console.log('OpenAI Realtime WebSocket not connected, buffering audio chunk');
       this.audioBuffer.push(audioChunk);
@@ -274,6 +412,16 @@ Guidelines:
     });
   }
 
+  pauseStreaming(): void {
+    this.isPaused = true;
+    console.log('OpenAI Realtime streaming paused');
+  }
+
+  resumeStreaming(): void {
+    this.isPaused = false;
+    console.log('OpenAI Realtime streaming resumed');
+  }
+
   private async blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -287,19 +435,96 @@ Guidelines:
     });
   }
 
+  private startHeartbeat(): void {
+    // Send heartbeat every 30 seconds to keep connection alive
+    this.heartbeatInterval = setInterval(() => {
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        try {
+          this.websocket.send(JSON.stringify({ type: 'ping' }));
+          console.log('Heartbeat sent');
+        } catch (error) {
+          console.error('Heartbeat failed:', error);
+          this.handleReconnection();
+        }
+      }
+    }, 30000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  private startSessionManagement(): void {
+    // Check session duration every minute
+    setInterval(() => {
+      if (this.isStreaming && this.sessionStartTime > 0) {
+        const sessionDuration = Date.now() - this.sessionStartTime;
+        
+        if (sessionDuration > this.maxSessionDuration) {
+          console.log('Session duration limit reached, creating new session');
+          this.createNewSession();
+        }
+      }
+    }, 60000); // Check every minute
+  }
+
+  private async createNewSession(): Promise<void> {
+    try {
+      console.log('Creating new session...');
+      
+      // Save current transcript cache
+      this.saveTranscriptCache();
+      
+      // Close current session
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        this.websocket.send(JSON.stringify({ type: 'session.close' }));
+        this.websocket.close(1000, 'Creating new session');
+      }
+      
+      // Wait a moment before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create new connection
+      await this.connectWebSocket();
+      
+      console.log('New session created successfully');
+    } catch (error) {
+      console.error('Error creating new session:', error);
+      this.handleReconnection();
+    }
+  }
+
+  private saveTranscriptCache(): void {
+    if (this.transcriptCache.length > 0) {
+      console.log('Saving transcript cache:', this.transcriptCache.length, 'transcripts');
+      // In a real implementation, you would save this to a database
+      // For now, we'll just log it
+      localStorage.setItem('transcript_cache', JSON.stringify(this.transcriptCache));
+      this.transcriptCache = [];
+    }
+  }
+
   private handleReconnection(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('Max reconnection attempts reached');
       if (this.onErrorCallback) {
-        this.onErrorCallback(new Error('Connection lost and max reconnection attempts reached'));
+        this.onErrorCallback(new Error('Connection lost and max reconnection attempts reached. Please refresh the page.'));
       }
       return;
     }
 
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000); // Max 30 seconds
     
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    
+    // Show reconnecting message to user
+    if (this.onErrorCallback) {
+      this.onErrorCallback(new Error(`Reconnecting... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`));
+    }
     
     setTimeout(() => {
       if (this.isStreaming) {
@@ -314,6 +539,13 @@ Guidelines:
     console.log('Stopping OpenAI Realtime streaming...');
     
     this.isStreaming = false;
+    this.isPaused = false;
+    
+    // Stop heartbeat
+    this.stopHeartbeat();
+    
+    // Save final transcript cache
+    this.saveTranscriptCache();
     
     if (this.websocket) {
       if (this.websocket.readyState === WebSocket.OPEN) {
@@ -326,9 +558,13 @@ Guidelines:
     
     this.isConnected = false;
     this.sessionId = null;
+    this.sessionStartTime = 0;
     this.onTranscriptCallback = null;
     this.onErrorCallback = null;
     this.audioBuffer = [];
+    this.reconnectAttempts = 0;
+    
+    console.log('OpenAI Realtime streaming stopped and cleaned up');
   }
 
   isStreamingActive(): boolean {

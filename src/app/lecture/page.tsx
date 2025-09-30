@@ -7,7 +7,7 @@ import { LiveLectureAssistant, LiveLectureState, Flashcard, Bookmark, Highlight 
 
 export default function LiveLecturePage() {
   const router = useRouter();
-  const [assistant] = useState(() => new LiveLectureAssistant('deepgram')); // Use Deepgram by default
+  const [assistant] = useState(() => new LiveLectureAssistant('openai-realtime')); // Use OpenAI Realtime by default
   const [state, setState] = useState<LiveLectureState | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentNotes, setCurrentNotes] = useState<string[]>([]);

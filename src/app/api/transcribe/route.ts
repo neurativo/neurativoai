@@ -26,6 +26,15 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ apiKey });
       }
+      
+      if (body.action === 'get_openai_key') {
+        const apiKey = process.env.OPENAI_API_KEY;
+        console.log('OpenAI API key request:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
+        if (!apiKey) {
+          return NextResponse.json({ error: 'OpenAI API key not found' }, { status: 500 });
+        }
+        return NextResponse.json({ apiKey });
+      }
     }
     
     const formData = await request.formData();

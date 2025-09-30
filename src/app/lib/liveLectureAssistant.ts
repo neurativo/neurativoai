@@ -4,6 +4,7 @@
 import { AILectureService, createAILectureService } from './aiLectureService';
 import { AudioTranscriptionService, StreamingTranscriptionService, createTranscriptionService } from './audioTranscriptionService';
 import { DeepgramTranscriptionService, createDeepgramService } from './deepgramService';
+import { OpenAIRealtimeService, createOpenAIRealtimeService, RealtimeTranscript } from './openaiRealtimeService';
 import { AudioRecorder, AudioChunk } from './audioRecorder';
 
 export interface LiveLectureState {
@@ -112,10 +113,11 @@ export class LiveLectureAssistant {
   private transcriptionService: AudioTranscriptionService;
   private streamingService: StreamingTranscriptionService | null;
   private deepgramService: DeepgramTranscriptionService | null;
+  private openaiRealtimeService: OpenAIRealtimeService | null;
   private audioRecorder: AudioRecorder;
   private isInitialized: boolean = false;
 
-  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram' = 'deepgram') {
+  constructor(transcriptionProvider: 'openai' | 'google' | 'azure' | 'assemblyai' | 'deepgram' | 'openai-realtime' = 'openai-realtime') {
     this.state = {
       isRecording: false,
       isPaused: false,
@@ -165,39 +167,71 @@ export class LiveLectureAssistant {
       this.state.isPaused = false;
       this.state.startTime = new Date();
       
-      // For AssemblyAI, use the streaming WebSocket v3 service
-      if (this.transcriptionService.getProvider() === 'assemblyai') {
-        console.log('Starting AssemblyAI streaming transcription v3...');
+      // Use OpenAI Realtime for the best real-time transcription experience
+      if (this.transcriptionService.getProvider() === 'openai-realtime') {
+        console.log('Starting OpenAI Realtime streaming transcription...');
         
-        // Get API key from environment (this will be handled by the API route)
+        // Get OpenAI API key from environment
         const response = await fetch('/api/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_api_key' })
+          body: JSON.stringify({ action: 'get_openai_key' })
         });
         
         if (!response.ok) {
-          throw new Error('Failed to get API key for streaming');
+          throw new Error('Failed to get OpenAI API key for realtime streaming');
         }
         
         const { apiKey } = await response.json();
-        console.log('API key retrieved for streaming:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
+        console.log('OpenAI API key retrieved for realtime:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
         
-        // Initialize streaming service with API key
-        this.streamingService = new StreamingTranscriptionService(apiKey);
+        // Initialize OpenAI Realtime service
+        this.openaiRealtimeService = createOpenAIRealtimeService(apiKey);
+        
+        // Start realtime streaming transcription
+        await this.openaiRealtimeService.startStreaming(
+          (transcript: RealtimeTranscript) => {
+            console.log('OpenAI Realtime transcript received:', transcript);
+            this.processRealTimeTranscript(transcript.text);
+          },
+          (error: Error) => {
+            console.error('OpenAI Realtime transcription error:', error);
+          }
+        );
+        
+        console.log('OpenAI Realtime streaming transcription started');
+      } else if (this.transcriptionService.getProvider() === 'deepgram') {
+        console.log('Starting Deepgram streaming transcription...');
+        
+        // Get Deepgram API key from environment
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_deepgram_key' })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to get Deepgram API key for streaming');
+        }
+        
+        const { apiKey } = await response.json();
+        console.log('Deepgram API key retrieved for streaming:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
+        
+        // Initialize Deepgram service
+        this.deepgramService = createDeepgramService(apiKey);
         
         // Start streaming transcription
-        await this.streamingService.startStreaming(
+        await this.deepgramService.startStreaming(
           (transcript: string) => {
             console.log('Real-time transcript received:', transcript);
             this.processRealTimeTranscript(transcript);
           },
           (error: Error) => {
-            console.error('Streaming transcription error:', error);
+            console.error('Deepgram streaming error:', error);
           }
         );
         
-        console.log('AssemblyAI streaming transcription v3 started');
+        console.log('Deepgram streaming transcription started');
       } else {
         // For other providers, use the chunk-based approach
         if (!this.isInitialized) {
@@ -227,7 +261,10 @@ export class LiveLectureAssistant {
     if (this.state.isRecording && !this.state.isPaused) {
       this.state.isPaused = true;
       
-      if (this.streamingService) {
+      if (this.openaiRealtimeService) {
+        // For OpenAI Realtime, we can't pause the WebSocket, but we can stop processing
+        console.log('Lecture paused (OpenAI Realtime streaming continues)');
+      } else if (this.streamingService) {
         // For streaming service, we can't pause the WebSocket, but we can stop processing
         console.log('Lecture paused (streaming continues)');
       } else {
@@ -241,7 +278,9 @@ export class LiveLectureAssistant {
     if (this.state.isRecording && this.state.isPaused) {
       this.state.isPaused = false;
       
-      if (this.streamingService) {
+      if (this.openaiRealtimeService) {
+        console.log('Lecture resumed (OpenAI Realtime streaming continues)');
+      } else if (this.streamingService) {
         console.log('Lecture resumed (streaming continues)');
       } else {
         this.audioRecorder.resumeRecording();
@@ -255,7 +294,11 @@ export class LiveLectureAssistant {
     this.state.isPaused = false;
     
     // Stop audio recording or streaming
-    if (this.streamingService) {
+    if (this.openaiRealtimeService) {
+      this.openaiRealtimeService.stopStreaming();
+      this.openaiRealtimeService = null;
+      console.log('Lecture stopped (OpenAI Realtime streaming ended)');
+    } else if (this.streamingService) {
       await this.streamingService.stopStreaming();
       this.streamingService = null;
       console.log('Lecture stopped (streaming ended)');
@@ -316,7 +359,13 @@ export class LiveLectureAssistant {
         timestamp: chunk.timestamp 
       });
       
-      // Send audio chunk to transcription service
+      // For OpenAI Realtime, send audio directly to the streaming service
+      if (this.openaiRealtimeService) {
+        this.openaiRealtimeService.sendAudioChunk(chunk.data);
+        return;
+      }
+      
+      // For other services, use the transcription service
       const result = await this.transcriptionService.transcribeAudio(chunk.data);
       
       console.log('Transcription result:', result);

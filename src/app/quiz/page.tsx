@@ -13,9 +13,12 @@ type LimitState = {
 };
 
 export default function QuizPage() {
-	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document">("text");
+	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document" | "study-pack">("text");
 	const [documentProcessing, setDocumentProcessing] = useState(false);
 	const [processedDocument, setProcessedDocument] = useState<any>(null);
+	const [studyPackMode, setStudyPackMode] = useState(false);
+	const [studyPack, setStudyPack] = useState<any>(null);
+	const [activeStudyTab, setActiveStudyTab] = useState<'notes' | 'flashcards' | 'quizzes' | 'revision'>('notes');
 	const [aiContent, setAiContent] = useState("");
 	const [sourceUrl, setSourceUrl] = useState("");
 	const [sourceFile, setSourceFile] = useState<File | null>(null);
@@ -52,6 +55,42 @@ export default function QuizPage() {
 		});
 	}
 
+	async function processStudyPack(file: File): Promise<void> {
+		try {
+			setDocumentProcessing(true);
+			setError(null);
+			
+			const formData = new FormData();
+			formData.append('file', file);
+			formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+			formData.append('subject', 'Study Pack Generation');
+			formData.append('course', 'General');
+			formData.append('difficulty', aiDifficulty);
+
+			const response = await fetch('/api/upload-document', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Study pack generation failed');
+			}
+
+			const result = await response.json();
+			setProcessedDocument(result.document);
+			setStudyPack(result.studyPack);
+			setDocumentProcessing(false);
+			
+			console.log('Study pack generated successfully:', result);
+			
+		} catch (error) {
+			console.error('Error generating study pack:', error);
+			setError(error instanceof Error ? error.message : 'Study pack generation failed');
+			setDocumentProcessing(false);
+		}
+	}
+
 	async function processDocumentForQuiz(file: File): Promise<string | null> {
 		try {
 			setDocumentProcessing(true);
@@ -84,6 +123,7 @@ export default function QuizPage() {
 
 			const result = await response.json();
 			setProcessedDocument(result.document);
+			setStudyPack(result.studyPack);
 			
 			// Extract content from processed document for quiz generation
 			const content = result.document.sections
@@ -153,6 +193,10 @@ export default function QuizPage() {
 			setError("Please select a document to upload");
 			return;
 		}
+		if (sourceTab === "study-pack" && !studyPack) {
+			setError("Please generate a study pack first");
+			return;
+		}
 
 		setLoading(true); 
 		setUrlLoading(sourceTab === "url");
@@ -196,6 +240,16 @@ export default function QuizPage() {
 					// The server will handle the extraction as fallback
 					form.set("file", sourceFile);
 				}
+			}
+			if (sourceTab === "study-pack" && studyPack) {
+				// Extract content from study pack for quiz generation
+				const content = studyPack.detailedNotes
+					?.map((note: any) => note.content)
+					.join('\n\n') || '';
+				form.set("content", content);
+				form.set("file_name", "study_pack_content");
+				form.set("file_size", String(content.length));
+				form.set("file_type", "text/study-pack");
 			}
 
 			// Get the current session token
@@ -282,6 +336,13 @@ export default function QuizPage() {
 									className={`px-4 py-2 rounded-lg transition ${sourceTab === "document" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
 								>
 									By Document
+								</button>
+								<button
+									onClick={() => setSourceTab("study-pack")}
+									aria-current={sourceTab === "study-pack"}
+									className={`px-4 py-2 rounded-lg transition ${sourceTab === "study-pack" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
+								>
+									Study Pack
 								</button>
 							</div>
 						</div>
@@ -392,6 +453,266 @@ export default function QuizPage() {
 										</div>
 									)}
 
+									{sourceTab === "study-pack" && (
+										<div className="md:col-span-2">
+											<label className="text-white font-semibold mb-2 block">Upload Document for Study Pack</label>
+											
+											{!studyPack ? (
+												<div className="space-y-6">
+													<div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors">
+														<input
+															type="file"
+															accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.tiff"
+															onChange={async (e) => {
+																const file = e.target.files?.[0];
+																if (file) {
+																	setSourceFile(file);
+																	setError(null);
+																	await processStudyPack(file);
+																}
+															}}
+															className="hidden"
+															id="study-pack-upload"
+														/>
+														<label htmlFor="study-pack-upload" className="cursor-pointer">
+															<div className="text-6xl mb-4">📚</div>
+															<h3 className="text-xl font-semibold mb-2">Create AI Study Pack</h3>
+															<p className="text-gray-400 mb-4">
+																Upload your syllabus, textbook, or tutorial materials to generate comprehensive study materials
+															</p>
+															<button type="button" className="btn btn-primary btn-lg">
+																Choose Document
+															</button>
+														</label>
+													</div>
+													
+													{sourceFile && (
+														<div className="p-4 bg-white/5 rounded-lg">
+															<div className="flex items-center justify-between">
+																<div>
+																	<p className="text-white font-medium">{sourceFile.name}</p>
+																	<p className="text-gray-400 text-sm">
+																		{(sourceFile.size / 1024 / 1024).toFixed(2)} MB • {sourceFile.type}
+																	</p>
+																</div>
+																<button
+																	type="button"
+																	onClick={() => {
+																		setSourceFile(null);
+																		setStudyPack(null);
+																	}}
+																	className="btn btn-sm btn-ghost text-red-400"
+																>
+																	Remove
+																</button>
+															</div>
+														</div>
+													)}
+													
+													{documentProcessing && (
+														<div className="p-4 bg-blue-500/20 rounded-lg">
+															<div className="flex items-center space-x-3">
+																<span className="loading loading-spinner loading-sm"></span>
+																<span className="text-blue-300">Processing document and generating study pack...</span>
+															</div>
+														</div>
+													)}
+													
+													<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+														<div className="text-center p-4 bg-white/5 rounded-lg">
+															<div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
+																<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+																</svg>
+															</div>
+															<h4 className="font-semibold text-white">Detailed Notes</h4>
+															<p className="text-sm text-gray-400">Structured summaries with key concepts</p>
+														</div>
+														
+														<div className="text-center p-4 bg-white/5 rounded-lg">
+															<div className="w-12 h-12 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-3">
+																<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+																</svg>
+															</div>
+															<h4 className="font-semibold text-white">Flashcards</h4>
+															<p className="text-sm text-gray-400">Q&A cards for active recall</p>
+														</div>
+														
+														<div className="text-center p-4 bg-white/5 rounded-lg">
+															<div className="w-12 h-12 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-3">
+																<svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+																</svg>
+															</div>
+															<h4 className="font-semibold text-white">Quiz Packs</h4>
+															<p className="text-sm text-gray-400">Multiple choice questions with explanations</p>
+														</div>
+													</div>
+												</div>
+											) : (
+												<div className="space-y-6">
+													<div className="flex items-center justify-between">
+														<h3 className="text-xl font-bold text-white">{studyPack.title}</h3>
+														<button
+															onClick={() => {
+																setStudyPack(null);
+																setSourceFile(null);
+																setActiveStudyTab('notes');
+															}}
+															className="btn btn-sm btn-ghost text-gray-400"
+														>
+															Upload New Document
+														</button>
+													</div>
+													
+													<div className="flex space-x-4 border-b border-white/20">
+														{[
+															{ id: 'notes', label: 'Notes', count: studyPack.detailedNotes?.length || 0 },
+															{ id: 'flashcards', label: 'Flashcards', count: studyPack.flashcardDeck?.length || 0 },
+															{ id: 'quizzes', label: 'Quizzes', count: studyPack.quizBank?.length || 0 },
+															{ id: 'revision', label: 'Revision', count: 0 }
+														].map((tab) => (
+															<button
+																key={tab.id}
+																onClick={() => setActiveStudyTab(tab.id as any)}
+																className={`py-2 px-4 border-b-2 font-medium text-sm ${
+																	activeStudyTab === tab.id
+																		? 'border-purple-500 text-purple-400'
+																		: 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
+																}`}
+															>
+																{tab.label}
+																{tab.count > 0 && (
+																	<span className="ml-2 bg-white/10 text-white py-0.5 px-2 rounded-full text-xs">
+																		{tab.count}
+																	</span>
+																)}
+															</button>
+														))}
+													</div>
+													
+													{activeStudyTab === 'notes' && (
+														<div className="space-y-4 max-h-96 overflow-y-auto">
+															{studyPack.detailedNotes?.map((note: any, index: number) => (
+																<div key={note.id || index} className="border border-white/20 rounded-lg p-4">
+																	<div className="flex items-center justify-between mb-2">
+																		<h4 className="text-lg font-semibold text-white">{note.topic}</h4>
+																		<span className={`px-2 py-1 rounded-full text-xs font-medium ${
+																			note.level === 'basic' ? 'bg-green-100 text-green-800' :
+																			note.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+																			'bg-red-100 text-red-800'
+																		}`}>
+																			{note.level}
+																		</span>
+																	</div>
+																	<div className="text-gray-300 whitespace-pre-line text-sm">
+																		{note.content}
+																	</div>
+																</div>
+															))}
+														</div>
+													)}
+													
+													{activeStudyTab === 'flashcards' && (
+														<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+															{studyPack.flashcardDeck?.map((card: any, index: number) => (
+																<div key={card.id || index} className="border border-white/20 rounded-lg p-4">
+																	<div className="space-y-3">
+																		<div className="p-3 bg-blue-500/20 rounded">
+																			<h4 className="font-medium text-white mb-1">Question:</h4>
+																			<p className="text-gray-300 text-sm">{card.front}</p>
+																		</div>
+																		<div className="p-3 bg-green-500/20 rounded">
+																			<h4 className="font-medium text-white mb-1">Answer:</h4>
+																			<p className="text-gray-300 text-sm">{card.back}</p>
+																		</div>
+																	</div>
+																</div>
+															))}
+														</div>
+													)}
+													
+													{activeStudyTab === 'quizzes' && (
+														<div className="space-y-4 max-h-96 overflow-y-auto">
+															{studyPack.quizBank?.map((quiz: any, index: number) => (
+																<div key={quiz.id || index} className="border border-white/20 rounded-lg p-4">
+																	<div className="flex items-center justify-between mb-4">
+																		<h4 className="text-lg font-semibold text-white">{quiz.title}</h4>
+																		<div className="flex items-center space-x-4 text-sm text-gray-400">
+																			<span>{quiz.totalQuestions} questions</span>
+																			<span>{quiz.estimatedTime} min</span>
+																		</div>
+																	</div>
+																	<div className="space-y-3">
+																		{quiz.questions?.slice(0, 2).map((question: any, qIndex: number) => (
+																			<div key={qIndex} className="p-3 bg-white/5 rounded">
+																				<h5 className="font-medium text-white mb-2">
+																					{qIndex + 1}. {question.question}
+																				</h5>
+																				<div className="space-y-1">
+																					{question.options?.map((option: string, oIndex: number) => (
+																						<div key={oIndex} className="flex items-center space-x-2">
+																							<span className="text-sm text-gray-400">
+																								{String.fromCharCode(65 + oIndex)}.
+																							</span>
+																							<span className={`text-sm ${
+																								oIndex === question.correctAnswer ? 'text-green-400 font-medium' : 'text-gray-300'
+																							}`}>
+																								{option}
+																							</span>
+																						</div>
+																					))}
+																				</div>
+																			</div>
+																		))}
+																		{quiz.questions?.length > 2 && (
+																			<p className="text-sm text-gray-500 text-center">
+																				... and {quiz.questions.length - 2} more questions
+																			</p>
+																		)}
+																	</div>
+																</div>
+															))}
+														</div>
+													)}
+													
+													{activeStudyTab === 'revision' && (
+														<div className="space-y-4">
+															<div className="border border-white/20 rounded-lg p-4">
+																<h4 className="text-lg font-semibold text-white mb-3">Quick Revision Sheet</h4>
+																<div className="prose max-w-none">
+																	<pre className="whitespace-pre-wrap text-gray-300 bg-white/5 p-4 rounded text-sm">
+																		{studyPack.quickRevisionSheet}
+																	</pre>
+																</div>
+															</div>
+															
+															<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+																<div className="text-center p-4 bg-blue-500/20 rounded">
+																	<div className="text-2xl font-bold text-blue-400">{studyPack.summary?.totalTopics || 0}</div>
+																	<div className="text-sm text-gray-400">Topics</div>
+																</div>
+																<div className="text-center p-4 bg-purple-500/20 rounded">
+																	<div className="text-2xl font-bold text-purple-400">{studyPack.summary?.totalFlashcards || 0}</div>
+																	<div className="text-sm text-gray-400">Flashcards</div>
+																</div>
+																<div className="text-center p-4 bg-orange-500/20 rounded">
+																	<div className="text-2xl font-bold text-orange-400">{studyPack.summary?.totalQuestions || 0}</div>
+																	<div className="text-sm text-gray-400">Questions</div>
+																</div>
+																<div className="text-center p-4 bg-green-500/20 rounded">
+																	<div className="text-2xl font-bold text-green-400">{studyPack.summary?.estimatedStudyTime || 0}h</div>
+																	<div className="text-sm text-gray-400">Study Time</div>
+																</div>
+															</div>
+														</div>
+													)}
+												</div>
+											)}
+										</div>
+									)}
+
 									<div>
 										<label className="text-white font-semibold mb-2 block">Difficulty Level</label>
 										<select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value)} className="select select-bordered w-full bg-white/5 text-white">
@@ -451,7 +772,7 @@ export default function QuizPage() {
 									<button disabled={loading || limits?.blocked} onClick={async () => {
 										await generateQuiz();
 									}} className="btn btn-primary w-full">
-										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : documentProcessing ? "Processing document..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
+										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : documentProcessing ? "Processing document..." : sourceTab === "study-pack" ? "Generating from study pack..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
 									</button>
                                     {limits && (
 										<div className="text-gray-300 text-sm mt-2 text-center">

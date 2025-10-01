@@ -13,7 +13,7 @@ type LimitState = {
 };
 
 export default function QuizPage() {
-	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document">("text");
+	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document" | "lecture">("text");
 	const [aiContent, setAiContent] = useState("");
 	const [sourceUrl, setSourceUrl] = useState("");
 	const [sourceFile, setSourceFile] = useState<File | null>(null);
@@ -119,6 +119,10 @@ export default function QuizPage() {
 			setError("Please select a document to upload");
 			return;
 		}
+		if (sourceTab === "lecture") {
+			setError("Please use the 'Start Live Lecture' button to begin a live lecture session");
+			return;
+		}
 
 		setLoading(true); 
 		setUrlLoading(sourceTab === "url");
@@ -146,6 +150,10 @@ export default function QuizPage() {
 			}
 			if (sourceTab === "url") {
 				form.set("url", sourceUrl);
+			}
+			if (sourceTab === "lecture") {
+				// Skip form data for lecture tab - handled by live lecture system
+				return;
 			}
 			if (sourceTab === "document" && sourceFile) {
 				form.set("file_name", sourceFile.name);
@@ -218,7 +226,7 @@ export default function QuizPage() {
 					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 						<h1 className="text-4xl md:text-6xl font-bold text-white mb-6">Create Your Quiz</h1>
 						<p className="text-xl text-gray-300 max-w-3xl mx-auto">
-							Turn any source into a quiz: paste text, provide a public URL, or upload a document.
+							Turn any source into a quiz: paste text, provide a public URL, upload a document, or use our Live Lecture Assistant for real-time transcription and quiz generation.
 						</p>
 					</div>
 				</section>
@@ -247,6 +255,13 @@ export default function QuizPage() {
 									className={`px-4 py-2 rounded-lg transition ${sourceTab === "document" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
 								>
 									By Document
+								</button>
+								<button
+									onClick={() => setSourceTab("lecture")}
+									aria-current={sourceTab === "lecture"}
+									className={`px-4 py-2 rounded-lg transition ${sourceTab === "lecture" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
+								>
+									Live Lecture
 								</button>
 							</div>
 						</div>
@@ -289,6 +304,47 @@ export default function QuizPage() {
 													className="btn btn-primary btn-lg"
 												>
 													Go to Document Quiz
+												</button>
+											</div>
+										</div>
+									)}
+
+									{sourceTab === "lecture" && (
+										<div className="md:col-span-2">
+											<div className="text-center py-8">
+												<div className="text-6xl mb-4">🎤</div>
+												<h3 className="text-xl font-semibold mb-4">Live Lecture Assistant</h3>
+												<p className="text-gray-400 mb-6">
+													Real-time transcription, note-taking, and quiz generation during live lectures
+												</p>
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+													<div className="bg-white/5 rounded-lg p-4 border border-white/10">
+														<div className="text-2xl mb-2">🎯</div>
+														<h4 className="font-semibold text-white mb-2">Real-time Transcription</h4>
+														<p className="text-gray-400 text-sm">Live audio-to-text conversion with AI-powered processing</p>
+													</div>
+													<div className="bg-white/5 rounded-lg p-4 border border-white/10">
+														<div className="text-2xl mb-2">📝</div>
+														<h4 className="font-semibold text-white mb-2">Smart Note-taking</h4>
+														<p className="text-gray-400 text-sm">Automatic note generation and key concept extraction</p>
+													</div>
+													<div className="bg-white/5 rounded-lg p-4 border border-white/10">
+														<div className="text-2xl mb-2">🧠</div>
+														<h4 className="font-semibold text-white mb-2">Flashcards</h4>
+														<p className="text-gray-400 text-sm">Auto-generated flashcards for key concepts and definitions</p>
+													</div>
+													<div className="bg-white/5 rounded-lg p-4 border border-white/10">
+														<div className="text-2xl mb-2">📊</div>
+														<h4 className="font-semibold text-white mb-2">Quiz Generation</h4>
+														<p className="text-gray-400 text-sm">End-of-lecture quiz creation based on content</p>
+													</div>
+												</div>
+												<button
+													onClick={() => window.location.href = '/lecture'}
+													className="btn btn-primary btn-lg"
+												>
+													<i className="fas fa-microphone mr-2"></i>
+													Start Live Lecture
 												</button>
 											</div>
 										</div>
@@ -350,10 +406,10 @@ export default function QuizPage() {
 								<div className="divider my-6 opacity-20"></div>
 
 								<div className="mt-2">
-									<button disabled={loading || limits?.blocked} onClick={async () => {
+									<button disabled={loading || limits?.blocked || sourceTab === "lecture"} onClick={async () => {
 										await generateQuiz();
 									}} className="btn btn-primary w-full">
-										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
+										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : sourceTab === "lecture" ? "Use Live Lecture Assistant" : "Generate Quiz")}
 									</button>
                                     {limits && (
 										<div className="text-gray-300 text-sm mt-2 text-center">

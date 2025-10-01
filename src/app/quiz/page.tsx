@@ -14,6 +14,8 @@ type LimitState = {
 
 export default function QuizPage() {
 	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document">("text");
+	const [documentProcessing, setDocumentProcessing] = useState(false);
+	const [processedDocument, setProcessedDocument] = useState<any>(null);
 	const [aiContent, setAiContent] = useState("");
 	const [sourceUrl, setSourceUrl] = useState("");
 	const [sourceFile, setSourceFile] = useState<File | null>(null);
@@ -50,20 +52,52 @@ export default function QuizPage() {
 		});
 	}
 
-	async function extractDocumentContent(file: File): Promise<string | null> {
+	async function processDocumentForQuiz(file: File): Promise<string | null> {
 		try {
+			setDocumentProcessing(true);
+			setError(null);
+			
 			// For text files, use the existing method
 			if (file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".md")) {
-				return await readFileToText(file);
+				const content = await readFileToText(file);
+				setDocumentProcessing(false);
+				return content;
 			}
 			
-			// For PDFs and other documents, we need to send to our document analysis API
-			// This is a temporary solution - in production, you'd want to handle this client-side
-			// or use a different approach
-			console.log("Document type not supported for client-side extraction:", file.type);
-			return null;
+			// For PDFs, DOCX, and images, use the Study Pack Generator API
+			const formData = new FormData();
+			formData.append('file', file);
+			formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
+			formData.append('subject', 'Quiz Generation');
+			formData.append('course', 'General');
+			formData.append('difficulty', aiDifficulty);
+
+			const response = await fetch('/api/upload-document', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Document processing failed');
+			}
+
+			const result = await response.json();
+			setProcessedDocument(result.document);
+			
+			// Extract content from processed document for quiz generation
+			const content = result.document.sections
+				.filter((section: any) => section.isExamRelevant)
+				.map((section: any) => section.content)
+				.join('\n\n');
+			
+			setDocumentProcessing(false);
+			return content;
+			
 		} catch (error) {
-			console.error("Error extracting document content:", error);
+			console.error("Error processing document:", error);
+			setError(error instanceof Error ? error.message : 'Document processing failed');
+			setDocumentProcessing(false);
 			return null;
 		}
 	}
@@ -122,6 +156,7 @@ export default function QuizPage() {
 
 		setLoading(true); 
 		setUrlLoading(sourceTab === "url");
+		setDocumentProcessing(sourceTab === "document");
 		setError(null);
 		try {
 			// Client-side limit check before calling API
@@ -152,13 +187,13 @@ export default function QuizPage() {
 				form.set("file_size", String(sourceFile.size));
 				form.set("file_type", sourceFile.type);
 				
-				// Try to extract content client-side
-				const content = await extractDocumentContent(sourceFile);
+				// Process document using Study Pack Generator
+				const content = await processDocumentForQuiz(sourceFile);
 				if (content) {
 					form.set("content", content);
 				} else {
-					// For PDFs and other documents, we need to send the file to the server
-					// The server will handle the extraction
+					// If processing failed, we still send the file to the server
+					// The server will handle the extraction as fallback
 					form.set("file", sourceFile);
 				}
 			}
@@ -278,18 +313,81 @@ export default function QuizPage() {
 
 									{sourceTab === "document" && (
 										<div className="md:col-span-2">
-											<div className="text-center py-8">
-												<div className="text-6xl mb-4">📄</div>
-												<h3 className="text-xl font-semibold mb-4">Document Quiz Generator</h3>
-												<p className="text-gray-400 mb-6">
-													Upload a document and get an intelligent quiz generated from its content
-												</p>
-												<button
-													onClick={() => window.location.href = '/quiz/document'}
-													className="btn btn-primary btn-lg"
-												>
-													Go to Document Quiz
-												</button>
+											<label className="text-white font-semibold mb-2 block">Upload Document</label>
+											<div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors">
+												<input
+													type="file"
+													accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.tiff"
+													onChange={(e) => {
+														const file = e.target.files?.[0];
+														if (file) {
+															setSourceFile(file);
+															setError(null);
+														}
+													}}
+													className="hidden"
+													id="document-upload"
+												/>
+												<label htmlFor="document-upload" className="cursor-pointer">
+													<div className="text-4xl mb-4">📄</div>
+													<h3 className="text-lg font-semibold mb-2">Upload Your Document</h3>
+													<p className="text-gray-400 mb-4">
+														Supports PDF, DOCX, TXT, MD, and scanned images (JPG, PNG, TIFF)
+													</p>
+													<button type="button" className="btn btn-primary">
+														Choose File
+													</button>
+												</label>
+											</div>
+											
+											{sourceFile && (
+												<div className="mt-4 p-4 bg-white/5 rounded-lg">
+													<div className="flex items-center justify-between">
+														<div>
+															<p className="text-white font-medium">{sourceFile.name}</p>
+															<p className="text-gray-400 text-sm">
+																{(sourceFile.size / 1024 / 1024).toFixed(2)} MB • {sourceFile.type}
+															</p>
+														</div>
+														<button
+															type="button"
+															onClick={() => setSourceFile(null)}
+															className="btn btn-sm btn-ghost text-red-400"
+														>
+															Remove
+														</button>
+													</div>
+												</div>
+											)}
+											
+											{documentProcessing && (
+												<div className="mt-4 p-4 bg-blue-500/20 rounded-lg">
+													<div className="flex items-center space-x-3">
+														<span className="loading loading-spinner loading-sm"></span>
+														<span className="text-blue-300">Processing document with AI...</span>
+													</div>
+												</div>
+											)}
+											
+											{processedDocument && (
+												<div className="mt-4 p-4 bg-green-500/20 rounded-lg">
+													<div className="flex items-center space-x-3">
+														<i className="fas fa-check-circle text-green-400"></i>
+														<div>
+															<p className="text-green-300 font-medium">Document processed successfully!</p>
+															<p className="text-green-400 text-sm">
+																{processedDocument.sections?.length || 0} sections extracted • {processedDocument.totalWords || 0} words
+															</p>
+														</div>
+													</div>
+												</div>
+											)}
+											
+											<div className="mt-4 space-y-2">
+												<p className="text-gray-400 text-sm">✅ <strong>PDF & DOCX:</strong> Full text extraction with structure analysis</p>
+												<p className="text-gray-400 text-sm">✅ <strong>Scanned Images:</strong> OCR text recognition for handwritten/printed content</p>
+												<p className="text-gray-400 text-sm">✅ <strong>Smart Processing:</strong> AI identifies exam-relevant content and key topics</p>
+												<p className="text-gray-400 text-sm">✅ <strong>Quality Quizzes:</strong> Questions generated from the most important concepts</p>
 											</div>
 										</div>
 									)}
@@ -353,7 +451,7 @@ export default function QuizPage() {
 									<button disabled={loading || limits?.blocked} onClick={async () => {
 										await generateQuiz();
 									}} className="btn btn-primary w-full">
-										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
+										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : documentProcessing ? "Processing document..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
 									</button>
                                     {limits && (
 										<div className="text-gray-300 text-sm mt-2 text-center">

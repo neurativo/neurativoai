@@ -244,7 +244,7 @@ export default function QuizPage() {
 
 		setLoading(true); 
 		setUrlLoading(sourceTab === "url");
-		setDocumentProcessing(sourceTab === "document");
+		setDocumentProcessing(sourceTab === "document" || sourceTab === "study-pack");
 		setError(null);
 		try {
 			// Client-side limit check before calling API
@@ -262,7 +262,9 @@ export default function QuizPage() {
 			form.set("question_types", JSON.stringify(aiTypes));
 			form.set("focus_areas", aiFocus);
 			form.set("topic", aiTopic);
-			form.set("source", sourceTab);
+			// Map study-pack to text since we're providing extracted content
+			const apiSource = sourceTab === "study-pack" ? "text" : sourceTab;
+			form.set("source", apiSource);
 
 			if (sourceTab === "text") {
 				form.set("content", aiContent);
@@ -842,10 +844,23 @@ export default function QuizPage() {
 								<div className="divider my-6 opacity-20"></div>
 
 								<div className="mt-2">
-									<button disabled={loading || limits?.blocked} onClick={async () => {
-										await generateQuiz();
-									}} className="btn btn-primary w-full">
-										<i className="fas fa-magic mr-2"></i>{loading ? (urlLoading ? "Extracting content..." : documentProcessing ? "Processing document..." : sourceTab === "study-pack" ? "Generating from study pack..." : "Generating quiz...") : (limits?.blocked ? "Limit reached" : "Generate Quiz")}
+									<button 
+										disabled={loading || limits?.blocked || (sourceTab === "study-pack" && !studyPack)} 
+										onClick={async () => {
+											await generateQuiz();
+										}} 
+										className="btn btn-primary w-full"
+									>
+										<i className="fas fa-magic mr-2"></i>
+										{loading ? (
+											urlLoading ? "Extracting content..." : 
+											documentProcessing ? (sourceTab === "study-pack" ? "Generating from study pack..." : "Processing document...") : 
+											"Generating quiz..."
+										) : (
+											limits?.blocked ? "Limit reached" : 
+											sourceTab === "study-pack" && !studyPack ? "Generate Study Pack First" :
+											"Generate Quiz"
+										)}
 									</button>
                                     {limits && (
 										<div className="text-gray-300 text-sm mt-2 text-center">

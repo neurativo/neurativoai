@@ -57,8 +57,35 @@ export default function QuizPage() {
 
 	async function processStudyPack(file: File): Promise<void> {
 		try {
+			console.log('Starting study pack processing for file:', file.name, file.type, file.size);
 			setDocumentProcessing(true);
 			setError(null);
+			
+			// Validate file
+			if (!file) {
+				throw new Error('No file selected');
+			}
+			
+			// Check file size (max 10MB)
+			const maxSize = 10 * 1024 * 1024;
+			if (file.size > maxSize) {
+				throw new Error('File too large. Maximum size is 10MB.');
+			}
+			
+			// Check file type
+			const allowedTypes = [
+				'application/pdf',
+				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+				'text/plain',
+				'text/markdown',
+				'image/jpeg',
+				'image/png',
+				'image/tiff'
+			];
+			
+			if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|docx|txt|md|jpg|jpeg|png|tiff)$/i)) {
+				throw new Error('Unsupported file type. Please upload PDF, DOCX, TXT, MD, or image files.');
+			}
 			
 			const formData = new FormData();
 			formData.append('file', file);
@@ -67,22 +94,39 @@ export default function QuizPage() {
 			formData.append('course', 'General');
 			formData.append('difficulty', aiDifficulty);
 
+			console.log('Sending request to /api/upload-document...');
 			const response = await fetch('/api/upload-document', {
 				method: 'POST',
 				body: formData
 			});
 
+			console.log('Response status:', response.status);
+			
 			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || 'Study pack generation failed');
+				let errorMessage = 'Study pack generation failed';
+				try {
+					const errorData = await response.json();
+					errorMessage = errorData.error || errorData.details || errorMessage;
+				} catch (e) {
+					errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+				}
+				throw new Error(errorMessage);
 			}
 
 			const result = await response.json();
+			console.log('Study pack generated successfully:', result);
+			
+			if (!result.success) {
+				throw new Error(result.error || 'Study pack generation failed');
+			}
+			
+			if (!result.studyPack) {
+				throw new Error('No study pack data received from server');
+			}
+			
 			setProcessedDocument(result.document);
 			setStudyPack(result.studyPack);
 			setDocumentProcessing(false);
-			
-			console.log('Study pack generated successfully:', result);
 			
 		} catch (error) {
 			console.error('Error generating study pack:', error);
@@ -459,13 +503,17 @@ export default function QuizPage() {
 											
 											{!studyPack ? (
 												<div className="space-y-6">
-													<div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors">
+													<div 
+														className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
+														onClick={() => document.getElementById('study-pack-upload')?.click()}
+													>
 														<input
 															type="file"
 															accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.tiff"
 															onChange={async (e) => {
 																const file = e.target.files?.[0];
 																if (file) {
+																	console.log('File selected for study pack:', file.name);
 																	setSourceFile(file);
 																	setError(null);
 																	await processStudyPack(file);
@@ -474,16 +522,21 @@ export default function QuizPage() {
 															className="hidden"
 															id="study-pack-upload"
 														/>
-														<label htmlFor="study-pack-upload" className="cursor-pointer">
-															<div className="text-6xl mb-4">📚</div>
-															<h3 className="text-xl font-semibold mb-2">Create AI Study Pack</h3>
-															<p className="text-gray-400 mb-4">
-																Upload your syllabus, textbook, or tutorial materials to generate comprehensive study materials
-															</p>
-															<button type="button" className="btn btn-primary btn-lg">
-																Choose Document
-															</button>
-														</label>
+														<div className="text-6xl mb-4">📚</div>
+														<h3 className="text-xl font-semibold mb-2">Create AI Study Pack</h3>
+														<p className="text-gray-400 mb-4">
+															Upload your syllabus, textbook, or tutorial materials to generate comprehensive study materials
+														</p>
+														<button 
+															type="button" 
+															className="btn btn-primary btn-lg"
+															onClick={(e) => {
+																e.stopPropagation();
+																document.getElementById('study-pack-upload')?.click();
+															}}
+														>
+															Choose Document
+														</button>
 													</div>
 													
 													{sourceFile && (
@@ -548,6 +601,26 @@ export default function QuizPage() {
 															<h4 className="font-semibold text-white">Quiz Packs</h4>
 															<p className="text-sm text-gray-400">Multiple choice questions with explanations</p>
 														</div>
+													</div>
+													
+													<div className="mt-4 text-center">
+														<button
+															type="button"
+															onClick={() => {
+																console.log('Test button clicked');
+																const input = document.getElementById('study-pack-upload') as HTMLInputElement;
+																console.log('Input element:', input);
+																if (input) {
+																	input.click();
+																	console.log('Input clicked');
+																} else {
+																	console.error('Input element not found');
+																}
+															}}
+															className="btn btn-sm btn-outline text-gray-400"
+														>
+															Test File Input
+														</button>
 													</div>
 												</div>
 											) : (

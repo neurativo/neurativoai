@@ -21,40 +21,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an AI assistant helping students take smart notes during live lectures. 
+    const prompt = `You are an AI assistant helping students take smart notes during live lectures. You are EXTREMELY intelligent and can extract valuable information even from incomplete, unclear, or fragmented transcript text.
 
 Context: ${context || 'General Lecture'}
 
-Analyze the following transcript text and extract the most important information. Create beautifully formatted, structured notes that are:
+IMPORTANT: The transcript below may be incomplete, unclear, or have gaps due to audio issues. Your job is to:
+1. Extract ANY useful information, even from partial sentences
+2. Infer context and meaning from fragments
+3. Generate educational notes even if the transcript is unclear
+4. Fill in gaps with logical assumptions based on the context
+5. Create valuable study material regardless of transcription quality
+
+Transcript: "${text}"
+
+Create beautifully formatted, structured notes that are:
 - Clear and concise with rich formatting
 - Focused on key concepts, definitions, examples, and important points
 - Categorized by importance (high, medium, low)
-- Categorized by type (key_point, definition, example, formula, question)
+- Categorized by type (key_point, definition, example, formula, question, inference, summary)
 - Use markdown formatting, emojis, and visual elements for better readability
-
-Transcript: "${text}"
+- Be creative in extracting value from unclear text
 
 Return a JSON array of note objects with this structure:
 [
   {
-    "content": "**Bold key terms** with *italic emphasis* and 📝 emojis. Use bullet points, numbered lists, and visual separators for clarity.",
-    "type": "key_point|definition|example|formula|question",
+    "content": "**Bold key terms** with *italic emphasis* and 📝 emojis. Use bullet points, numbered lists, and visual separators for clarity. Even if the original text was unclear, provide educational value.",
+    "type": "key_point|definition|example|formula|question|inference|summary",
     "importance": "high|medium|low",
-    "title": "Short descriptive title for the note"
+    "title": "Short descriptive title for the note",
+    "confidence": "high|medium|low"
   }
 ]
+
+Special instructions for unclear audio:
+- If text is fragmented, try to piece together meaning
+- If words are unclear, make educated guesses based on context
+- If sentences are incomplete, infer what was likely being said
+- If technical terms are garbled, suggest likely correct terms
+- Always provide educational value, even from poor transcription
+- Use "inference" type for notes where you had to guess meaning
+- Use "summary" type for consolidating fragmented information
 
 Formatting guidelines:
 - Use **bold** for key terms and important concepts
 - Use *italics* for emphasis and definitions
-- Use 📝, 🔑, 💡, ⚡, 🎯, 📊, 🔬, 📚, ⭐ emojis appropriately
+- Use 📝, 🔑, 💡, ⚡, 🎯, 📊, 🔬, 📚, ⭐, 🤔, 📋 emojis appropriately
 - Use bullet points (•) and numbered lists (1., 2., 3.)
 - Use --- for visual separators
 - Use > for important quotes or examples
-- Use `code` formatting for technical terms
+- Use \`code\` formatting for technical terms
 - Keep content concise but informative
+- Add [inferred] or [likely] tags when making assumptions
 
-Generate 2-4 notes maximum. Focus on the most important information with rich formatting.`;
+Generate 2-5 notes maximum. Be creative and extract maximum educational value from the text, regardless of quality.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',
@@ -98,10 +117,12 @@ Generate 2-4 notes maximum. Focus on the most important information with rich fo
     } catch (parseError) {
       // Fallback: create simple notes if JSON parsing fails
       const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
-      notes = sentences.slice(0, 3).map(sentence => ({
+      notes = sentences.slice(0, 3).map((sentence, index) => ({
         content: sentence.trim(),
-        type: 'key_point',
-        importance: 'medium'
+        type: index === 0 ? 'key_point' : 'summary',
+        importance: 'medium',
+        title: `Note ${index + 1}`,
+        confidence: 'medium'
       }));
     }
 

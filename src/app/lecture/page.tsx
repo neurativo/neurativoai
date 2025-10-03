@@ -8,8 +8,9 @@ interface Note {
   content: string;
   title?: string;
   timestamp: number;
-  type: 'key_point' | 'definition' | 'example' | 'formula' | 'question';
+  type: 'key_point' | 'definition' | 'example' | 'formula' | 'question' | 'inference' | 'summary';
   importance: 'high' | 'medium' | 'low';
+  confidence?: 'high' | 'medium' | 'low';
 }
 
 interface Flashcard {
@@ -111,9 +112,10 @@ export default function LiveLecturePage() {
     return newSection;
   };
 
-  // Generate smart notes using AI
+  // Generate smart notes using AI with fallback
   const generateSmartNotes = async (text: string) => {
     try {
+      // First try AI generation
       const response = await fetch('/api/generate-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -126,13 +128,15 @@ export default function LiveLecturePage() {
 
       if (response.ok) {
         const result = await response.json();
-        if (result.notes && Array.isArray(result.notes)) {
+        if (result.notes && Array.isArray(result.notes) && result.notes.length > 0) {
           const newNotes: Note[] = result.notes.map((note: any, index: number) => ({
             id: `note_${Date.now()}_${index}`,
             content: note.content,
+            title: note.title,
             timestamp: Date.now(),
             type: note.type || 'key_point',
-            importance: note.importance || 'medium'
+            importance: note.importance || 'medium',
+            confidence: note.confidence || 'medium'
           }));
           
           setSmartNotes(prev => [...prev, ...newNotes]);
@@ -144,11 +148,93 @@ export default function LiveLecturePage() {
               notes: [...prev.notes, ...newNotes]
             } : null);
           }
+          return;
         }
       }
     } catch (error) {
       console.error('Error generating smart notes:', error);
     }
+
+    // Fallback: Generate basic notes from any text, even if very short or unclear
+    try {
+      const fallbackNotes = generateFallbackNotes(text);
+      if (fallbackNotes.length > 0) {
+        setSmartNotes(prev => [...prev, ...fallbackNotes]);
+        
+        if (currentSection) {
+          setCurrentSection(prev => prev ? {
+            ...prev,
+            notes: [...prev.notes, ...fallbackNotes]
+          } : null);
+        }
+      }
+    } catch (error) {
+      console.error('Error generating fallback notes:', error);
+    }
+  };
+
+  // Fallback note generation for poor audio
+  const generateFallbackNotes = (text: string): Note[] => {
+    const notes: Note[] = [];
+    
+    // Clean and split text
+    const cleanText = text.trim().replace(/[^\w\s.,!?-]/g, '');
+    const words = cleanText.split(/\s+/).filter(w => w.length > 2);
+    
+    if (words.length === 0) return notes;
+    
+    // Try to extract meaningful phrases
+    const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 5);
+    
+    if (sentences.length > 0) {
+      // Create a summary note
+      const summaryText = sentences.slice(0, 2).join('. ').trim();
+      if (summaryText) {
+        notes.push({
+          id: `fallback_${Date.now()}_0`,
+          content: `📋 **Summary**: ${summaryText}`,
+          title: 'Audio Summary',
+          timestamp: Date.now(),
+          type: 'summary',
+          importance: 'medium',
+          confidence: 'low'
+        });
+      }
+    }
+    
+    // Extract potential key terms
+    const keyTerms = words.filter(word => 
+      word.length > 4 && 
+      !['this', 'that', 'with', 'from', 'they', 'have', 'been', 'were', 'said', 'each', 'which', 'their', 'time', 'will', 'about', 'there', 'could', 'other', 'after', 'first', 'well', 'also', 'where', 'much', 'some', 'very', 'when', 'come', 'here', 'just', 'like', 'long', 'make', 'many', 'over', 'such', 'take', 'than', 'them', 'these', 'think', 'want', 'were', 'what', 'when', 'will', 'with', 'your'].includes(word.toLowerCase())
+    );
+    
+    if (keyTerms.length > 0) {
+      const uniqueTerms = [...new Set(keyTerms)].slice(0, 3);
+      notes.push({
+        id: `fallback_${Date.now()}_1`,
+        content: `🔑 **Key Terms**: ${uniqueTerms.join(', ')}`,
+        title: 'Extracted Terms',
+        timestamp: Date.now(),
+        type: 'inference',
+        importance: 'low',
+        confidence: 'low'
+      });
+    }
+    
+    // If we have very little text, create a basic note
+    if (notes.length === 0 && cleanText.length > 0) {
+      notes.push({
+        id: `fallback_${Date.now()}_2`,
+        content: `📝 **Captured**: ${cleanText.substring(0, 100)}${cleanText.length > 100 ? '...' : ''}`,
+        title: 'Raw Audio',
+        timestamp: Date.now(),
+        type: 'inference',
+        importance: 'low',
+        confidence: 'low'
+      });
+    }
+    
+    return notes;
   };
 
   // Generate flashcards using AI
@@ -256,9 +342,9 @@ export default function LiveLecturePage() {
           
           setConnectionStatus('connected');
           
-          // Process every 10 seconds or when buffer gets long
+          // Process more frequently for better note generation
           const now = Date.now();
-          if (now - lastProcessTimeRef.current > 10000 || transcriptBufferRef.current.length > 500) {
+          if (now - lastProcessTimeRef.current > 5000 || transcriptBufferRef.current.length > 200) {
             await processTranscriptBuffer();
             lastProcessTimeRef.current = now;
           }
@@ -273,19 +359,19 @@ export default function LiveLecturePage() {
 
   // Process accumulated transcript for smart features
   const processTranscriptBuffer = async () => {
-    if (transcriptBufferRef.current.length < 50) return;
+    if (transcriptBufferRef.current.length < 20) return; // Lower threshold
     
     const text = transcriptBufferRef.current;
     transcriptBufferRef.current = '';
     
-    // Generate smart notes
+    // Always try to generate notes, even from poor audio
     await generateSmartNotes(text);
     
-    // Generate flashcards
-    await generateFlashcards(text);
-    
-    // Extract keywords
-    await extractKeywords(text);
+    // Only generate flashcards and keywords if we have decent text
+    if (text.length > 50) {
+      await generateFlashcards(text);
+      await extractKeywords(text);
+    }
   };
 
   // Start recording
@@ -456,7 +542,9 @@ export default function LiveLecturePage() {
       definition: '📖',
       example: '💡',
       formula: '📊',
-      question: '❓'
+      question: '❓',
+      inference: '🤔',
+      summary: '📋'
     };
     return emojis[type as keyof typeof emojis] || '📝';
   };
@@ -635,10 +723,22 @@ export default function LiveLecturePage() {
                               note.type === 'definition' ? 'bg-blue-500/20 text-blue-400' :
                               note.type === 'example' ? 'bg-purple-500/20 text-purple-400' :
                               note.type === 'formula' ? 'bg-orange-500/20 text-orange-400' :
+                              note.type === 'question' ? 'bg-yellow-500/20 text-yellow-400' :
+                              note.type === 'inference' ? 'bg-pink-500/20 text-pink-400' :
+                              note.type === 'summary' ? 'bg-cyan-500/20 text-cyan-400' :
                               'bg-gray-500/20 text-gray-400'
                             }`}>
                               {note.type.replace('_', ' ')}
                             </span>
+                            {note.confidence && (
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                note.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                                note.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                {note.confidence === 'high' ? '✓' : note.confidence === 'medium' ? '~' : '?'}
+                              </span>
+                            )}
                             {note.title && (
                               <span className="text-sm font-medium text-white">
                                 {note.title}

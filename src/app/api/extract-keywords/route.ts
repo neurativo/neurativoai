@@ -32,10 +32,17 @@ Analyze the following text and extract the most important keywords, terms, conce
 
 Text: "${text}"
 
-Return a JSON array of keywords (strings only, no duplicates):
-["keyword1", "keyword2", "keyword3"]
+Return a JSON array of keyword objects with this structure:
+[
+  {
+    "term": "Keyword or phrase",
+    "type": "concept|person|place|technical|formula|method",
+    "importance": "high|medium|low",
+    "description": "Brief description or context"
+  }
+]
 
-Extract 3-8 keywords maximum. Make them specific and meaningful.`;
+Extract 3-8 keywords maximum. Make them specific and meaningful with proper categorization.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',
@@ -84,8 +91,14 @@ Extract 3-8 keywords maximum. Make them specific and meaningful.`;
         .filter(word => word.length > 4)
         .filter(word => !['this', 'that', 'with', 'from', 'they', 'have', 'been', 'were', 'said', 'each', 'which', 'their', 'time', 'will', 'about', 'there', 'could', 'other', 'after', 'first', 'well', 'also', 'where', 'much', 'some', 'very', 'when', 'come', 'here', 'just', 'like', 'long', 'make', 'many', 'over', 'such', 'take', 'than', 'them', 'these', 'think', 'want', 'were', 'what', 'when', 'will', 'with', 'your'].includes(word));
       
-      // Get unique words and take first 5
-      keywords = [...new Set(words)].slice(0, 5);
+      // Get unique words and convert to new format
+      const uniqueWords = [...new Set(words)].slice(0, 5);
+      keywords = uniqueWords.map(word => ({
+        term: word,
+        type: 'concept',
+        importance: 'medium',
+        description: 'Extracted from lecture content'
+      }));
     }
 
     return NextResponse.json({

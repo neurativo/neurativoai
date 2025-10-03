@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 interface Note {
   id: string;
   content: string;
+  title?: string;
   timestamp: number;
   type: 'key_point' | 'definition' | 'example' | 'formula' | 'question';
   importance: 'high' | 'medium' | 'low';
@@ -15,8 +16,16 @@ interface Flashcard {
   id: string;
   front: string;
   back: string;
+  category?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
   timestamp: number;
-  category: string;
+}
+
+interface Keyword {
+  term: string;
+  type: 'concept' | 'person' | 'place' | 'technical' | 'formula' | 'method';
+  importance: 'high' | 'medium' | 'low';
+  description: string;
 }
 
 interface Section {
@@ -45,7 +54,7 @@ export default function LiveLecturePage() {
   // Smart features
   const [smartNotes, setSmartNotes] = useState<Note[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [keywords, setKeywords] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes' | 'flashcards' | 'keywords'>('transcript');
   
   // Refs
@@ -195,7 +204,9 @@ export default function LiveLecturePage() {
         const result = await response.json();
         if (result.keywords && Array.isArray(result.keywords)) {
           setKeywords(prev => {
-            const newKeywords = result.keywords.filter((kw: string) => !prev.includes(kw));
+            const newKeywords = result.keywords.filter((kw: Keyword) => 
+              !prev.some(existing => existing.term === kw.term)
+            );
             return [...prev, ...newKeywords];
           });
         }
@@ -425,6 +436,54 @@ export default function LiveLecturePage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Simple markdown renderer for rich text formatting
+  const renderMarkdown = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white">$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>')
+      .replace(/`(.*?)`/g, '<code class="bg-gray-700 text-green-400 px-1 py-0.5 rounded text-sm font-mono">$1</code>')
+      .replace(/^• (.*$)/gm, '<div class="flex items-start"><span class="text-blue-400 mr-2">•</span><span>$1</span></div>')
+      .replace(/^(\d+)\. (.*$)/gm, '<div class="flex items-start"><span class="text-blue-400 mr-2 font-bold">$1.</span><span>$2</span></div>')
+      .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-blue-400 pl-4 my-2 italic text-gray-300">$1</blockquote>')
+      .replace(/^---$/gm, '<hr class="border-gray-600 my-2">')
+      .replace(/\n/g, '<br>');
+  };
+
+  // Get emoji for note type
+  const getNoteTypeEmoji = (type: string) => {
+    const emojis = {
+      key_point: '🔑',
+      definition: '📖',
+      example: '💡',
+      formula: '📊',
+      question: '❓'
+    };
+    return emojis[type as keyof typeof emojis] || '📝';
+  };
+
+  // Get emoji for keyword type
+  const getKeywordTypeEmoji = (type: string) => {
+    const emojis = {
+      concept: '🧠',
+      person: '👤',
+      place: '📍',
+      technical: '⚙️',
+      formula: '📐',
+      method: '🔬'
+    };
+    return emojis[type as keyof typeof emojis] || '🔑';
+  };
+
+  // Get difficulty color for flashcards
+  const getDifficultyColor = (difficulty?: string) => {
+    const colors = {
+      easy: 'text-green-400 bg-green-500/20 border-green-500/30',
+      medium: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30',
+      hard: 'text-red-400 bg-red-500/20 border-red-500/30'
+    };
+    return colors[difficulty as keyof typeof colors] || 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
@@ -560,74 +619,141 @@ export default function LiveLecturePage() {
             {/* Tab Content */}
             <div className="h-96 overflow-y-auto">
               {activeTab === 'transcript' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {smartNotes.length > 0 ? (
                     smartNotes.map(note => (
-                      <div key={note.id} className={`p-3 rounded-lg border-l-4 ${
+                      <div key={note.id} className={`p-4 rounded-xl border-l-4 ${
                         note.importance === 'high' ? 'border-red-400 bg-red-500/10' :
                         note.importance === 'medium' ? 'border-yellow-400 bg-yellow-500/10' :
                         'border-blue-400 bg-blue-500/10'
                       }`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            note.type === 'key_point' ? 'bg-green-500/20 text-green-400' :
-                            note.type === 'definition' ? 'bg-blue-500/20 text-blue-400' :
-                            note.type === 'example' ? 'bg-purple-500/20 text-purple-400' :
-                            note.type === 'formula' ? 'bg-orange-500/20 text-orange-400' :
-                            'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {note.type.replace('_', ' ')}
-                          </span>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getNoteTypeEmoji(note.type)}</span>
+                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                              note.type === 'key_point' ? 'bg-green-500/20 text-green-400' :
+                              note.type === 'definition' ? 'bg-blue-500/20 text-blue-400' :
+                              note.type === 'example' ? 'bg-purple-500/20 text-purple-400' :
+                              note.type === 'formula' ? 'bg-orange-500/20 text-orange-400' :
+                              'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {note.type.replace('_', ' ')}
+                            </span>
+                            {note.title && (
+                              <span className="text-sm font-medium text-white">
+                                {note.title}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-xs text-gray-400">
                             {new Date(note.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
-                        <p className="text-gray-200 text-sm">{note.content}</p>
+                        <div 
+                          className="text-gray-200 text-sm leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
+                        />
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 italic text-center py-8">
-                      Smart notes will appear here...
-                    </p>
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">📝</div>
+                      <p className="text-gray-400 italic">
+                        Smart notes will appear here...
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
 
               {activeTab === 'flashcards' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {flashcards.length > 0 ? (
                     flashcards.map(card => (
-                      <div key={card.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                        <div className="text-xs text-gray-400 mb-2">{card.category}</div>
-                        <div className="space-y-2">
-                          <div className="font-medium text-white">Q: {card.front}</div>
-                          <div className="text-gray-300 text-sm">A: {card.back}</div>
+                      <div key={card.id} className="bg-white/5 rounded-xl p-5 border border-white/10 hover:bg-white/10 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {card.category && (
+                              <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full">
+                                {card.category}
+                              </span>
+                            )}
+                            {card.difficulty && (
+                              <span className={`text-xs px-2 py-1 rounded-full border ${getDifficultyColor(card.difficulty)}`}>
+                                {card.difficulty}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(card.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="bg-blue-500/10 rounded-lg p-3 border-l-4 border-blue-400">
+                            <div className="text-sm text-blue-300 mb-1">🎯 Question</div>
+                            <div 
+                              className="font-medium text-white"
+                              dangerouslySetInnerHTML={{ __html: renderMarkdown(card.front) }}
+                            />
+                          </div>
+                          <div className="bg-green-500/10 rounded-lg p-3 border-l-4 border-green-400">
+                            <div className="text-sm text-green-300 mb-1">💡 Answer</div>
+                            <div 
+                              className="text-gray-200 text-sm"
+                              dangerouslySetInnerHTML={{ __html: renderMarkdown(card.back) }}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 italic text-center py-8">
-                      Flashcards will appear here...
-                    </p>
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">🃏</div>
+                      <p className="text-gray-400 italic">
+                        Flashcards will appear here...
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
 
               {activeTab === 'keywords' && (
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-3">
                   {keywords.length > 0 ? (
                     keywords.map((keyword, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm border border-purple-500/30"
-                      >
-                        {keyword}
-                      </span>
+                      <div key={index} className={`p-3 rounded-lg border ${
+                        keyword.importance === 'high' ? 'border-red-400 bg-red-500/10' :
+                        keyword.importance === 'medium' ? 'border-yellow-400 bg-yellow-500/10' :
+                        'border-blue-400 bg-blue-500/10'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{getKeywordTypeEmoji(keyword.type)}</span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-white">{keyword.term}</span>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                keyword.type === 'concept' ? 'bg-blue-500/20 text-blue-400' :
+                                keyword.type === 'person' ? 'bg-green-500/20 text-green-400' :
+                                keyword.type === 'place' ? 'bg-purple-500/20 text-purple-400' :
+                                keyword.type === 'technical' ? 'bg-orange-500/20 text-orange-400' :
+                                keyword.type === 'formula' ? 'bg-red-500/20 text-red-400' :
+                                'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {keyword.type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-300">{keyword.description}</p>
+                          </div>
+                        </div>
+                      </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 italic text-center py-8 w-full">
-                      Keywords will appear here...
-                    </p>
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">🔑</div>
+                      <p className="text-gray-400 italic">
+                        Keywords will appear here...
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

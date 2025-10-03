@@ -25,24 +25,36 @@ export async function POST(request: NextRequest) {
 
 Context: ${context || 'General Lecture'}
 
-Analyze the following transcript text and extract the most important information. Create structured notes that are:
-- Clear and concise
+Analyze the following transcript text and extract the most important information. Create beautifully formatted, structured notes that are:
+- Clear and concise with rich formatting
 - Focused on key concepts, definitions, examples, and important points
 - Categorized by importance (high, medium, low)
 - Categorized by type (key_point, definition, example, formula, question)
+- Use markdown formatting, emojis, and visual elements for better readability
 
 Transcript: "${text}"
 
 Return a JSON array of note objects with this structure:
 [
   {
-    "content": "Clear, concise note content",
+    "content": "**Bold key terms** with *italic emphasis* and 📝 emojis. Use bullet points, numbered lists, and visual separators for clarity.",
     "type": "key_point|definition|example|formula|question",
-    "importance": "high|medium|low"
+    "importance": "high|medium|low",
+    "title": "Short descriptive title for the note"
   }
 ]
 
-Generate 2-4 notes maximum. Focus on the most important information.`;
+Formatting guidelines:
+- Use **bold** for key terms and important concepts
+- Use *italics* for emphasis and definitions
+- Use 📝, 🔑, 💡, ⚡, 🎯, 📊, 🔬, 📚, ⭐ emojis appropriately
+- Use bullet points (•) and numbered lists (1., 2., 3.)
+- Use --- for visual separators
+- Use > for important quotes or examples
+- Use `code` formatting for technical terms
+- Keep content concise but informative
+
+Generate 2-4 notes maximum. Focus on the most important information with rich formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

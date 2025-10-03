@@ -25,23 +25,37 @@ export async function POST(request: NextRequest) {
 
 Context: ${context || 'General Lecture'}
 
-Analyze the following transcript text and create high-quality flashcards that are:
+Analyze the following transcript text and create high-quality, beautifully formatted flashcards that are:
 - Educational and useful for studying
-- Clear and concise
+- Clear and concise with rich formatting
 - Focused on key concepts, definitions, or important facts
 - Suitable for active recall practice
+- Use markdown formatting, emojis, and visual elements
 
 Transcript: "${text}"
 
 Create exactly ${count} flashcards. Return a JSON array of flashcard objects with this structure:
 [
   {
-    "front": "Question or term to study",
-    "back": "Answer or definition"
+    "front": "🎯 **Question or term** with *emphasis* and emojis",
+    "back": "**Answer** with detailed explanation:\n\n• Key point 1\n• Key point 2\n\n> Important quote or example\n\n`Technical term` definition",
+    "category": "Subject category",
+    "difficulty": "easy|medium|hard"
   }
 ]
 
-Make the questions specific and the answers comprehensive but concise.`;
+Formatting guidelines for flashcards:
+- Use **bold** for key terms and important concepts
+- Use *italics* for emphasis
+- Use 🎯, 🔑, 💡, ⚡, 📊, 🔬, 📚, ⭐, 🧠, 🎓 emojis appropriately
+- Use bullet points (•) for lists
+- Use numbered lists (1., 2., 3.) for steps
+- Use > for important quotes or examples
+- Use `code` formatting for technical terms
+- Use --- for visual separators
+- Make questions specific and answers comprehensive but concise
+
+Make the questions engaging and the answers detailed but easy to understand.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

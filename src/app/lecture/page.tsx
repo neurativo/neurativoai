@@ -1,562 +1,679 @@
-"use client";
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
-import { LiveLectureAssistant, LiveLectureState, Flashcard, Bookmark, Highlight } from "@/app/lib/liveLectureAssistant";
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface Note {
+  id: string;
+  content: string;
+  timestamp: number;
+  type: 'key_point' | 'definition' | 'example' | 'formula' | 'question';
+  importance: 'high' | 'medium' | 'low';
+}
+
+interface Flashcard {
+  id: string;
+  front: string;
+  back: string;
+  timestamp: number;
+  category: string;
+}
+
+interface Section {
+  id: string;
+  title: string;
+  startTime: number;
+  endTime?: number;
+  notes: Note[];
+  flashcards: Flashcard[];
+}
 
 export default function LiveLecturePage() {
   const router = useRouter();
-  const [assistant] = useState(() => new LiveLectureAssistant('openai-realtime')); // Use OpenAI Realtime by default
-  const [state, setState] = useState<LiveLectureState | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [currentNotes, setCurrentNotes] = useState<string[]>([]);
-  const [recentFlashcards, setRecentFlashcards] = useState<Flashcard[]>([]);
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
-  const [studentQuestion, setStudentQuestion] = useState("");
-  const [questionAnswer, setQuestionAnswer] = useState("");
-  const [highlightText, setHighlightText] = useState("");
-  const [bookmarkNotes, setBookmarkNotes] = useState("");
-  const [setupComplete, setSetupComplete] = useState(false);
-  const [userPlan, setUserPlan] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [micTested, setMicTested] = useState(false);
-  const [micError, setMicError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'reconnecting'>('disconnected');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Core states
+  const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [sections, setSections] = useState<Section[]>([]);
+  const [currentSection, setCurrentSection] = useState<Section | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sessionDuration, setSessionDuration] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  
+  // Smart features
+  const [smartNotes, setSmartNotes] = useState<Note[]>([]);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'transcript' | 'notes' | 'flashcards' | 'keywords'>('transcript');
+  
+  // Refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionStartRef = useRef<number>(0);
+  const transcriptBufferRef = useRef<string>('');
+  const lastProcessTimeRef = useRef<number>(0);
 
-  // Check user plan and setup
+  // Timer for session duration
   useEffect(() => {
-    const checkAccess = async () => {
-      try {
-        // Check if user is logged in and has Special plan
-        const { data: { user } } = await getSupabaseBrowser().auth.getUser();
-        if (!user) {
-          router.push('/signup');
-          return;
+    let interval: NodeJS.Timeout;
+    if (isRecording && !isPaused) {
+      interval = setInterval(() => {
+        setSessionDuration(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording, isPaused]);
+
+  // Test microphone access
+  const testMicrophone = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000
+        } 
+      });
+      
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (error) {
+      console.error('Microphone test failed:', error);
+      return false;
+    }
+  };
+
+  // Start new section
+  const startNewSection = (title: string) => {
+    const newSection: Section = {
+      id: `section_${Date.now()}`,
+      title,
+      startTime: Date.now(),
+      notes: [],
+      flashcards: []
+    };
+    setSections(prev => [...prev, newSection]);
+    setCurrentSection(newSection);
+    return newSection;
+  };
+
+  // Generate smart notes using AI
+  const generateSmartNotes = async (text: string) => {
+    try {
+      const response = await fetch('/api/generate-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text,
+          context: currentSection?.title || 'General Lecture',
+          type: 'smart_notes'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.notes && Array.isArray(result.notes)) {
+          const newNotes: Note[] = result.notes.map((note: any, index: number) => ({
+            id: `note_${Date.now()}_${index}`,
+            content: note.content,
+            timestamp: Date.now(),
+            type: note.type || 'key_point',
+            importance: note.importance || 'medium'
+          }));
+          
+          setSmartNotes(prev => [...prev, ...newNotes]);
+          
+          // Add to current section
+          if (currentSection) {
+            setCurrentSection(prev => prev ? {
+              ...prev,
+              notes: [...prev.notes, ...newNotes]
+            } : null);
+          }
         }
-
-        // Check user's subscription plan
-        const { data: subscription } = await getSupabaseBrowser()
-          .from('subscriptions')
-          .select('plan')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        const plan = subscription?.plan;
-        setUserPlan(plan);
-
-        if (plan !== 'special') {
-          router.push('/pricing?feature=live-lecture');
-          return;
-        }
-
-        // Check if API keys are configured (client-side can only access NEXT_PUBLIC_ variables)
-        // For now, we'll assume AssemblyAI is configured since user added it to .env.local
-        // In production, you'd want to check this server-side
-        setSetupComplete(true);
-      } catch (error) {
-        console.error('Error checking access:', error);
-        router.push('/signup');
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error generating smart notes:', error);
+    }
+  };
 
-    checkAccess();
-  }, [router]);
+  // Generate flashcards using AI
+  const generateFlashcards = async (text: string) => {
+    try {
+      const response = await fetch('/api/generate-flashcards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text,
+          context: currentSection?.title || 'General Lecture',
+          count: 2 // Generate 2 flashcards per chunk
+        })
+      });
 
-  // Update state periodically for real-time updates
-  useEffect(() => {
-    if (!setupComplete) return;
+      if (response.ok) {
+        const result = await response.json();
+        if (result.flashcards && Array.isArray(result.flashcards)) {
+          const newFlashcards: Flashcard[] = result.flashcards.map((card: any, index: number) => ({
+            id: `card_${Date.now()}_${index}`,
+            front: card.front,
+            back: card.back,
+            timestamp: Date.now(),
+            category: currentSection?.title || 'General'
+          }));
+          
+          setFlashcards(prev => [...prev, ...newFlashcards]);
+          
+          // Add to current section
+          if (currentSection) {
+            setCurrentSection(prev => prev ? {
+              ...prev,
+              flashcards: [...prev.flashcards, ...newFlashcards]
+            } : null);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error generating flashcards:', error);
+    }
+  };
+
+  // Extract keywords
+  const extractKeywords = async (text: string) => {
+    try {
+      const response = await fetch('/api/extract-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.keywords && Array.isArray(result.keywords)) {
+          setKeywords(prev => {
+            const newKeywords = result.keywords.filter((kw: string) => !prev.includes(kw));
+            return [...prev, ...newKeywords];
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting keywords:', error);
+    }
+  };
+
+  // Process audio chunks with Deepgram
+  const processAudioChunks = async () => {
+    if (audioChunksRef.current.length === 0) return;
+
+    try {
+      setConnectionStatus('connecting');
+      
+      // Combine audio chunks
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
+      audioChunksRef.current = [];
+
+      // Convert to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+      // Send to Deepgram API
+      const response = await fetch('/api/transcribe-deepgram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'transcribe',
+          audioData: base64Audio
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Transcription failed');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.transcript) {
+        const newTranscript = result.transcript.trim();
+        if (newTranscript) {
+          console.log('New transcript:', newTranscript);
+          setTranscript(prev => prev + ' ' + newTranscript);
+          transcriptBufferRef.current += ' ' + newTranscript;
+          
+          setConnectionStatus('connected');
+          
+          // Process every 10 seconds or when buffer gets long
+          const now = Date.now();
+          if (now - lastProcessTimeRef.current > 10000 || transcriptBufferRef.current.length > 500) {
+            await processTranscriptBuffer();
+            lastProcessTimeRef.current = now;
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      setConnectionStatus('disconnected');
+    }
+  };
+
+  // Process accumulated transcript for smart features
+  const processTranscriptBuffer = async () => {
+    if (transcriptBufferRef.current.length < 50) return;
     
-    // Set up callback for immediate state updates
-    assistant.setOnStateChange(() => {
-      const newState = assistant.getState();
-      setState(newState);
-      setCurrentNotes(assistant.getCurrentNotes());
-      setRecentFlashcards(assistant.getRecentFlashcards());
-      setBookmarks(assistant.getBookmarks());
-      setHighlights(assistant.getHighlights());
-    });
+    const text = transcriptBufferRef.current;
+    transcriptBufferRef.current = '';
     
-    // Also update periodically as backup
-    const interval = setInterval(() => {
-      const newState = assistant.getState();
-      setState(newState);
-      setCurrentNotes(assistant.getCurrentNotes());
-      setRecentFlashcards(assistant.getRecentFlashcards());
-      setBookmarks(assistant.getBookmarks());
-      setHighlights(assistant.getHighlights());
-    }, 500); // Update every 500ms for smoother real-time experience
+    // Generate smart notes
+    await generateSmartNotes(text);
+    
+    // Generate flashcards
+    await generateFlashcards(text);
+    
+    // Extract keywords
+    await extractKeywords(text);
+  };
 
-    return () => {
-      clearInterval(interval);
-      assistant.setOnStateChange(null);
+  // Start recording
+  const startRecording = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+
+      // Test microphone first
+      const micWorking = await testMicrophone();
+      if (!micWorking) {
+        throw new Error('Microphone access denied or not available');
+      }
+
+      // Get audio stream
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000
+        }
+      });
+
+      streamRef.current = stream;
+
+      // Set up MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        await processAudioChunks();
+      };
+
+      // Start recording
+      mediaRecorder.start(2000); // Record in 2-second chunks
+      setIsRecording(true);
+      sessionStartRef.current = Date.now();
+      setSessionDuration(0);
+
+      // Start first section
+      startNewSection('Introduction');
+
+      // Process audio chunks every 2 seconds
+      intervalRef.current = setInterval(async () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current.start(2000);
+        }
+      }, 2000);
+
+      console.log('Recording started');
+      setIsLoading(false);
+
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start recording');
+      setIsLoading(false);
+    }
+  };
+
+  // Pause/Resume recording
+  const togglePause = () => {
+    if (isPaused) {
+      // Resume
+      if (mediaRecorderRef.current && streamRef.current) {
+        mediaRecorderRef.current.start(2000);
+        setIsPaused(false);
+      }
+    } else {
+      // Pause
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+        setIsPaused(true);
+      }
+    }
+  };
+
+  // Stop recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    setIsRecording(false);
+    setIsPaused(false);
+    setConnectionStatus('disconnected');
+    console.log('Recording stopped');
+  };
+
+  // Create new section
+  const createNewSection = () => {
+    const title = prompt('Enter section title:') || `Section ${sections.length + 1}`;
+    startNewSection(title);
+  };
+
+  // Export notes
+  const exportNotes = () => {
+    const data = {
+      transcript,
+      sections,
+      smartNotes,
+      flashcards,
+      keywords,
+      sessionDuration,
+      exportDate: new Date().toISOString()
     };
-  }, [assistant, setupComplete]);
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lecture-notes-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      assistant.cleanup();
+      stopRecording();
     };
-  }, [assistant]);
+  }, []);
 
-  const testMicrophone = async () => {
-    try {
-      setMicError(null);
-      console.log('Testing microphone access...');
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('Microphone test successful');
-      
-      // Stop the test stream
-      stream.getTracks().forEach(track => track.stop());
-      setMicTested(true);
-    } catch (error: any) {
-      console.error('Microphone test failed:', error);
-      let errorMessage = 'Microphone test failed. ';
-      
-      if (error.name === 'NotAllowedError') {
-        errorMessage += 'Please allow microphone access and try again.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage += 'No microphone found. Please connect a microphone.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage += 'Audio recording not supported in this browser.';
-      } else {
-        errorMessage += error.message;
-      }
-      
-      setMicError(errorMessage);
-    }
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const startLecture = async () => {
-    try {
-      await assistant.startLecture();
-      setIsInitialized(true);
-    } catch (error: any) {
-      console.error("Failed to start lecture:", error);
-      setMicError(error.message || "Failed to start lecture. Please check microphone permissions and try again.");
-    }
-  };
-
-  const pauseLecture = async () => {
-    await assistant.pauseLecture();
-  };
-
-  const resumeLecture = async () => {
-    await assistant.resumeLecture();
-  };
-
-  const stopLecture = async () => {
-    const revisionPack = await assistant.stopLecture();
-    console.log("Revision pack generated:", revisionPack);
-    // Handle revision pack download/display
-  };
-
-  const addBookmark = async () => {
-    await assistant.addBookmark(bookmarkNotes);
-    setBookmarkNotes("");
-  };
-
-  const addHighlight = async () => {
-    if (highlightText.trim()) {
-      await assistant.addHighlight(highlightText);
-      setHighlightText("");
-    }
-  };
-
-  const askQuestion = async () => {
-    if (studentQuestion.trim()) {
-      const answer = await assistant.askQuestion(studentQuestion);
-      setQuestionAnswer(answer);
-      setStudentQuestion("");
-    }
-  };
-
-  if (isLoading || !setupComplete) {
-    return (
-      <div className="min-h-screen text-white flex items-center justify-center">
-        <div className="text-center feature-card p-8">
-          <div className="loading loading-spinner loading-lg mb-4"></div>
-          <p className="text-gray-300">
-            {isLoading ? 'Checking access...' : 'Setting up Live Lecture Assistant...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen text-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="feature-card p-8 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-blue-300">
-              Live Lecture Assistant
-            </h1>
-            <Link 
-              href="/lecture/landing" 
-              className="btn btn-outline btn-sm"
-            >
-              <i className="fas fa-info-circle mr-2"></i>
-              Setup Guide
-            </Link>
-          </div>
-          <p className="text-gray-300 text-lg">
-            Transform your university lectures into comprehensive study materials in real-time with AI-powered transcription and note generation.
-          </p>
-        </div>
-        
-        {/* Control Panel */}
-        <div className="feature-card p-6 mb-8">
-          <h2 className="text-2xl font-semibold mb-6 text-center">Lecture Controls</h2>
-          <div className="flex justify-center gap-4 mb-6">
-            {!isInitialized ? (
-              <div className="flex flex-col items-center gap-4">
-                {!micTested && (
-                  <button
-                    onClick={testMicrophone}
-                    className="btn btn-outline btn-lg px-6 py-3 text-lg font-semibold"
-                  >
-                    <i className="fas fa-microphone mr-2"></i>
-                    Test Microphone
-                  </button>
-                )}
-                {micTested && (
-                  <div className="text-center">
-                    <div className="text-green-400 mb-2">
-                      <i className="fas fa-check-circle mr-2"></i>
-                      Microphone Ready
-                    </div>
-                    <button
-                      onClick={startLecture}
-                      className="cta-button btn-lg px-8 py-3 text-lg font-semibold"
-                    >
-                      <i className="fas fa-play mr-2"></i>
-                      Start Lecture
-                    </button>
-                  </div>
-                )}
-                {micError && (
-                  <div className="text-center">
-                    <div className="text-red-400 mb-2">
-                      <i className="fas fa-exclamation-triangle mr-2"></i>
-                      {micError}
-                    </div>
-                    <button
-                      onClick={testMicrophone}
-                      className="btn btn-outline btn-sm px-4 py-2"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Header */}
+      <div className="bg-black/20 backdrop-blur-sm border-b border-white/10">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Live Lecture Assistant
+              </h1>
+              <p className="text-gray-300">
+                Real-time transcription with AI-powered smart notes
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* Session Duration */}
+              <div className="text-white text-lg font-mono">
+                {formatTime(sessionDuration)}
               </div>
-            ) : (
-              <>
-                {state?.isPaused ? (
-                  <button
-                    onClick={resumeLecture}
-                    className="btn btn-info btn-lg px-6 py-3 text-lg font-semibold"
-                  >
-                    <i className="fas fa-play mr-2"></i>
-                    Resume
-                  </button>
-                ) : (
-                  <button
-                    onClick={pauseLecture}
-                    className="btn btn-warning btn-lg px-6 py-3 text-lg font-semibold"
-                  >
-                    <i className="fas fa-pause mr-2"></i>
-                    Pause
-                  </button>
-                )}
-                <button
-                  onClick={stopLecture}
-                  className="btn btn-error btn-lg px-6 py-3 text-lg font-semibold"
-                >
-                  <i className="fas fa-stop mr-2"></i>
-                  End Lecture
-                </button>
-              </>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Bookmark */}
-            <div className="feature-card p-4">
-              <h3 className="font-semibold mb-3 text-center">
-                <i className="fas fa-bookmark mr-2 text-purple-400"></i>
-                Add Bookmark
-              </h3>
-              <textarea
-                value={bookmarkNotes}
-                onChange={(e) => setBookmarkNotes(e.target.value)}
-                placeholder="Add notes for this bookmark..."
-                className="w-full form-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
-                rows={2}
-              />
-              <button
-                onClick={addBookmark}
-                className="btn btn-primary w-full btn"
-              >
-                <i className="fas fa-bookmark mr-2"></i>
-                Bookmark
-              </button>
-            </div>
-
-            {/* Highlight */}
-            <div className="feature-card p-4">
-              <h3 className="font-semibold mb-3 text-center">
-                <i className="fas fa-highlighter mr-2 text-orange-400"></i>
-                Highlight & Explain
-              </h3>
-              <input
-                type="text"
-                value={highlightText}
-                onChange={(e) => setHighlightText(e.target.value)}
-                placeholder="Highlight text for explanation..."
-                className="w-full form-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
-              />
-              <button
-                onClick={addHighlight}
-                className="btn btn-warning w-full btn"
-              >
-                <i className="fas fa-highlighter mr-2"></i>
-                Highlight
-              </button>
-            </div>
-
-            {/* Ask Question */}
-            <div className="feature-card p-4">
-              <h3 className="font-semibold mb-3 text-center">
-                <i className="fas fa-question-circle mr-2 text-cyan-400"></i>
-                Ask Question
-              </h3>
-              <input
-                type="text"
-                value={studentQuestion}
-                onChange={(e) => setStudentQuestion(e.target.value)}
-                placeholder="Ask a question about the lecture..."
-                className="w-full form-input p-3 rounded-lg mb-3 text-white placeholder-gray-400"
-              />
-              <button
-                onClick={askQuestion}
-                className="btn btn-info w-full btn"
-              >
-                <i className="fas fa-question-circle mr-2"></i>
-                Ask
-              </button>
+              
+              {/* Connection Status */}
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                connectionStatus === 'connected' ? 'bg-green-500/20 text-green-400' :
+                connectionStatus === 'connecting' ? 'bg-yellow-500/20 text-yellow-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {connectionStatus === 'connected' ? '● Connected' :
+                 connectionStatus === 'connecting' ? '● Connecting' :
+                 '● Disconnected'}
+              </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {questionAnswer && (
-            <div className="mt-6 feature-card p-4">
-              <h4 className="font-semibold mb-2 text-cyan-400">
-                <i className="fas fa-robot mr-2"></i>
-                AI Answer:
-              </h4>
-              <p className="text-gray-300">{questionAnswer}</p>
+      <div className="container mx-auto px-4 py-8">
+        {/* Controls */}
+        <div className="flex justify-center gap-4 mb-8">
+          {!isRecording ? (
+            <button
+              onClick={startRecording}
+              disabled={isLoading}
+              className="px-8 py-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+            >
+              {isLoading ? 'Starting...' : '🎤 Start Lecture'}
+            </button>
+          ) : (
+            <div className="flex gap-4">
+              <button
+                onClick={togglePause}
+                className={`px-6 py-4 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg ${
+                  isPaused 
+                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                    : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                }`}
+              >
+                {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+              </button>
+              
+              <button
+                onClick={createNewSection}
+                className="px-6 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+              >
+                📝 New Section
+              </button>
+              
+              <button
+                onClick={stopRecording}
+                className="px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+              >
+                ⏹️ Stop
+              </button>
             </div>
           )}
         </div>
 
-        {/* Real-Time Lecture Environment */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-          {/* Live Transcript - Left Side */}
-          <div className="feature-card p-6 h-[600px] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">
-                <i className="fas fa-microphone mr-2 text-blue-400"></i>
-                Live Transcript
-              </h2>
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${state?.isRecording ? (state.isPaused ? 'bg-yellow-400' : 'bg-green-400 animate-pulse') : 'bg-gray-400'}`}></div>
-                <span className="text-sm text-gray-400">
-                  {state?.isRecording ? (state.isPaused ? 'Paused' : 'Recording') : 'Stopped'}
-                </span>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto bg-gray-900/50 rounded-lg p-4 border border-gray-700">
-              {state?.currentTranscript ? (
-                <div className="text-gray-200 leading-relaxed whitespace-pre-wrap">
-                  {state.currentTranscript}
-                  <span className="inline-block w-2 h-4 bg-blue-400 animate-pulse ml-1"></span>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <i className="fas fa-microphone text-3xl mb-3 opacity-50"></i>
-                  <p>Transcript will appear here as you speak...</p>
-                </div>
-              )}
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-6 py-4 rounded-xl mb-6 backdrop-blur-sm">
+            <div className="flex items-center">
+              <span className="text-red-400 mr-2">⚠️</span>
+              {error}
             </div>
           </div>
+        )}
 
-          {/* Live Notes - Right Side */}
-          <div className="feature-card p-6 h-[600px] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">
-                <i className="fas fa-sticky-note mr-2 text-green-400"></i>
-                Live Notes
+        {/* Main Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          {/* Left Panel - Transcript */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white">
+                📝 Live Transcript
               </h2>
               <div className="text-sm text-gray-400">
-                {currentNotes.length} notes
+                {transcript.split(' ').length} words
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto bg-gray-900/50 rounded-lg p-4 border border-gray-700">
-              {currentNotes.length > 0 ? (
+            
+            <div className="h-96 overflow-y-auto bg-black/20 rounded-xl p-4 border border-white/10">
+              {transcript ? (
+                <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">{transcript}</p>
+              ) : (
+                <p className="text-gray-400 italic">Transcript will appear here...</p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Smart Features */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6">
+              {[
+                { id: 'transcript', label: '📝 Notes', count: smartNotes.length },
+                { id: 'flashcards', label: '🃏 Cards', count: flashcards.length },
+                { id: 'keywords', label: '🔑 Keywords', count: keywords.length }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  }`}
+                >
+                  {tab.label} {tab.count > 0 && `(${tab.count})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="h-96 overflow-y-auto">
+              {activeTab === 'transcript' && (
                 <div className="space-y-3">
-                  {currentNotes.map((note, index) => (
-                    <div key={index} className="bg-gray-800/50 rounded-lg p-3 border-l-4 border-green-400">
-                      <div className="text-sm text-gray-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: note.replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-300">$1</strong>') }}></div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <i className="fas fa-sticky-note text-3xl mb-3 opacity-50"></i>
-                  <p>AI-generated notes will appear here...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary Content Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Recent Flashcards */}
-          <div className="feature-card p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              <i className="fas fa-layer-group mr-2 text-purple-400"></i>
-              Auto-Generated Flashcards
-            </h2>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {recentFlashcards.length > 0 ? (
-                recentFlashcards.slice(-5).map((card) => (
-                  <div key={card.id} className="bg-gray-800/50 rounded-lg p-3 border border-purple-400/30">
-                    <div className="font-semibold text-sm mb-2 text-white">{card.front}</div>
-                    <div className="text-xs text-gray-300 mb-2">{card.back}</div>
-                    <div className="text-xs text-gray-500">
-                      <i className="fas fa-clock mr-1"></i>
-                      {card.timestamp.toLocaleTimeString()}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 py-6">
-                  <i className="fas fa-layer-group text-2xl mb-2 opacity-50"></i>
-                  <p className="text-sm">Flashcards will appear automatically...</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Live Stats */}
-          <div className="feature-card p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              <i className="fas fa-chart-line mr-2 text-orange-400"></i>
-              Live Stats
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">{state?.sections.length || 0}</div>
-                <div className="text-sm text-gray-400">Sections</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-400">{state?.flashcards.length || 0}</div>
-                <div className="text-sm text-gray-400">Flashcards</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">{bookmarks.length}</div>
-                <div className="text-sm text-gray-400">Bookmarks</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">{highlights.length}</div>
-                <div className="text-sm text-gray-400">Highlights</div>
-              </div>
-            </div>
-            {state?.isRecording && (
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-white">
-                    {Math.floor((Date.now() - state.startTime.getTime()) / 1000 / 60)} min
-                  </div>
-                  <div className="text-sm text-gray-400">Recording Time</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Bookmarks and Highlights - Collapsible */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Bookmarks */}
-          <div className="feature-card p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              <i className="fas fa-bookmark mr-2 text-purple-400"></i>
-              Bookmarks ({bookmarks.length})
-            </h2>
-            <div className="space-y-3 max-h-[250px] overflow-y-auto">
-              {bookmarks.length > 0 ? (
-                bookmarks.slice(-3).map((bookmark) => (
-                  <div key={bookmark.id} className="bg-gray-800/50 rounded-lg p-3 border border-purple-400/30">
-                    <div className="text-xs text-gray-400 mb-2">
-                      <i className="fas fa-clock mr-1"></i>
-                      {bookmark.timestamp.toLocaleTimeString()}
-                    </div>
-                    <div className="text-sm mb-2 text-gray-300">{bookmark.transcript.slice(0, 80)}...</div>
-                    {bookmark.notes && (
-                      <div className="text-xs text-gray-400 bg-gray-700/50 p-2 rounded">
-                        <i className="fas fa-sticky-note mr-1"></i>
-                        {bookmark.notes}
+                  {smartNotes.length > 0 ? (
+                    smartNotes.map(note => (
+                      <div key={note.id} className={`p-3 rounded-lg border-l-4 ${
+                        note.importance === 'high' ? 'border-red-400 bg-red-500/10' :
+                        note.importance === 'medium' ? 'border-yellow-400 bg-yellow-500/10' :
+                        'border-blue-400 bg-blue-500/10'
+                      }`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            note.type === 'key_point' ? 'bg-green-500/20 text-green-400' :
+                            note.type === 'definition' ? 'bg-blue-500/20 text-blue-400' :
+                            note.type === 'example' ? 'bg-purple-500/20 text-purple-400' :
+                            note.type === 'formula' ? 'bg-orange-500/20 text-orange-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {note.type.replace('_', ' ')}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(note.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-200 text-sm">{note.content}</p>
                       </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 py-6">
-                  <i className="fas fa-bookmark text-2xl mb-2 opacity-50"></i>
-                  <p className="text-sm">No bookmarks yet</p>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 italic text-center py-8">
+                      Smart notes will appear here...
+                    </p>
+                  )}
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Highlights */}
-          <div className="feature-card p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              <i className="fas fa-highlighter mr-2 text-orange-400"></i>
-              Highlights ({highlights.length})
-            </h2>
-            <div className="space-y-3 max-h-[250px] overflow-y-auto">
-              {highlights.length > 0 ? (
-                highlights.slice(-3).map((highlight) => (
-                  <div key={highlight.id} className="bg-gray-800/50 rounded-lg p-3 border border-orange-400/30">
-                    <div className="text-xs text-gray-400 mb-2">
-                      <i className="fas fa-clock mr-1"></i>
-                      {highlight.timestamp.toLocaleTimeString()}
-                    </div>
-                    <div className="text-sm font-semibold mb-2 text-yellow-300">"{highlight.text}"</div>
-                    <div className="text-xs text-gray-300 bg-gray-700/50 p-2 rounded">
-                      <i className="fas fa-lightbulb mr-1"></i>
-                      {highlight.explanation}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 py-6">
-                  <i className="fas fa-highlighter text-2xl mb-2 opacity-50"></i>
-                  <p className="text-sm">No highlights yet</p>
+              {activeTab === 'flashcards' && (
+                <div className="space-y-3">
+                  {flashcards.length > 0 ? (
+                    flashcards.map(card => (
+                      <div key={card.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                        <div className="text-xs text-gray-400 mb-2">{card.category}</div>
+                        <div className="space-y-2">
+                          <div className="font-medium text-white">Q: {card.front}</div>
+                          <div className="text-gray-300 text-sm">A: {card.back}</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 italic text-center py-8">
+                      Flashcards will appear here...
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'keywords' && (
+                <div className="flex flex-wrap gap-2">
+                  {keywords.length > 0 ? (
+                    keywords.map((keyword, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm border border-purple-500/30"
+                      >
+                        {keyword}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 italic text-center py-8 w-full">
+                      Keywords will appear here...
+                    </p>
+                  )}
                 </div>
               )}
             </div>
           </div>
+        </div>
+
+        {/* Sections Overview */}
+        {sections.length > 0 && (
+          <div className="mt-8 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">📚 Lecture Sections</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sections.map(section => (
+                <div key={section.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                  <h4 className="font-medium text-white mb-2">{section.title}</h4>
+                  <div className="text-sm text-gray-400 space-y-1">
+                    <div>Notes: {section.notes.length}</div>
+                    <div>Cards: {section.flashcards.length}</div>
+                    <div>Duration: {formatTime(Math.floor((Date.now() - section.startTime) / 1000))}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Export Button */}
+        {transcript && (
+          <div className="text-center mt-8">
+            <button
+              onClick={exportNotes}
+              className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+            >
+              📥 Export Notes & Flashcards
+            </button>
+          </div>
+        )}
+
+        {/* Back Button */}
+        <div className="text-center mt-6">
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-2 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 rounded-lg transition-colors backdrop-blur-sm border border-gray-500/30"
+          >
+            ← Go Back
+          </button>
         </div>
       </div>
     </div>

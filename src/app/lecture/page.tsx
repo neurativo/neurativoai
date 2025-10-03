@@ -57,6 +57,7 @@ export default function LiveLecturePage() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes' | 'flashcards' | 'keywords'>('transcript');
+  const [notesViewMode, setNotesViewMode] = useState<'organized' | 'chronological'>('organized');
   
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -522,17 +523,19 @@ export default function LiveLecturePage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Simple markdown renderer for rich text formatting
+  // Enhanced markdown renderer for clean, readable text
   const renderMarkdown = (text: string) => {
     return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white">$1</strong>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>')
-      .replace(/`(.*?)`/g, '<code class="bg-gray-700 text-green-400 px-1 py-0.5 rounded text-sm font-mono">$1</code>')
-      .replace(/^• (.*$)/gm, '<div class="flex items-start"><span class="text-blue-400 mr-2">•</span><span>$1</span></div>')
-      .replace(/^(\d+)\. (.*$)/gm, '<div class="flex items-start"><span class="text-blue-400 mr-2 font-bold">$1.</span><span>$2</span></div>')
-      .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-blue-400 pl-4 my-2 italic text-gray-300">$1</blockquote>')
-      .replace(/^---$/gm, '<hr class="border-gray-600 my-2">')
-      .replace(/\n/g, '<br>');
+      .replace(/`(.*?)`/g, '<code class="bg-gray-800 text-green-400 px-2 py-1 rounded text-sm font-mono border border-gray-600">$1</code>')
+      .replace(/^• (.*$)/gm, '<div class="flex items-start my-2"><span class="text-blue-400 mr-3 mt-1 text-sm">•</span><span class="flex-1">$1</span></div>')
+      .replace(/^(\d+)\. (.*$)/gm, '<div class="flex items-start my-2"><span class="text-blue-400 mr-3 mt-1 font-semibold text-sm">$1.</span><span class="flex-1">$2</span></div>')
+      .replace(/^> (.*$)/gm, '<div class="bg-blue-500/10 border-l-4 border-blue-400 pl-4 py-2 my-3 italic text-gray-300 rounded-r">$1</div>')
+      .replace(/^---$/gm, '<div class="my-4 border-t border-gray-600"></div>')
+      .replace(/\n\n/g, '</p><p class="my-3">')
+      .replace(/\n/g, '<br>')
+      .replace(/^(.*)$/, '<p class="my-2">$1</p>');
   };
 
   // Get emoji for note type
@@ -704,57 +707,142 @@ export default function LiveLecturePage() {
               ))}
             </div>
 
+            {/* Notes View Mode Toggle */}
+            {activeTab === 'transcript' && smartNotes.length > 0 && (
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setNotesViewMode('organized')}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                    notesViewMode === 'organized'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                  }`}
+                >
+                  📚 Organized
+                </button>
+                <button
+                  onClick={() => setNotesViewMode('chronological')}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                    notesViewMode === 'chronological'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                  }`}
+                >
+                  ⏰ Chronological
+                </button>
+              </div>
+            )}
+
             {/* Tab Content */}
             <div className="h-96 overflow-y-auto">
               {activeTab === 'transcript' && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {smartNotes.length > 0 ? (
-                    smartNotes.map(note => (
-                      <div key={note.id} className={`p-4 rounded-xl border-l-4 ${
-                        note.importance === 'high' ? 'border-red-400 bg-red-500/10' :
-                        note.importance === 'medium' ? 'border-yellow-400 bg-yellow-500/10' :
-                        'border-blue-400 bg-blue-500/10'
-                      }`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{getNoteTypeEmoji(note.type)}</span>
-                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                              note.type === 'key_point' ? 'bg-green-500/20 text-green-400' :
-                              note.type === 'definition' ? 'bg-blue-500/20 text-blue-400' :
-                              note.type === 'example' ? 'bg-purple-500/20 text-purple-400' :
-                              note.type === 'formula' ? 'bg-orange-500/20 text-orange-400' :
-                              note.type === 'question' ? 'bg-yellow-500/20 text-yellow-400' :
-                              note.type === 'inference' ? 'bg-pink-500/20 text-pink-400' :
-                              note.type === 'summary' ? 'bg-cyan-500/20 text-cyan-400' :
-                              'bg-gray-500/20 text-gray-400'
-                            }`}>
-                              {note.type.replace('_', ' ')}
-                            </span>
-                            {note.confidence && (
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                note.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                                note.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                'bg-red-500/20 text-red-400'
-                              }`}>
-                                {note.confidence === 'high' ? '✓' : note.confidence === 'medium' ? '~' : '?'}
-                              </span>
-                            )}
-                            {note.title && (
-                              <span className="text-sm font-medium text-white">
-                                {note.title}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {new Date(note.timestamp).toLocaleTimeString()}
-                          </span>
+                    <div className="prose prose-invert max-w-none">
+                      {notesViewMode === 'organized' ? (
+                        /* Organized by type */
+                        ['key_point', 'definition', 'example', 'formula', 'question', 'inference', 'summary'].map(type => {
+                          const typeNotes = smartNotes.filter(note => note.type === type);
+                          if (typeNotes.length === 0) return null;
+                          
+                          return (
+                            <div key={type} className="mb-8">
+                              <div className="flex items-center gap-3 mb-4 pb-2 border-b border-white/20">
+                                <span className="text-2xl">{getNoteTypeEmoji(type)}</span>
+                                <h3 className="text-lg font-semibold text-white capitalize">
+                                  {type.replace('_', ' ')}s
+                                </h3>
+                                <span className="text-sm text-gray-400">
+                                  {typeNotes.length} {typeNotes.length === 1 ? 'item' : 'items'}
+                                </span>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                {typeNotes.map((note, index) => (
+                                  <div key={note.id} className="relative">
+                                    {/* Confidence indicator */}
+                                    {note.confidence && (
+                                      <div className="absolute -left-6 top-1">
+                                        <span className={`text-xs ${
+                                          note.confidence === 'high' ? 'text-green-400' :
+                                          note.confidence === 'medium' ? 'text-yellow-400' :
+                                          'text-red-400'
+                                        }`}>
+                                          {note.confidence === 'high' ? '✓' : note.confidence === 'medium' ? '~' : '?'}
+                                        </span>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Note content */}
+                                    <div className="text-gray-200 leading-relaxed">
+                                      {note.title && (
+                                        <h4 className="text-white font-medium mb-2 text-sm">
+                                          {note.title}
+                                        </h4>
+                                      )}
+                                      <div 
+                                        className="text-sm"
+                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
+                                      />
+                                      <div className="text-xs text-gray-500 mt-2">
+                                        {new Date(note.timestamp).toLocaleTimeString()}
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Separator between notes */}
+                                    {index < typeNotes.length - 1 && (
+                                      <div className="my-4 border-t border-white/10"></div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        /* Chronological view - clean flowing text */
+                        <div className="space-y-6">
+                          {smartNotes
+                            .sort((a, b) => a.timestamp - b.timestamp)
+                            .map((note, index) => (
+                              <div key={note.id} className="relative">
+                                {/* Confidence indicator */}
+                                {note.confidence && (
+                                  <div className="absolute -left-6 top-1">
+                                    <span className={`text-xs ${
+                                      note.confidence === 'high' ? 'text-green-400' :
+                                      note.confidence === 'medium' ? 'text-yellow-400' :
+                                      'text-red-400'
+                                    }`}>
+                                      {note.confidence === 'high' ? '✓' : note.confidence === 'medium' ? '~' : '?'}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Note content */}
+                                <div className="text-gray-200 leading-relaxed">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-lg">{getNoteTypeEmoji(note.type)}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(note.timestamp).toLocaleTimeString()}
+                                    </span>
+                                  </div>
+                                  
+                                  <div 
+                                    className="text-sm"
+                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
+                                  />
+                                </div>
+                                
+                                {/* Separator between notes */}
+                                {index < smartNotes.length - 1 && (
+                                  <div className="my-6 border-t border-white/10"></div>
+                                )}
+                              </div>
+                            ))}
                         </div>
-                        <div 
-                          className="text-gray-200 text-sm leading-relaxed"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
-                        />
-                      </div>
-                    ))
+                      )}
+                    </div>
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-6xl mb-4">📝</div>

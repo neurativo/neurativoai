@@ -21,59 +21,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an AI assistant helping students take smart notes during live lectures. You are EXTREMELY intelligent and can extract valuable information even from incomplete, unclear, or fragmented transcript text.
+    const prompt = `You are an AI assistant creating clean, readable study notes from lecture transcripts. Focus on creating SHORT, UNDERSTANDABLE notes that students can actually use.
 
 Context: ${context || 'General Lecture'}
 
-IMPORTANT: The transcript below may be incomplete, unclear, or have gaps due to audio issues. Your job is to:
-1. Extract ANY useful information, even from partial sentences
-2. Infer context and meaning from fragments
-3. Generate educational notes even if the transcript is unclear
-4. Fill in gaps with logical assumptions based on the context
-5. Create valuable study material regardless of transcription quality
+IMPORTANT: Create ONLY meaningful, readable notes. If the transcript is too unclear or fragmented, create fewer but better notes.
 
 Transcript: "${text}"
 
-Create beautifully formatted, structured notes that are:
-- Clear and concise with rich formatting
-- Focused on key concepts, definitions, examples, and important points
-- Categorized by importance (high, medium, low)
-- Categorized by type (key_point, definition, example, formula, question, inference, summary)
-- Use markdown formatting, emojis, and visual elements for better readability
-- Be creative in extracting value from unclear text
+Create clean, readable notes that are:
+- SHORT and to the point
+- Easy to understand
+- In bullet point format
+- Focused on actual learning content
+- Well-organized and logical
 
 Return a JSON array of note objects with this structure:
 [
   {
-    "content": "**Bold key terms** with *italic emphasis* and 📝 emojis. Use bullet points, numbered lists, and visual separators for clarity. Even if the original text was unclear, provide educational value.",
-    "type": "key_point|definition|example|formula|question|inference|summary",
+    "content": "• Clear, concise bullet point\n• Another important point\n• Key concept or definition",
+    "type": "key_point|definition|example|concept",
     "importance": "high|medium|low",
-    "title": "Short descriptive title for the note",
+    "title": "Brief topic title (2-4 words max)",
     "confidence": "high|medium|low"
   }
 ]
 
-Special instructions for unclear audio:
-- If text is fragmented, try to piece together meaning
-- If words are unclear, make educated guesses based on context
-- If sentences are incomplete, infer what was likely being said
-- If technical terms are garbled, suggest likely correct terms
-- Always provide educational value, even from poor transcription
-- Use "inference" type for notes where you had to guess meaning
-- Use "summary" type for consolidating fragmented information
+Guidelines:
+- Use simple bullet points (•)
+- Keep each note focused on ONE topic
+- Make titles short and descriptive
+- Only include content that makes sense
+- If transcript is unclear, create fewer but better notes
+- Focus on educational value, not just word extraction
+- Use simple language that students can understand
 
-Formatting guidelines:
-- Use **bold** for key terms and important concepts
-- Use *italics* for emphasis and definitions
-- Use 📝, 🔑, 💡, ⚡, 🎯, 📊, 🔬, 📚, ⭐, 🤔, 📋 emojis appropriately
-- Use bullet points (•) and numbered lists (1., 2., 3.)
-- Use --- for visual separators
-- Use > for important quotes or examples
-- Use \`code\` formatting for technical terms
-- Keep content concise but informative
-- Add [inferred] or [likely] tags when making assumptions
-
-Generate 2-5 notes maximum. Be creative and extract maximum educational value from the text, regardless of quality.`;
+Generate 1-3 notes maximum. Quality over quantity.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

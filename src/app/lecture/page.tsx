@@ -8,7 +8,7 @@ interface Note {
   content: string;
   title?: string;
   timestamp: number;
-  type: 'key_point' | 'definition' | 'example' | 'formula' | 'question' | 'inference' | 'summary';
+  type: 'key_point' | 'definition' | 'example' | 'concept';
   importance: 'high' | 'medium' | 'low';
   confidence?: 'high' | 'medium' | 'low';
 }
@@ -184,55 +184,26 @@ export default function LiveLecturePage() {
     
     if (words.length === 0) return notes;
     
-    // Try to extract meaningful phrases
-    const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 5);
+    // Only create notes if we have meaningful content
+    if (cleanText.length < 20) return notes;
+    
+    // Try to create one meaningful note
+    const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 10);
     
     if (sentences.length > 0) {
-      // Create a summary note
-      const summaryText = sentences.slice(0, 2).join('. ').trim();
-      if (summaryText) {
+      // Create a single, clean note
+      const meaningfulText = sentences.slice(0, 1).join('. ').trim();
+      if (meaningfulText && meaningfulText.length > 15) {
         notes.push({
           id: `fallback_${Date.now()}_0`,
-          content: `📋 **Summary**: ${summaryText}`,
-          title: 'Audio Summary',
+          content: `• ${meaningfulText}`,
+          title: 'Lecture Content',
           timestamp: Date.now(),
-          type: 'summary',
+          type: 'key_point',
           importance: 'medium',
           confidence: 'low'
         });
       }
-    }
-    
-    // Extract potential key terms
-    const keyTerms = words.filter(word => 
-      word.length > 4 && 
-      !['this', 'that', 'with', 'from', 'they', 'have', 'been', 'were', 'said', 'each', 'which', 'their', 'time', 'will', 'about', 'there', 'could', 'other', 'after', 'first', 'well', 'also', 'where', 'much', 'some', 'very', 'when', 'come', 'here', 'just', 'like', 'long', 'make', 'many', 'over', 'such', 'take', 'than', 'them', 'these', 'think', 'want', 'were', 'what', 'when', 'will', 'with', 'your'].includes(word.toLowerCase())
-    );
-    
-    if (keyTerms.length > 0) {
-      const uniqueTerms = [...new Set(keyTerms)].slice(0, 3);
-      notes.push({
-        id: `fallback_${Date.now()}_1`,
-        content: `🔑 **Key Terms**: ${uniqueTerms.join(', ')}`,
-        title: 'Extracted Terms',
-        timestamp: Date.now(),
-        type: 'inference',
-        importance: 'low',
-        confidence: 'low'
-      });
-    }
-    
-    // If we have very little text, create a basic note
-    if (notes.length === 0 && cleanText.length > 0) {
-      notes.push({
-        id: `fallback_${Date.now()}_2`,
-        content: `📝 **Captured**: ${cleanText.substring(0, 100)}${cleanText.length > 100 ? '...' : ''}`,
-        title: 'Raw Audio',
-        timestamp: Date.now(),
-        type: 'inference',
-        importance: 'low',
-        confidence: 'low'
-      });
     }
     
     return notes;
@@ -343,9 +314,9 @@ export default function LiveLecturePage() {
           
           setConnectionStatus('connected');
           
-          // Process more frequently for better note generation
+          // Process less frequently to avoid spam
           const now = Date.now();
-          if (now - lastProcessTimeRef.current > 5000 || transcriptBufferRef.current.length > 200) {
+          if (now - lastProcessTimeRef.current > 15000 || transcriptBufferRef.current.length > 500) {
             await processTranscriptBuffer();
             lastProcessTimeRef.current = now;
           }
@@ -360,16 +331,18 @@ export default function LiveLecturePage() {
 
   // Process accumulated transcript for smart features
   const processTranscriptBuffer = async () => {
-    if (transcriptBufferRef.current.length < 20) return; // Lower threshold
+    if (transcriptBufferRef.current.length < 100) return; // Higher threshold
     
     const text = transcriptBufferRef.current;
     transcriptBufferRef.current = '';
     
-    // Always try to generate notes, even from poor audio
-    await generateSmartNotes(text);
+    // Only generate notes if we have meaningful content
+    if (text.length > 50) {
+      await generateSmartNotes(text);
+    }
     
     // Only generate flashcards and keywords if we have decent text
-    if (text.length > 50) {
+    if (text.length > 100) {
       await generateFlashcards(text);
       await extractKeywords(text);
     }
@@ -544,10 +517,7 @@ export default function LiveLecturePage() {
       key_point: '🔑',
       definition: '📖',
       example: '💡',
-      formula: '📊',
-      question: '❓',
-      inference: '🤔',
-      summary: '📋'
+      concept: '🧠'
     };
     return emojis[type as keyof typeof emojis] || '📝';
   };
@@ -741,7 +711,7 @@ export default function LiveLecturePage() {
                     <div className="prose prose-invert max-w-none">
                       {notesViewMode === 'organized' ? (
                         /* Organized by type */
-                        ['key_point', 'definition', 'example', 'formula', 'question', 'inference', 'summary'].map(type => {
+                        ['key_point', 'definition', 'example', 'concept'].map(type => {
                           const typeNotes = smartNotes.filter(note => note.type === type);
                           if (typeNotes.length === 0) return null;
                           

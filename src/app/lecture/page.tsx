@@ -77,6 +77,7 @@ export default function LiveLecturePage() {
   
   // Simplified buffering
   const lastTranscriptTimeRef = useRef<number>(0);
+  const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Timer for session duration
   useEffect(() => {
@@ -346,12 +347,8 @@ export default function LiveLecturePage() {
           const now = Date.now();
           lastTranscriptTimeRef.current = now;
           
-          // Process transcript with AI recovery if needed
-          const processedTranscript = await processTranscript(newTranscript, confidence);
-          
-          // Always add transcript to display
-          setTranscript(prev => prev + ' ' + processedTranscript);
-          transcriptBufferRef.current += ' ' + processedTranscript;
+          // Add to buffer for sentence completion
+          transcriptBufferRef.current += ' ' + newTranscript;
           
           // Update live display info
           setPartialTranscript(newTranscript);
@@ -360,11 +357,33 @@ export default function LiveLecturePage() {
           
           setConnectionStatus('connected');
           
-          // Process for notes generation (both partial and final)
-          const now2 = Date.now();
-          if (now2 - lastProcessTimeRef.current > 10000 || transcriptBufferRef.current.length > 300) {
-            await processTranscriptBuffer();
-            lastProcessTimeRef.current = now2;
+          // Clear any existing timeout
+          if (flushTimeoutRef.current) {
+            clearTimeout(flushTimeoutRef.current);
+          }
+          
+          // Only add to main transcript when we have complete sentences or final results
+          if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 200) {
+            // Process the accumulated buffer
+            const processedText = await processTranscript(transcriptBufferRef.current, confidence);
+            
+            // Add to main transcript
+            setTranscript(prev => prev + ' ' + processedText);
+            
+            // Clear buffer for next sentence
+            transcriptBufferRef.current = '';
+            
+            // Process for notes generation
+            const now2 = Date.now();
+            if (now2 - lastProcessTimeRef.current > 5000) {
+              await processTranscriptBuffer();
+              lastProcessTimeRef.current = now2;
+            }
+          } else {
+            // Set timeout to flush incomplete sentence after 3 seconds
+            flushTimeoutRef.current = setTimeout(() => {
+              flushIncompleteSentence();
+            }, 3000);
           }
         }
       }
@@ -377,22 +396,19 @@ export default function LiveLecturePage() {
 
   // Process accumulated transcript for smart features
   const processTranscriptBuffer = async () => {
-    if (transcriptBufferRef.current.length < 50) return; // Lower threshold
+    if (transcriptBufferRef.current.length < 100) return; // Higher threshold for better sentences
     
     const text = transcriptBufferRef.current;
     console.log('Processing transcript buffer:', text);
     
-    // Don't clear the buffer yet, just process it
-    // transcriptBufferRef.current = '';
-    
     // Generate notes if we have meaningful content
-    if (text.length > 50) {
+    if (text.length > 100) {
       console.log('Generating smart notes...');
       await generateSmartNotes(text);
     }
     
     // Generate flashcards and keywords if we have decent text
-    if (text.length > 100) {
+    if (text.length > 200) {
       console.log('Generating flashcards and keywords...');
       await generateFlashcards(text);
       await extractKeywords(text);
@@ -433,6 +449,16 @@ export default function LiveLecturePage() {
       return improvedText || text;
     }
     return text;
+  };
+
+  // Flush incomplete sentences after timeout
+  const flushIncompleteSentence = async () => {
+    if (transcriptBufferRef.current.trim().length > 0) {
+      console.log('Flushing incomplete sentence:', transcriptBufferRef.current);
+      const processedText = await processTranscript(transcriptBufferRef.current, 0.5);
+      setTranscript(prev => prev + ' ' + processedText);
+      transcriptBufferRef.current = '';
+    }
   };
 
   // Start recording
@@ -482,8 +508,8 @@ export default function LiveLecturePage() {
         await processAudioChunks();
       };
 
-      // Start recording with smaller chunks for better real-time performance
-      const chunkSize = 250; // 250ms chunks for optimal Deepgram performance
+      // Start recording with larger chunks for better sentence completion
+      const chunkSize = 1000; // 1 second chunks for better sentence fragments
       mediaRecorder.start(chunkSize);
       setIsRecording(true);
       sessionStartRef.current = Date.now();
@@ -492,7 +518,7 @@ export default function LiveLecturePage() {
       // Start first section
       startNewSection('Introduction');
 
-      // Process audio chunks more frequently for better real-time performance
+      // Process audio chunks every second for better sentence completion
       intervalRef.current = setInterval(async () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           mediaRecorderRef.current.stop();
@@ -542,6 +568,14 @@ export default function LiveLecturePage() {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    
+    if (flushTimeoutRef.current) {
+      clearTimeout(flushTimeoutRef.current);
+      flushTimeoutRef.current = null;
+    }
+    
+    // Flush any remaining incomplete sentence
+    flushIncompleteSentence();
     
     setIsRecording(false);
     setIsPaused(false);

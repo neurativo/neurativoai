@@ -95,6 +95,7 @@ export default function LiveLecturePage() {
   // Test microphone access
   const testMicrophone = async () => {
     try {
+      console.log('Testing microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { 
           echoCancellation: true,
@@ -103,6 +104,10 @@ export default function LiveLecturePage() {
           sampleRate: 16000
         } 
       });
+      
+      console.log('Microphone access granted');
+      console.log('Audio tracks:', stream.getAudioTracks().length);
+      console.log('Audio track settings:', stream.getAudioTracks()[0]?.getSettings());
       
       stream.getTracks().forEach(track => track.stop());
       return true;
@@ -291,20 +296,28 @@ export default function LiveLecturePage() {
 
   // Process audio chunks with Deepgram
   const processAudioChunks = async () => {
-    if (audioChunksRef.current.length === 0) return;
+    if (audioChunksRef.current.length === 0) {
+      console.log('No audio chunks to process');
+      return;
+    }
+
+    console.log(`Processing ${audioChunksRef.current.length} audio chunks`);
 
     try {
       setConnectionStatus('connecting');
       
       // Combine audio chunks
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
+      console.log(`Audio blob size: ${audioBlob.size} bytes`);
       audioChunksRef.current = [];
 
       // Convert to base64
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      console.log(`Base64 audio length: ${base64Audio.length}`);
 
       // Send to Deepgram API
+      console.log('Sending to Deepgram API...');
       const response = await fetch('/api/transcribe-deepgram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -314,11 +327,15 @@ export default function LiveLecturePage() {
         })
       });
 
+      console.log('Deepgram response status:', response.status);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Deepgram API error:', errorText);
         throw new Error('Transcription failed');
       }
 
       const result = await response.json();
+      console.log('Deepgram result:', result);
       
       if (result.success && result.transcript) {
         const newTranscript = result.transcript.trim();
@@ -477,7 +494,10 @@ export default function LiveLecturePage() {
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
+          console.log(`Audio chunk received: ${event.data.size} bytes`);
           audioChunksRef.current.push(event.data);
+        } else {
+          console.log('Empty audio chunk received');
         }
       };
 

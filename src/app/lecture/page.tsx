@@ -65,6 +65,8 @@ export default function LiveLecturePage() {
   const [partialTranscript, setPartialTranscript] = useState<string>('');
   const [transcriptConfidence, setTranscriptConfidence] = useState<number>(0);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
+  const [aiReconstructionEnabled, setAiReconstructionEnabled] = useState<boolean>(true);
+  const [reconstructionFailures, setReconstructionFailures] = useState<number>(0);
   
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -366,16 +368,29 @@ export default function LiveLecturePage() {
           
           // Only add to main transcript when we have complete sentences or enough content
           if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 100) {
-            // Process the accumulated buffer with AI reconstruction
+            // Process the accumulated buffer with conservative AI reconstruction
             const processedText = await processTranscript(transcriptBufferRef.current, confidence);
             console.log(`Processed text: "${processedText}"`);
             
-            // Add to main transcript
-            setTranscript(prev => {
-              const newText = prev + ' ' + processedText;
-              console.log(`Total transcript length: ${newText.length}`);
-              return newText;
-            });
+            // Additional safety check: ensure processed text isn't too long compared to original
+            if (processedText) {
+              const lengthRatio = processedText.length / transcriptBufferRef.current.length;
+              if (lengthRatio > 2.0) {
+                console.log('Reconstruction too long, using original text');
+                const safeText = transcriptBufferRef.current;
+                setTranscript(prev => prev + ' ' + safeText);
+              } else {
+                // Add to main transcript
+                setTranscript(prev => {
+                  const newText = prev + ' ' + processedText;
+                  console.log(`Total transcript length: ${newText.length}`);
+                  return newText;
+                });
+              }
+            } else {
+              // Fallback to original text
+              setTranscript(prev => prev + ' ' + transcriptBufferRef.current);
+            }
             
             // Clear buffer for next sentence
             transcriptBufferRef.current = '';
@@ -447,22 +462,56 @@ export default function LiveLecturePage() {
     return text; // Return original if reconstruction fails
   };
 
-  // Enhanced transcript processing with AI reconstruction
+  // Conservative transcript processing with safety checks and fallback
   const processTranscript = async (text: string, confidence: number) => {
-    // Always use AI reconstruction for better paragraph formation
-    if (text.length > 10) {
-      console.log('Applying AI reconstruction to improve transcript...');
+    // Skip AI reconstruction if disabled or too many failures
+    if (!aiReconstructionEnabled || reconstructionFailures > 3) {
+      console.log('AI reconstruction disabled, using original text');
+      return text;
+    }
+
+    // Only use AI reconstruction for longer text with safety checks
+    if (text.length > 20) {
+      console.log('Applying conservative AI reconstruction...');
       try {
         const improvedText = await reconstructTranscript(text);
         console.log(`Original: "${text}"`);
         console.log(`Reconstructed: "${improvedText}"`);
-        return improvedText || text;
+        
+        // Safety check: ensure reconstruction isn't too different from original
+        const similarity = calculateTextSimilarity(text, improvedText || '');
+        console.log(`Text similarity: ${similarity.toFixed(2)}`);
+        
+        // Only use reconstruction if it's similar enough to original (70% similarity)
+        if (similarity > 0.7) {
+          // Reset failure counter on success
+          setReconstructionFailures(0);
+          return improvedText;
+        } else {
+          console.log('Reconstruction too different, using original text');
+          setReconstructionFailures(prev => prev + 1);
+          return text;
+        }
       } catch (error) {
         console.log('Reconstruction failed, using original text:', error);
+        setReconstructionFailures(prev => prev + 1);
         return text;
       }
     }
     return text;
+  };
+
+  // Calculate text similarity to prevent over-reconstruction
+  const calculateTextSimilarity = (original: string, reconstructed: string): number => {
+    const origWords = original.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const reconWords = reconstructed.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    
+    if (origWords.length === 0 || reconWords.length === 0) return 0;
+    
+    const commonWords = origWords.filter(word => reconWords.includes(word));
+    const similarity = commonWords.length / Math.max(origWords.length, reconWords.length);
+    
+    return similarity;
   };
 
   // Flush incomplete sentences after timeout
@@ -868,22 +917,39 @@ export default function LiveLecturePage() {
               <h2 className="text-xl font-semibold text-white">
                 📝 Live Transcript
               </h2>
-              <div className="flex items-center space-x-4">
-                {currentSpeaker && (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span className="text-sm text-gray-400">Speaker {currentSpeaker}</span>
-                  </div>
-                )}
-                <div className="text-sm text-gray-400">
-                  {transcript.split(' ').length} words
-                  {transcriptConfidence > 0 && (
-                    <span className="ml-2 text-xs">
-                      ({Math.round(transcriptConfidence * 100)}% conf)
-                    </span>
-                  )}
+            <div className="flex items-center space-x-4">
+              {currentSpeaker && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-sm text-gray-400">Speaker {currentSpeaker}</span>
                 </div>
+              )}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setAiReconstructionEnabled(!aiReconstructionEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    aiReconstructionEnabled 
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  }`}
+                >
+                  AI: {aiReconstructionEnabled ? 'ON' : 'OFF'}
+                </button>
+                {reconstructionFailures > 0 && (
+                  <span className="text-xs text-yellow-400">
+                    Failures: {reconstructionFailures}
+                  </span>
+                )}
               </div>
+              <div className="text-sm text-gray-400">
+                {transcript.split(' ').length} words
+                {transcriptConfidence > 0 && (
+                  <span className="ml-2 text-xs">
+                    ({Math.round(transcriptConfidence * 100)}% conf)
+                  </span>
+                )}
+              </div>
+            </div>
             </div>
             
             <div className="h-96 overflow-y-auto bg-black/20 rounded-xl p-4 border border-white/10">

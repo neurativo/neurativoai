@@ -21,31 +21,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert at reconstructing fragmented lecture transcripts into perfect, readable paragraphs.
+    const prompt = `You are a conservative transcript editor that fixes fragmented speech while preserving the original meaning.
 
 Context: ${context || 'General Lecture'}
 
-CRITICAL INSTRUCTIONS:
-1. ALWAYS detect and fix incomplete or missing words using context
-2. ALWAYS maintain correct grammar, flow, and sentence structure
-3. ALWAYS preserve technical terms, subject-specific jargon, and key formulas
-4. If a word is unclear, infer the most likely meaning from lecture context
-5. NEVER leave gaps like '[inaudible]' — reconstruct meaning naturally
-6. Convert fragmented speech into complete, flowing paragraphs
-7. Remove repetitive words and filler sounds
-8. Create natural sentence flow and proper punctuation
+CRITICAL SAFETY RULES:
+1. ONLY fix grammar, punctuation, and sentence structure
+2. NEVER add new concepts, ideas, or information not present in the original
+3. NEVER infer or assume what the speaker "probably meant"
+4. NEVER add technical details or explanations not explicitly mentioned
+5. If unclear, keep the original words rather than guessing
+6. ONLY remove obvious filler words like "um", "uh", "okay", "so"
+7. ONLY fix obvious grammar errors and sentence fragments
+8. PRESERVE the speaker's exact meaning and intent
 
 Original fragmented transcript: "${text}"
 
-Transform this fragmented speech into a perfect, readable paragraph that:
-- Has complete, grammatically correct sentences
-- Flows naturally from one idea to the next
-- Removes repetitive words and filler sounds
-- Maintains proper academic tone
-- Uses appropriate punctuation and capitalization
-- Reads like a professional lecture transcript
+Make MINIMAL changes to create readable text:
+- Fix basic grammar and punctuation
+- Remove obvious filler words
+- Connect sentence fragments naturally
+- Keep ALL original concepts and ideas
+- Do NOT add new information
+- Do NOT interpret or expand on ideas
+- If uncertain, keep the original text
 
-Return only the reconstructed paragraph, no JSON or additional formatting.`;
+Return only the cleaned transcript, no JSON or additional formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

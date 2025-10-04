@@ -165,7 +165,11 @@ export default function LiveLecturePage() {
           }));
           
           console.log('Adding new notes:', newNotes.length);
-          setSmartNotes(prev => [...prev, ...newNotes]);
+          setSmartNotes(prev => {
+            const updated = [...prev, ...newNotes];
+            console.log('Total notes after adding:', updated.length);
+            return updated;
+          });
           
           // Add to current section
           if (currentSection) {
@@ -187,9 +191,16 @@ export default function LiveLecturePage() {
 
     // Fallback: Generate basic notes from any text, even if very short or unclear
     try {
+      console.log('Generating fallback notes for text:', text.substring(0, 50) + '...');
       const fallbackNotes = generateFallbackNotes(text);
+      console.log('Fallback notes generated:', fallbackNotes.length);
+      
       if (fallbackNotes.length > 0) {
-        setSmartNotes(prev => [...prev, ...fallbackNotes]);
+        setSmartNotes(prev => {
+          const updated = [...prev, ...fallbackNotes];
+          console.log('Total notes after fallback:', updated.length);
+          return updated;
+        });
         
         if (currentSection) {
           setCurrentSection(prev => prev ? {
@@ -267,7 +278,11 @@ export default function LiveLecturePage() {
           }));
           
           console.log('Adding new flashcards:', newFlashcards.length);
-          setFlashcards(prev => [...prev, ...newFlashcards]);
+          setFlashcards(prev => {
+            const updated = [...prev, ...newFlashcards];
+            console.log('Total flashcards after adding:', updated.length);
+            return updated;
+          });
           
           // Add to current section
           if (currentSection) {
@@ -1037,6 +1052,22 @@ export default function LiveLecturePage() {
 
           {/* Right Panel - Smart Features */}
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
+            {/* Debug Info */}
+            <div className="text-xs text-gray-400 mb-2">
+              Debug: Notes: {smartNotes.length}, Cards: {flashcards.length}, Keywords: {keywords.length}
+            </div>
+            
+            {/* Test Button */}
+            <button
+              onClick={() => {
+                console.log('Testing note generation...');
+                generateSmartNotes('This is a test of artificial intelligence and machine learning concepts for debugging purposes.');
+              }}
+              className="mb-4 px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded hover:bg-blue-500/30"
+            >
+              Test Note Generation
+            </button>
+
             {/* Tabs */}
             <div className="flex gap-2 mb-6">
               {[

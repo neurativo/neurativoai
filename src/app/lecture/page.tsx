@@ -75,10 +75,7 @@ export default function LiveLecturePage() {
   const transcriptBufferRef = useRef<string>('');
   const lastProcessTimeRef = useRef<number>(0);
   
-  // Enhanced buffering for better Deepgram handling
-  const partialTranscriptsRef = useRef<string[]>([]);
-  const finalTranscriptsRef = useRef<string[]>([]);
-  const transcriptBufferWindowRef = useRef<number>(1000); // 1 second buffer window
+  // Simplified buffering
   const lastTranscriptTimeRef = useRef<number>(0);
 
   // Timer for session duration
@@ -349,32 +346,25 @@ export default function LiveLecturePage() {
           const now = Date.now();
           lastTranscriptTimeRef.current = now;
           
-          if (isFinal) {
-            // Final transcript - process with AI recovery if needed
-            const processedTranscript = await processFinalTranscript(newTranscript, confidence);
-            
-            finalTranscriptsRef.current.push(processedTranscript);
-            setTranscript(prev => prev + ' ' + processedTranscript);
-            transcriptBufferRef.current += ' ' + processedTranscript;
-            
-            // Clear partial transcripts since we have final
-            partialTranscriptsRef.current = [];
-            setPartialTranscript(''); // Clear partial display
-          } else {
-            // Partial transcript - update live display
-            partialTranscriptsRef.current.push(newTranscript);
-            updatePartialTranscript(newTranscript, confidence, speaker);
-          }
+          // Process transcript with AI recovery if needed
+          const processedTranscript = await processTranscript(newTranscript, confidence);
+          
+          // Always add transcript to display
+          setTranscript(prev => prev + ' ' + processedTranscript);
+          transcriptBufferRef.current += ' ' + processedTranscript;
+          
+          // Update live display info
+          setPartialTranscript(newTranscript);
+          setTranscriptConfidence(confidence);
+          setCurrentSpeaker(speaker);
           
           setConnectionStatus('connected');
           
-          // Process final transcripts for notes generation
-          if (isFinal) {
-            const now = Date.now();
-            if (now - lastProcessTimeRef.current > 10000 || transcriptBufferRef.current.length > 300) {
-              await processTranscriptBuffer();
-              lastProcessTimeRef.current = now;
-            }
+          // Process for notes generation (both partial and final)
+          const now2 = Date.now();
+          if (now2 - lastProcessTimeRef.current > 10000 || transcriptBufferRef.current.length > 300) {
+            await processTranscriptBuffer();
+            lastProcessTimeRef.current = now2;
           }
         }
       }
@@ -387,23 +377,25 @@ export default function LiveLecturePage() {
 
   // Process accumulated transcript for smart features
   const processTranscriptBuffer = async () => {
-    if (transcriptBufferRef.current.length < 100) return; // Higher threshold
+    if (transcriptBufferRef.current.length < 50) return; // Lower threshold
     
     const text = transcriptBufferRef.current;
-    transcriptBufferRef.current = '';
+    console.log('Processing transcript buffer:', text);
     
-    // Reconstruct transcript first
-    const reconstructedText = await reconstructTranscript(text);
+    // Don't clear the buffer yet, just process it
+    // transcriptBufferRef.current = '';
     
-    // Only generate notes if we have meaningful content
-    if (reconstructedText && reconstructedText.length > 50) {
-      await generateSmartNotes(reconstructedText);
+    // Generate notes if we have meaningful content
+    if (text.length > 50) {
+      console.log('Generating smart notes...');
+      await generateSmartNotes(text);
     }
     
-    // Only generate flashcards and keywords if we have decent text
-    if (reconstructedText && reconstructedText.length > 100) {
-      await generateFlashcards(reconstructedText);
-      await extractKeywords(reconstructedText);
+    // Generate flashcards and keywords if we have decent text
+    if (text.length > 100) {
+      console.log('Generating flashcards and keywords...');
+      await generateFlashcards(text);
+      await extractKeywords(text);
     }
   };
 
@@ -432,30 +424,15 @@ export default function LiveLecturePage() {
     return text; // Return original if reconstruction fails
   };
 
-  // Handle partial transcript updates with buffer window
-  const updatePartialTranscript = (partialText: string, confidence: number, speaker: string | null) => {
-    setPartialTranscript(partialText);
-    setTranscriptConfidence(confidence);
-    setCurrentSpeaker(speaker);
-    
-    // Clear partial transcript after buffer window if no new partials arrive
-    setTimeout(() => {
-      const now = Date.now();
-      if (now - lastTranscriptTimeRef.current > transcriptBufferWindowRef.current) {
-        setPartialTranscript('');
-      }
-    }, transcriptBufferWindowRef.current);
-  };
-
-  // Process final transcript with AI-assisted recovery
-  const processFinalTranscript = async (finalText: string, confidence: number) => {
+  // Simplified transcript processing
+  const processTranscript = async (text: string, confidence: number) => {
     // If confidence is low, use AI to improve the transcript
     if (confidence < 0.7) {
       console.log('Low confidence transcript, applying AI recovery...');
-      const improvedText = await reconstructTranscript(finalText);
-      return improvedText || finalText;
+      const improvedText = await reconstructTranscript(text);
+      return improvedText || text;
     }
-    return finalText;
+    return text;
   };
 
   // Start recording

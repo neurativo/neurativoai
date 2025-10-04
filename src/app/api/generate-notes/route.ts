@@ -21,42 +21,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an AI assistant creating clean, readable study notes from lecture transcripts. Focus on creating SHORT, UNDERSTANDABLE notes that students can actually use.
+    const prompt = `You are an expert AI assistant creating professional lecture notes from transcripts. Your job is to reconstruct and enhance incomplete or unclear content to create accurate, readable study materials.
 
 Context: ${context || 'General Lecture'}
 
-IMPORTANT: Create ONLY meaningful, readable notes. If the transcript is too unclear or fragmented, create fewer but better notes.
+CRITICAL INSTRUCTIONS:
+1. Detect and fix incomplete or missing words using context
+2. Maintain correct grammar, flow, and sentence structure
+3. Preserve technical terms, subject-specific jargon, and key formulas
+4. If a word is unclear, infer the most likely meaning from lecture context
+5. Never leave gaps like '[inaudible]' — reconstruct meaning naturally
+6. Output should read like accurate lecture notes
 
 Transcript: "${text}"
 
-Create clean, readable notes that are:
-- SHORT and to the point
-- Easy to understand
-- In bullet point format
-- Focused on actual learning content
-- Well-organized and logical
+Create professional, structured notes that are:
+- Grammatically correct and complete
+- Technically accurate with proper terminology
+- Well-organized with clear hierarchy
+- Professional quality for study use
 
 Return a JSON array of note objects with this structure:
 [
   {
-    "content": "• Clear, concise bullet point\n• Another important point\n• Key concept or definition",
+    "content": "• **Main Concept**: Complete, grammatically correct explanation\n• **Key Points**: \n  - Important detail 1\n  - Important detail 2\n• **Technical Terms**: Properly defined terminology",
     "type": "key_point|definition|example|concept",
     "importance": "high|medium|low",
-    "title": "Brief topic title (2-4 words max)",
-    "confidence": "high|medium|low"
+    "title": "Professional topic title (3-6 words)",
+    "confidence": "high|medium|low",
+    "concept": "Main concept category",
+    "subconcepts": ["subconcept1", "subconcept2"]
   }
 ]
 
-Guidelines:
-- Use simple bullet points (•)
-- Keep each note focused on ONE topic
-- Make titles short and descriptive
-- Only include content that makes sense
-- If transcript is unclear, create fewer but better notes
-- Focus on educational value, not just word extraction
-- Use simple language that students can understand
+Formatting guidelines:
+- Use **bold** for main concepts and key terms
+- Use bullet points (•) for main points
+- Use sub-bullets (-) for details
+- Maintain proper grammar and sentence structure
+- Include technical terms and formulas accurately
+- Reconstruct incomplete sentences naturally
+- Create professional, study-ready content
 
-Generate 1-3 notes maximum. Quality over quantity.`;
+Generate 1-3 high-quality notes maximum. Focus on accuracy and completeness.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

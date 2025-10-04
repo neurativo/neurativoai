@@ -11,6 +11,8 @@ interface Note {
   type: 'key_point' | 'definition' | 'example' | 'concept';
   importance: 'high' | 'medium' | 'low';
   confidence?: 'high' | 'medium' | 'low';
+  concept?: string;
+  subconcepts?: string[];
 }
 
 interface Flashcard {
@@ -137,7 +139,9 @@ export default function LiveLecturePage() {
             timestamp: Date.now(),
             type: note.type || 'key_point',
             importance: note.importance || 'medium',
-            confidence: note.confidence || 'medium'
+            confidence: note.confidence || 'medium',
+            concept: note.concept,
+            subconcepts: note.subconcepts || []
           }));
           
           setSmartNotes(prev => [...prev, ...newNotes]);
@@ -309,8 +313,12 @@ export default function LiveLecturePage() {
         const newTranscript = result.transcript.trim();
         if (newTranscript) {
           console.log('New transcript:', newTranscript);
-          setTranscript(prev => prev + ' ' + newTranscript);
-          transcriptBufferRef.current += ' ' + newTranscript;
+          
+          // Use the transcript as-is for now (reconstruction happens in processing)
+          const reconstructedTranscript = newTranscript;
+          
+          setTranscript(prev => prev + ' ' + reconstructedTranscript);
+          transcriptBufferRef.current += ' ' + reconstructedTranscript;
           
           setConnectionStatus('connected');
           
@@ -336,16 +344,44 @@ export default function LiveLecturePage() {
     const text = transcriptBufferRef.current;
     transcriptBufferRef.current = '';
     
+    // Reconstruct transcript first
+    const reconstructedText = await reconstructTranscript(text);
+    
     // Only generate notes if we have meaningful content
-    if (text.length > 50) {
-      await generateSmartNotes(text);
+    if (reconstructedText && reconstructedText.length > 50) {
+      await generateSmartNotes(reconstructedText);
     }
     
     // Only generate flashcards and keywords if we have decent text
-    if (text.length > 100) {
-      await generateFlashcards(text);
-      await extractKeywords(text);
+    if (reconstructedText && reconstructedText.length > 100) {
+      await generateFlashcards(reconstructedText);
+      await extractKeywords(reconstructedText);
     }
+  };
+
+  // Reconstruct transcript to fix incomplete words and grammar
+  const reconstructTranscript = async (text: string): Promise<string | null> => {
+    try {
+      const response = await fetch('/api/reconstruct-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text,
+          context: currentSection?.title || 'General Lecture'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.reconstructedText) {
+          return result.reconstructedText;
+        }
+      }
+    } catch (error) {
+      console.error('Error reconstructing transcript:', error);
+    }
+    
+    return text; // Return original if reconstruction fails
   };
 
   // Start recording
@@ -462,23 +498,107 @@ export default function LiveLecturePage() {
     startNewSection(title);
   };
 
-  // Export notes
+  // Export notes in professional format
   const exportNotes = () => {
-    const data = {
-      transcript,
-      sections,
-      smartNotes,
-      flashcards,
-      keywords,
-      sessionDuration,
-      exportDate: new Date().toISOString()
-    };
+    const exportDate = new Date();
+    const dateStr = exportDate.toLocaleDateString();
+    const timeStr = exportDate.toLocaleTimeString();
     
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    // Group notes by concept for professional organization
+    const notesByConcept = smartNotes.reduce((acc, note) => {
+      const concept = note.concept || 'General';
+      if (!acc[concept]) acc[concept] = [];
+      acc[concept].push(note);
+      return acc;
+    }, {} as Record<string, Note[]>);
+
+    // Create professional markdown content
+    let markdownContent = `# Lecture Notes\n\n`;
+    markdownContent += `**Date:** ${dateStr}\n`;
+    markdownContent += `**Time:** ${timeStr}\n`;
+    markdownContent += `**Duration:** ${formatTime(sessionDuration)}\n`;
+    markdownContent += `**Total Notes:** ${smartNotes.length}\n\n`;
+    
+    markdownContent += `---\n\n`;
+
+    // Add transcript
+    if (transcript) {
+      markdownContent += `## Live Transcript\n\n`;
+      markdownContent += `${transcript}\n\n`;
+      markdownContent += `---\n\n`;
+    }
+
+    // Add organized notes by concept
+    markdownContent += `## Study Notes\n\n`;
+    
+    Object.entries(notesByConcept).forEach(([concept, notes]) => {
+      markdownContent += `### ${concept}\n\n`;
+      
+      notes.forEach(note => {
+        if (note.title) {
+          markdownContent += `#### ${note.title}\n\n`;
+        }
+        
+        // Convert markdown to plain text for export
+        const plainContent = note.content
+          .replace(/\*\*(.*?)\*\*/g, '**$1**')
+          .replace(/\*(.*?)\*/g, '*$1*')
+          .replace(/`(.*?)`/g, '`$1`');
+        
+        markdownContent += `${plainContent}\n\n`;
+        
+        if (note.subconcepts && note.subconcepts.length > 0) {
+          markdownContent += `**Related Topics:** ${note.subconcepts.join(', ')}\n\n`;
+        }
+      });
+      
+      markdownContent += `---\n\n`;
+    });
+
+    // Add flashcards
+    if (flashcards.length > 0) {
+      markdownContent += `## Flashcards\n\n`;
+      flashcards.forEach((card, index) => {
+        markdownContent += `### Card ${index + 1}\n\n`;
+        markdownContent += `**Q:** ${card.front}\n\n`;
+        markdownContent += `**A:** ${card.back}\n\n`;
+        if (card.category) {
+          markdownContent += `**Category:** ${card.category}\n\n`;
+        }
+      });
+      markdownContent += `---\n\n`;
+    }
+
+    // Add keywords
+    if (keywords.length > 0) {
+      markdownContent += `## Key Terms\n\n`;
+      keywords.forEach(keyword => {
+        markdownContent += `- **${keyword.term}**: ${keyword.description}\n`;
+      });
+      markdownContent += `\n---\n\n`;
+    }
+
+    // Add sections overview
+    if (sections.length > 0) {
+      markdownContent += `## Lecture Sections\n\n`;
+      sections.forEach((section, index) => {
+        markdownContent += `### ${index + 1}. ${section.title}\n\n`;
+        markdownContent += `- **Notes:** ${section.notes.length}\n`;
+        markdownContent += `- **Flashcards:** ${section.flashcards.length}\n`;
+        markdownContent += `- **Duration:** ${formatTime(Math.floor((Date.now() - section.startTime) / 1000))}\n\n`;
+      });
+    }
+
+    markdownContent += `\n---\n\n`;
+    markdownContent += `*Generated by Live Lecture Assistant*\n`;
+    markdownContent += `*Export Date: ${exportDate.toISOString()}*\n`;
+
+    // Create and download file
+    const blob = new Blob([markdownContent], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lecture-notes-${Date.now()}.json`;
+    a.download = `lecture-notes-${dateStr.replace(/\//g, '-')}.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -503,6 +623,7 @@ export default function LiveLecturePage() {
       .replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>')
       .replace(/`(.*?)`/g, '<code class="bg-gray-800 text-green-400 px-2 py-1 rounded text-sm font-mono border border-gray-600">$1</code>')
       .replace(/^• (.*$)/gm, '<div class="flex items-start my-2"><span class="text-blue-400 mr-3 mt-1 text-sm">•</span><span class="flex-1">$1</span></div>')
+      .replace(/^  - (.*$)/gm, '<div class="flex items-start my-1 ml-6"><span class="text-gray-400 mr-3 mt-1 text-xs">-</span><span class="flex-1 text-sm">$1</span></div>')
       .replace(/^(\d+)\. (.*$)/gm, '<div class="flex items-start my-2"><span class="text-blue-400 mr-3 mt-1 font-semibold text-sm">$1.</span><span class="flex-1">$2</span></div>')
       .replace(/^> (.*$)/gm, '<div class="bg-blue-500/10 border-l-4 border-blue-400 pl-4 py-2 my-3 italic text-gray-300 rounded-r">$1</div>')
       .replace(/^---$/gm, '<div class="my-4 border-t border-gray-600"></div>')
@@ -510,6 +631,7 @@ export default function LiveLecturePage() {
       .replace(/\n/g, '<br>')
       .replace(/^(.*)$/, '<p class="my-2">$1</p>');
   };
+
 
   // Get emoji for note type
   const getNoteTypeEmoji = (type: string) => {
@@ -750,10 +872,31 @@ export default function LiveLecturePage() {
                                           {note.title}
                                         </h4>
                                       )}
+                                      
+                                      {note.concept && (
+                                        <div className="text-xs text-blue-400 mb-2">
+                                          📚 {note.concept}
+                                        </div>
+                                      )}
+                                      
                                       <div 
                                         className="text-sm"
                                         dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
                                       />
+                                      
+                                      {note.subconcepts && note.subconcepts.length > 0 && (
+                                        <div className="mt-2">
+                                          <div className="text-xs text-gray-400 mb-1">Related topics:</div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {note.subconcepts.map((subconcept, idx) => (
+                                              <span key={idx} className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
+                                                {subconcept}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
                                       <div className="text-xs text-gray-500 mt-2">
                                         {new Date(note.timestamp).toLocaleTimeString()}
                                       </div>

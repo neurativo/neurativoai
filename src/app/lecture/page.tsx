@@ -342,13 +342,15 @@ export default function LiveLecturePage() {
         const speaker = result.speaker;
         
         if (newTranscript) {
-          console.log(`Transcript (${isFinal ? 'FINAL' : 'PARTIAL'}, conf: ${confidence.toFixed(2)}):`, newTranscript);
+          console.log(`Raw transcript (${isFinal ? 'FINAL' : 'PARTIAL'}, conf: ${confidence.toFixed(2)}):`, newTranscript);
+          console.log(`Buffer before: "${transcriptBufferRef.current}"`);
           
           const now = Date.now();
           lastTranscriptTimeRef.current = now;
           
           // Add to buffer for sentence completion
           transcriptBufferRef.current += ' ' + newTranscript;
+          console.log(`Buffer after: "${transcriptBufferRef.current}"`);
           
           // Update live display info
           setPartialTranscript(newTranscript);
@@ -362,28 +364,26 @@ export default function LiveLecturePage() {
             clearTimeout(flushTimeoutRef.current);
           }
           
-          // Only add to main transcript when we have complete sentences or final results
-          if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 200) {
-            // Process the accumulated buffer
-            const processedText = await processTranscript(transcriptBufferRef.current, confidence);
-            
-            // Add to main transcript
-            setTranscript(prev => prev + ' ' + processedText);
-            
-            // Clear buffer for next sentence
-            transcriptBufferRef.current = '';
-            
-            // Process for notes generation
-            const now2 = Date.now();
-            if (now2 - lastProcessTimeRef.current > 5000) {
-              await processTranscriptBuffer();
-              lastProcessTimeRef.current = now2;
-            }
-          } else {
-            // Set timeout to flush incomplete sentence after 3 seconds
-            flushTimeoutRef.current = setTimeout(() => {
-              flushIncompleteSentence();
-            }, 3000);
+          // Add to main transcript immediately for better user experience
+          // Process the accumulated buffer
+          const processedText = await processTranscript(transcriptBufferRef.current, confidence);
+          console.log(`Processed text: "${processedText}"`);
+          
+          // Add to main transcript
+          setTranscript(prev => {
+            const newText = prev + ' ' + processedText;
+            console.log(`Total transcript length: ${newText.length}`);
+            return newText;
+          });
+          
+          // Clear buffer for next chunk
+          transcriptBufferRef.current = '';
+          
+          // Process for notes generation less frequently
+          const now2 = Date.now();
+          if (now2 - lastProcessTimeRef.current > 10000) {
+            await processTranscriptBuffer();
+            lastProcessTimeRef.current = now2;
           }
         }
       }
@@ -442,11 +442,16 @@ export default function LiveLecturePage() {
 
   // Simplified transcript processing
   const processTranscript = async (text: string, confidence: number) => {
-    // If confidence is low, use AI to improve the transcript
-    if (confidence < 0.7) {
+    // Only use AI reconstruction for longer text with low confidence
+    if (text.length > 20 && confidence < 0.7) {
       console.log('Low confidence transcript, applying AI recovery...');
-      const improvedText = await reconstructTranscript(text);
-      return improvedText || text;
+      try {
+        const improvedText = await reconstructTranscript(text);
+        return improvedText || text;
+      } catch (error) {
+        console.log('Reconstruction failed, using original text:', error);
+        return text;
+      }
     }
     return text;
   };
@@ -508,8 +513,8 @@ export default function LiveLecturePage() {
         await processAudioChunks();
       };
 
-      // Start recording with larger chunks for better sentence completion
-      const chunkSize = 1000; // 1 second chunks for better sentence fragments
+      // Start recording with medium chunks for balance between real-time and quality
+      const chunkSize = 500; // 500ms chunks for good balance
       mediaRecorder.start(chunkSize);
       setIsRecording(true);
       sessionStartRef.current = Date.now();
@@ -518,7 +523,7 @@ export default function LiveLecturePage() {
       // Start first section
       startNewSection('Introduction');
 
-      // Process audio chunks every second for better sentence completion
+      // Process audio chunks every 500ms
       intervalRef.current = setInterval(async () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           mediaRecorderRef.current.stop();

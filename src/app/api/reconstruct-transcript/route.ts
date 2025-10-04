@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const { text, context } = await request.json();
 
-    if (!text || text.trim().length < 10) {
+    if (!text || text.trim().length < 5) {
       return NextResponse.json(
         { error: 'Text too short for reconstruction' },
         { status: 400 }

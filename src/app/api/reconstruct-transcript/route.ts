@@ -21,32 +21,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are a conservative transcript editor that fixes fragmented speech while preserving the original meaning.
+    const prompt = `You are an expert transcript editor that reconstructs fragmented speech into perfect, readable sentences while preserving the original meaning.
 
 Context: ${context || 'General Lecture'}
 
-CRITICAL SAFETY RULES:
-1. ONLY fix grammar, punctuation, and sentence structure
-2. NEVER add new concepts, ideas, or information not present in the original
-3. NEVER infer or assume what the speaker "probably meant"
-4. NEVER add technical details or explanations not explicitly mentioned
-5. If unclear, keep the original words rather than guessing
-6. ONLY remove obvious filler words like "um", "uh", "okay", "so"
-7. ONLY fix obvious grammar errors and sentence fragments
-8. PRESERVE the speaker's exact meaning and intent
+CRITICAL INSTRUCTIONS:
+1. Reconstruct fragmented speech into complete, grammatically correct sentences
+2. Connect broken phrases and incomplete words naturally
+3. Fix obvious grammar errors and sentence structure
+4. Remove filler words like "um", "uh", "okay", "right", "so"
+5. PRESERVE the speaker's exact meaning and all original concepts
+6. Make the text flow naturally and read like proper speech
+7. If unclear, make reasonable connections between fragments
+8. Create coherent, readable paragraphs
 
 Original fragmented transcript: "${text}"
 
-Make MINIMAL changes to create readable text:
-- Fix basic grammar and punctuation
-- Remove obvious filler words
-- Connect sentence fragments naturally
+Transform this fragmented speech into perfect, readable text:
+- Connect broken phrases into complete sentences
+- Fix grammar and sentence structure
+- Remove filler words and repetitions
+- Make the text flow naturally
 - Keep ALL original concepts and ideas
-- Do NOT add new information
-- Do NOT interpret or expand on ideas
-- If uncertain, keep the original text
+- Create coherent, readable paragraphs
+- Ensure proper punctuation and capitalization
 
-Return only the cleaned transcript, no JSON or additional formatting.`;
+Return only the reconstructed transcript, no JSON or additional formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

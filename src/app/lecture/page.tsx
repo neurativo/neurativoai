@@ -376,30 +376,17 @@ export default function LiveLecturePage() {
           }
           
           // Only add to main transcript when we have complete sentences or enough content
-          if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 100) {
-            // Process the accumulated buffer with conservative AI reconstruction
+          if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 200) {
+            // Process the accumulated buffer with AI reconstruction
             const processedText = await processTranscript(transcriptBufferRef.current, confidence);
             console.log(`Processed text: "${processedText}"`);
             
-            // Additional safety check: ensure processed text isn't too long compared to original
-            if (processedText) {
-              const lengthRatio = processedText.length / transcriptBufferRef.current.length;
-              if (lengthRatio > 2.0) {
-                console.log('Reconstruction too long, using original text');
-                const safeText = transcriptBufferRef.current;
-                setTranscript(prev => prev + ' ' + safeText);
-              } else {
-                // Add to main transcript
-                setTranscript(prev => {
-                  const newText = prev + ' ' + processedText;
-                  console.log(`Total transcript length: ${newText.length}`);
-                  return newText;
-                });
-              }
-            } else {
-              // Fallback to original text
-              setTranscript(prev => prev + ' ' + transcriptBufferRef.current);
-            }
+            // Add to main transcript
+            setTranscript(prev => {
+              const newText = prev + ' ' + processedText;
+              console.log(`Total transcript length: ${newText.length}`);
+              return newText;
+            });
             
             // Clear buffer for next sentence
             transcriptBufferRef.current = '';
@@ -411,10 +398,10 @@ export default function LiveLecturePage() {
               lastProcessTimeRef.current = now2;
             }
           } else {
-            // Set timeout to flush incomplete sentence after 2 seconds
+            // Set timeout to flush incomplete sentence after 4 seconds (longer for slow speech)
             flushTimeoutRef.current = setTimeout(() => {
               flushIncompleteSentence();
-            }, 2000);
+            }, 4000);
           }
         }
       }
@@ -471,28 +458,28 @@ export default function LiveLecturePage() {
     return text; // Return original if reconstruction fails
   };
 
-  // Conservative transcript processing with safety checks and fallback
+  // Enhanced transcript processing with better reconstruction
   const processTranscript = async (text: string, confidence: number) => {
     // Skip AI reconstruction if disabled or too many failures
-    if (!aiReconstructionEnabled || reconstructionFailures > 3) {
+    if (!aiReconstructionEnabled || reconstructionFailures > 5) {
       console.log('AI reconstruction disabled, using original text');
       return text;
     }
 
-    // Only use AI reconstruction for longer text with safety checks
-    if (text.length > 20) {
-      console.log('Applying conservative AI reconstruction...');
+    // Use AI reconstruction for any text longer than 10 characters
+    if (text.length > 10) {
+      console.log('Applying AI reconstruction to improve transcript...');
       try {
         const improvedText = await reconstructTranscript(text);
         console.log(`Original: "${text}"`);
         console.log(`Reconstructed: "${improvedText}"`);
         
-        // Safety check: ensure reconstruction isn't too different from original
+        // More lenient similarity check for better reconstruction
         const similarity = calculateTextSimilarity(text, improvedText || '');
         console.log(`Text similarity: ${similarity.toFixed(2)}`);
         
-        // Only use reconstruction if it's similar enough to original (70% similarity)
-        if (similarity > 0.7) {
+        // Use reconstruction if it's reasonably similar (50% similarity) or if original is very fragmented
+        if (similarity > 0.5 || text.split(' ').length < 5) {
           // Reset failure counter on success
           setReconstructionFailures(0);
           return improvedText;
@@ -581,8 +568,8 @@ export default function LiveLecturePage() {
         await processAudioChunks();
       };
 
-      // Start recording with larger chunks for better sentence completion
-      const chunkSize = 1500; // 1.5 second chunks for better sentence fragments
+      // Start recording with much larger chunks for better sentence completion
+      const chunkSize = 3000; // 3 second chunks for much better sentence fragments
       mediaRecorder.start(chunkSize);
       setIsRecording(true);
       sessionStartRef.current = Date.now();
@@ -591,7 +578,7 @@ export default function LiveLecturePage() {
       // Start first section
       startNewSection('Introduction');
 
-      // Process audio chunks every 1.5 seconds
+      // Process audio chunks every 3 seconds
       intervalRef.current = setInterval(async () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           mediaRecorderRef.current.stop();

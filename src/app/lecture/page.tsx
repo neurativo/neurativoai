@@ -375,8 +375,11 @@ export default function LiveLecturePage() {
             clearTimeout(flushTimeoutRef.current);
           }
           
-          // Only add to main transcript when we have complete sentences or enough content
-          if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 200) {
+          // Confidence-aware triggers for correction
+          const needsCorrection = shouldTriggerCorrection(newTranscript, confidence, transcriptBufferRef.current);
+          
+          // Only add to main transcript when we have complete sentences, enough content, or need correction
+          if (isFinal || newTranscript.endsWith('.') || newTranscript.endsWith('!') || newTranscript.endsWith('?') || transcriptBufferRef.current.length > 200 || needsCorrection) {
             // Process the accumulated buffer with AI reconstruction
             const processedText = await processTranscript(transcriptBufferRef.current, confidence);
             console.log(`Processed text: "${processedText}"`);
@@ -508,6 +511,55 @@ export default function LiveLecturePage() {
     const similarity = commonWords.length / Math.max(origWords.length, reconWords.length);
     
     return similarity;
+  };
+
+  // Confidence-aware triggers for correction
+  const shouldTriggerCorrection = (newTranscript: string, confidence: number, buffer: string): boolean => {
+    // Low confidence trigger
+    if (confidence < 0.7) {
+      console.log('Low confidence trigger:', confidence);
+      return true;
+    }
+    
+    // Broken sentence patterns
+    const brokenPatterns = [
+      /\b(right|uh|um|okay|so)\b.*\b(right|uh|um|okay|so)\b/i, // Multiple filler words
+      /\b\d+\b.*\b(right|uh|um|okay|so)\b/i, // Numbers followed by filler words
+      /\.\s*[A-Z][a-z]*\s*\./g, // Word. Word. pattern
+      /\b\w+\s*\.\s*\w+\s*\.\s*\w+\s*\./g, // Multiple single words with periods
+    ];
+    
+    for (const pattern of brokenPatterns) {
+      if (pattern.test(newTranscript) || pattern.test(buffer)) {
+        console.log('Broken pattern trigger:', pattern);
+        return true;
+      }
+    }
+    
+    // Too many stops in short text
+    const stopCount = (newTranscript.match(/\./g) || []).length;
+    if (stopCount > 2 && newTranscript.length < 50) {
+      console.log('Too many stops trigger:', stopCount);
+      return true;
+    }
+    
+    // Numbers that don't fit context (like "50" in your example)
+    const numberPattern = /\b\d+\b/g;
+    const numbers = newTranscript.match(numberPattern);
+    if (numbers && numbers.length > 0) {
+      // Check if numbers make sense in context
+      const contextWords = buffer.toLowerCase().split(/\s+/);
+      const hasTechnicalContext = contextWords.some(word => 
+        ['machine', 'learning', 'intelligence', 'task', 'pattern', 'algorithm'].includes(word)
+      );
+      
+      if (!hasTechnicalContext && numbers.some(num => parseInt(num) > 20)) {
+        console.log('Suspicious number trigger:', numbers);
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   // Flush incomplete sentences after timeout
@@ -950,12 +1002,12 @@ export default function LiveLecturePage() {
             
             <div className="h-96 overflow-y-auto bg-black/20 rounded-xl p-4 border border-white/10">
               {transcript ? (
-                <div className="text-gray-200 leading-relaxed">
+                <div className="text-white leading-relaxed">
                   <div className="whitespace-pre-wrap">{transcript}</div>
                   {partialTranscript && (
                     <div className="mt-4 pt-4 border-t border-gray-600">
                       <div className="text-gray-400 text-sm italic">
-                        Live: {partialTranscript}
+                        Raw: {partialTranscript}
                       </div>
                     </div>
                   )}

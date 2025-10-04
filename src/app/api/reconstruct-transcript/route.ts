@@ -21,32 +21,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert transcript editor that reconstructs fragmented speech into perfect, readable sentences while preserving the original meaning.
+    const prompt = `You are an AI transcription corrector for university lectures. 
+
+Input will be raw speech-to-text chunks that may contain errors, missing words, and broken sentences.
+
+Your job:
+- Fix grammar and sentence structure
+- Restore missing words if context makes it obvious
+- Remove random filler phrases like "right", "uh", "50" that don't belong
+- Ensure the transcript flows naturally while staying faithful to the speaker's meaning
+- Keep technical/academic terms accurate
+- Connect broken phrases into complete, coherent sentences
+- Remove repetitive words and meaningless fragments
+- Fix incomplete words (e.g., "intel" → "intelligence")
 
 Context: ${context || 'General Lecture'}
 
-CRITICAL INSTRUCTIONS:
-1. Reconstruct fragmented speech into complete, grammatically correct sentences
-2. Connect broken phrases and incomplete words naturally
-3. Fix obvious grammar errors and sentence structure
-4. Remove filler words like "um", "uh", "okay", "right", "so"
-5. PRESERVE the speaker's exact meaning and all original concepts
-6. Make the text flow naturally and read like proper speech
-7. If unclear, make reasonable connections between fragments
-8. Create coherent, readable paragraphs
+Input: "${text}"
 
-Original fragmented transcript: "${text}"
-
-Transform this fragmented speech into perfect, readable text:
-- Connect broken phrases into complete sentences
-- Fix grammar and sentence structure
-- Remove filler words and repetitions
-- Make the text flow naturally
-- Keep ALL original concepts and ideas
-- Create coherent, readable paragraphs
-- Ensure proper punctuation and capitalization
-
-Return only the reconstructed transcript, no JSON or additional formatting.`;
+Transform this fragmented speech into perfect, readable text that sounds like a natural lecture transcript. Return only the corrected transcript, no JSON or additional formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

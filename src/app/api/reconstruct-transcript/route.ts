@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert at reconstructing incomplete or unclear lecture transcripts into perfect, readable text.
+    const prompt = `You are an expert at reconstructing fragmented lecture transcripts into perfect, readable paragraphs.
 
 Context: ${context || 'General Lecture'}
 
@@ -31,18 +31,21 @@ CRITICAL INSTRUCTIONS:
 3. ALWAYS preserve technical terms, subject-specific jargon, and key formulas
 4. If a word is unclear, infer the most likely meaning from lecture context
 5. NEVER leave gaps like '[inaudible]' — reconstruct meaning naturally
-6. Output should read like accurate, professional lecture notes
+6. Convert fragmented speech into complete, flowing paragraphs
+7. Remove repetitive words and filler sounds
+8. Create natural sentence flow and proper punctuation
 
-Original transcript: "${text}"
+Original fragmented transcript: "${text}"
 
-Reconstruct this into perfect, readable lecture content that:
+Transform this fragmented speech into a perfect, readable paragraph that:
 - Has complete, grammatically correct sentences
-- Preserves all technical terms and formulas
+- Flows naturally from one idea to the next
+- Removes repetitive words and filler sounds
 - Maintains proper academic tone
-- Flows naturally and logically
-- Is ready for professional use
+- Uses appropriate punctuation and capitalization
+- Reads like a professional lecture transcript
 
-Return only the reconstructed text, no JSON or additional formatting.`;
+Return only the reconstructed paragraph, no JSON or additional formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

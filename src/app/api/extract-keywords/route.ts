@@ -21,28 +21,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an AI assistant extracting important keywords and key terms from lecture transcripts.
+    const prompt = `You are an expert AI assistant extracting SMART, USEFUL keywords from lecture transcripts. Your job is to identify the most important terms that students need to know for studying.
 
-Analyze the following text and extract the most important keywords, terms, concepts, and phrases that students should remember. Focus on:
-- Technical terms and jargon
-- Important concepts and ideas
-- Names of people, places, or things mentioned
-- Key phrases and terminology
-- Academic or subject-specific vocabulary
+CRITICAL INSTRUCTIONS:
+1. Extract ONLY the MOST IMPORTANT keywords and concepts
+2. Focus on terms that are ESSENTIAL for understanding the topic
+3. Include technical terms, key concepts, and important vocabulary
+4. Make descriptions CLEAR and HELPFUL for studying
+5. Prioritize QUALITY over quantity
+6. Only include terms that are ACTUALLY MENTIONED in the transcript
 
 Text: "${text}"
+
+Extract SMART, USEFUL keywords that are:
+- Essential for understanding the topic
+- Clearly defined and explained
+- Relevant to the actual lecture content
+- Useful for studying and exam preparation
+- Properly categorized by type
 
 Return a JSON array of keyword objects with this structure:
 [
   {
-    "term": "Keyword or phrase",
-    "type": "concept|person|place|technical|formula|method",
+    "term": "Important keyword or concept",
+    "type": "concept|technical|formula|method|definition|example",
     "importance": "high|medium|low",
-    "description": "Brief description or context"
+    "description": "Clear, helpful description for studying"
   }
 ]
 
-Extract 3-8 keywords maximum. Make them specific and meaningful with proper categorization.`;
+SMART GUIDELINES:
+- Extract 3-5 high-quality keywords maximum
+- Focus on the MOST IMPORTANT terms only
+- Make descriptions clear and study-friendly
+- Ensure all terms are relevant to the lecture
+- Prioritize terms that are essential for understanding
+- Focus on QUALITY over quantity
+
+Extract keywords that are actually useful for studying.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

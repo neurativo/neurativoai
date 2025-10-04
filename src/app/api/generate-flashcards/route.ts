@@ -21,33 +21,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an AI assistant creating educational flashcards for students during live lectures.
+    const prompt = `You are an expert AI assistant creating PERFECT, SMART flashcards from lecture transcripts. Your job is to create study-ready flashcards that help students learn and retain information effectively.
 
 Context: ${context || 'General Lecture'}
 
-Analyze the following transcript text and create high-quality, beautifully formatted flashcards that are:
-- Educational and useful for studying
-- Clear and concise with rich formatting
-- Focused on key concepts, definitions, or important facts
-- Suitable for active recall practice
-- Use markdown formatting, emojis, and visual elements
+CRITICAL INSTRUCTIONS:
+1. Create flashcards that test UNDERSTANDING, not just memorization
+2. Focus on IMPORTANT CONCEPTS and KEY INFORMATION only
+3. Make questions CLEAR, SPECIFIC, and STUDY-FRIENDLY
+4. Create answers that are COMPLETE but CONCISE
+5. Use PROPER ACADEMIC TERMINOLOGY
+6. Ensure questions are RELEVANT to the actual lecture content
+7. Create flashcards that are ACTUALLY USEFUL for studying
 
 Transcript: "${text}"
+
+Create SMART, USEFUL flashcards that are:
+- Focused on the MOST IMPORTANT concepts from the transcript
+- Clear and specific in their questions
+- Complete but concise in their answers
+- Relevant to the actual lecture content
+- Useful for studying and exam preparation
+- Easy to understand and memorize
 
 Create exactly ${count} flashcards. Return a JSON array of flashcard objects with this structure:
 [
   {
-    "front": "🎯 **Question or term** with *emphasis* and emojis",
-    "back": "**Answer** with detailed explanation:\n\n• Key point 1\n• Key point 2\n\n> Important quote or example\n\n`Technical term` definition",
-    "category": "Subject category",
+    "front": "Clear, specific question about an important concept",
+    "back": "Complete but concise answer with key details",
+    "category": "Topic category (e.g., 'Definitions', 'Concepts', 'Applications')",
     "difficulty": "easy|medium|hard"
   }
 ]
 
-Formatting guidelines for flashcards:
-- Use **bold** for key terms and important concepts
-- Use *italics* for emphasis
-- Use 🎯, 🔑, 💡, ⚡, 📊, 🔬, 📚, ⭐, 🧠, 🎓 emojis appropriately
+SMART GUIDELINES:
+- Focus on the MOST IMPORTANT concepts from the transcript
+- Make questions test understanding, not just recall
+- Keep answers complete but concise (2-3 sentences max)
+- Use proper academic terminology
+- Ensure all content is relevant to the lecture
+- Make flashcards that are EASY to study with
+- Focus on QUALITY over quantity
 - Use bullet points (•) for lists
 - Use numbered lists (1., 2., 3.) for steps
 - Use > for important quotes or examples

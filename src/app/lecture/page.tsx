@@ -134,6 +134,8 @@ export default function LiveLecturePage() {
   // Generate smart notes using AI with fallback
   const generateSmartNotes = async (text: string) => {
     try {
+      console.log('Generating smart notes for text:', text.substring(0, 100) + '...');
+      
       // First try AI generation
       const response = await fetch('/api/generate-notes', {
         method: 'POST',
@@ -147,6 +149,8 @@ export default function LiveLecturePage() {
 
       if (response.ok) {
         const result = await response.json();
+        console.log('Notes generation result:', result);
+        
         if (result.notes && Array.isArray(result.notes) && result.notes.length > 0) {
           const newNotes: Note[] = result.notes.map((note: any, index: number) => ({
             id: `note_${Date.now()}_${index}`,
@@ -160,6 +164,7 @@ export default function LiveLecturePage() {
             subconcepts: note.subconcepts || []
           }));
           
+          console.log('Adding new notes:', newNotes.length);
           setSmartNotes(prev => [...prev, ...newNotes]);
           
           // Add to current section
@@ -170,7 +175,11 @@ export default function LiveLecturePage() {
             } : null);
           }
           return;
+        } else {
+          console.log('No notes generated from AI');
         }
+      } else {
+        console.error('Notes generation failed:', response.status);
       }
     } catch (error) {
       console.error('Error generating smart notes:', error);
@@ -418,19 +427,19 @@ export default function LiveLecturePage() {
 
   // Process accumulated transcript for smart features
   const processTranscriptBuffer = async () => {
-    if (transcriptBufferRef.current.length < 100) return; // Higher threshold for better sentences
+    if (transcriptBufferRef.current.length < 150) return; // Higher threshold for better content
     
     const text = transcriptBufferRef.current;
-    console.log('Processing transcript buffer:', text);
+    console.log('Processing transcript buffer for smart features:', text);
     
     // Generate notes if we have meaningful content
-    if (text.length > 100) {
+    if (text.length > 150) {
       console.log('Generating smart notes...');
       await generateSmartNotes(text);
     }
     
     // Generate flashcards and keywords if we have decent text
-    if (text.length > 200) {
+    if (text.length > 300) {
       console.log('Generating flashcards and keywords...');
       await generateFlashcards(text);
       await extractKeywords(text);

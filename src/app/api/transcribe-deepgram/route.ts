@@ -33,8 +33,34 @@ export async function POST(request: NextRequest) {
       // Convert base64 audio data to buffer
       const audioBuffer = Buffer.from(audioData, 'base64');
 
-      // Call Deepgram API
-      const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=en&smart_format=true&punctuate=true', {
+      // Call Deepgram API with lecture-optimized settings
+      const deepgramUrl = new URL('https://api.deepgram.com/v1/listen');
+      deepgramUrl.searchParams.set('model', 'nova-2-meeting'); // Optimized for lectures/discussions
+      deepgramUrl.searchParams.set('language', 'en');
+      deepgramUrl.searchParams.set('smart_format', 'true');
+      deepgramUrl.searchParams.set('punctuate', 'true');
+      deepgramUrl.searchParams.set('diarize', 'true'); // Speaker identification
+      deepgramUrl.searchParams.set('utterances', 'true'); // Better sentence breaks
+      deepgramUrl.searchParams.set('interim_results', 'true'); // Get partial results
+      deepgramUrl.searchParams.set('endpointing', '300'); // 300ms pause detection
+      deepgramUrl.searchParams.set('vad_events', 'true'); // Voice activity detection
+      
+      // Add academic keywords for better recognition
+      const keywords = [
+        'algorithm', 'analysis', 'application', 'approach', 'assessment', 'assumption',
+        'concept', 'conclusion', 'condition', 'configuration', 'connection', 'consideration',
+        'definition', 'demonstration', 'description', 'determination', 'development', 'discussion',
+        'equation', 'evaluation', 'example', 'explanation', 'expression', 'extension',
+        'formula', 'function', 'fundamental', 'hypothesis', 'implementation', 'interpretation',
+        'methodology', 'observation', 'optimization', 'organization', 'parameter', 'perspective',
+        'principle', 'procedure', 'process', 'proposition', 'relationship', 'representation',
+        'requirement', 'research', 'resolution', 'solution', 'specification', 'structure',
+        'technique', 'theory', 'understanding', 'validation', 'variable', 'verification'
+      ];
+      
+      deepgramUrl.searchParams.set('keywords', keywords.join(','));
+
+      const response = await fetch(deepgramUrl.toString(), {
         method: 'POST',
         headers: {
           'Authorization': `Token ${apiKey}`,
@@ -49,12 +75,33 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await response.json();
-      const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+      
+      // Extract transcript with better handling of partial/final results
+      const channel = result.results?.channels?.[0];
+      const alternative = channel?.alternatives?.[0];
+      const transcript = alternative?.transcript || '';
+      const confidence = alternative?.confidence || 0;
+      const isFinal = result.is_final || false;
+      
+      // Extract speaker information if available
+      const speaker = channel?.speaker || null;
+      
+      // Extract words with timestamps for better processing
+      const words = alternative?.words || [];
+      
+      // Extract utterances for better sentence structure
+      const utterances = result.utterances || [];
 
       return NextResponse.json({ 
         success: true, 
-        transcript,
-        confidence: result.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0
+        transcript: transcript.trim(),
+        confidence,
+        isFinal,
+        speaker,
+        words,
+        utterances,
+        wordCount: words.length,
+        processingTime: result.metadata?.processing_time || 0
       });
 
     }

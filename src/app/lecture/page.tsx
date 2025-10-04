@@ -61,6 +61,11 @@ export default function LiveLecturePage() {
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes' | 'flashcards' | 'keywords'>('transcript');
   const [notesViewMode, setNotesViewMode] = useState<'organized' | 'chronological'>('organized');
   
+  // Enhanced transcript display states
+  const [partialTranscript, setPartialTranscript] = useState<string>('');
+  const [transcriptConfidence, setTranscriptConfidence] = useState<number>(0);
+  const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
+  
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -69,6 +74,12 @@ export default function LiveLecturePage() {
   const sessionStartRef = useRef<number>(0);
   const transcriptBufferRef = useRef<string>('');
   const lastProcessTimeRef = useRef<number>(0);
+  
+  // Enhanced buffering for better Deepgram handling
+  const partialTranscriptsRef = useRef<string[]>([]);
+  const finalTranscriptsRef = useRef<string[]>([]);
+  const transcriptBufferWindowRef = useRef<number>(1000); // 1 second buffer window
+  const lastTranscriptTimeRef = useRef<number>(0);
 
   // Timer for session duration
   useEffect(() => {
@@ -311,22 +322,42 @@ export default function LiveLecturePage() {
       
       if (result.success && result.transcript) {
         const newTranscript = result.transcript.trim();
+        const isFinal = result.isFinal || false;
+        const confidence = result.confidence || 0;
+        const speaker = result.speaker;
+        
         if (newTranscript) {
-          console.log('New transcript:', newTranscript);
+          console.log(`Transcript (${isFinal ? 'FINAL' : 'PARTIAL'}, conf: ${confidence.toFixed(2)}):`, newTranscript);
           
-          // Use the transcript as-is for now (reconstruction happens in processing)
-          const reconstructedTranscript = newTranscript;
+          const now = Date.now();
+          lastTranscriptTimeRef.current = now;
           
-          setTranscript(prev => prev + ' ' + reconstructedTranscript);
-          transcriptBufferRef.current += ' ' + reconstructedTranscript;
+          if (isFinal) {
+            // Final transcript - process with AI recovery if needed
+            const processedTranscript = await processFinalTranscript(newTranscript, confidence);
+            
+            finalTranscriptsRef.current.push(processedTranscript);
+            setTranscript(prev => prev + ' ' + processedTranscript);
+            transcriptBufferRef.current += ' ' + processedTranscript;
+            
+            // Clear partial transcripts since we have final
+            partialTranscriptsRef.current = [];
+            setPartialTranscript(''); // Clear partial display
+          } else {
+            // Partial transcript - update live display
+            partialTranscriptsRef.current.push(newTranscript);
+            updatePartialTranscript(newTranscript, confidence, speaker);
+          }
           
           setConnectionStatus('connected');
           
-          // Process less frequently to avoid spam
-          const now = Date.now();
-          if (now - lastProcessTimeRef.current > 15000 || transcriptBufferRef.current.length > 500) {
-            await processTranscriptBuffer();
-            lastProcessTimeRef.current = now;
+          // Process final transcripts for notes generation
+          if (isFinal) {
+            const now = Date.now();
+            if (now - lastProcessTimeRef.current > 10000 || transcriptBufferRef.current.length > 300) {
+              await processTranscriptBuffer();
+              lastProcessTimeRef.current = now;
+            }
           }
         }
       }
@@ -384,6 +415,32 @@ export default function LiveLecturePage() {
     return text; // Return original if reconstruction fails
   };
 
+  // Handle partial transcript updates with buffer window
+  const updatePartialTranscript = (partialText: string, confidence: number, speaker: string | null) => {
+    setPartialTranscript(partialText);
+    setTranscriptConfidence(confidence);
+    setCurrentSpeaker(speaker);
+    
+    // Clear partial transcript after buffer window if no new partials arrive
+    setTimeout(() => {
+      const now = Date.now();
+      if (now - lastTranscriptTimeRef.current > transcriptBufferWindowRef.current) {
+        setPartialTranscript('');
+      }
+    }, transcriptBufferWindowRef.current);
+  };
+
+  // Process final transcript with AI-assisted recovery
+  const processFinalTranscript = async (finalText: string, confidence: number) => {
+    // If confidence is low, use AI to improve the transcript
+    if (confidence < 0.7) {
+      console.log('Low confidence transcript, applying AI recovery...');
+      const improvedText = await reconstructTranscript(finalText);
+      return improvedText || finalText;
+    }
+    return finalText;
+  };
+
   // Start recording
   const startRecording = async () => {
     try {
@@ -396,21 +453,23 @@ export default function LiveLecturePage() {
         throw new Error('Microphone access denied or not available');
       }
 
-      // Get audio stream
+      // Get audio stream with lecture-optimized settings
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000
+          sampleRate: 48000, // Higher sample rate for better quality
+          channelCount: 1 // Mono for better Deepgram performance
         }
       });
 
       streamRef.current = stream;
 
-      // Set up MediaRecorder
+      // Set up MediaRecorder with optimal settings for Deepgram
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 128000 // Higher bitrate for better quality
       });
 
       mediaRecorderRef.current = mediaRecorder;
@@ -426,8 +485,9 @@ export default function LiveLecturePage() {
         await processAudioChunks();
       };
 
-      // Start recording
-      mediaRecorder.start(2000); // Record in 2-second chunks
+      // Start recording with smaller chunks for better real-time performance
+      const chunkSize = 250; // 250ms chunks for optimal Deepgram performance
+      mediaRecorder.start(chunkSize);
       setIsRecording(true);
       sessionStartRef.current = Date.now();
       setSessionDuration(0);
@@ -435,13 +495,13 @@ export default function LiveLecturePage() {
       // Start first section
       startNewSection('Introduction');
 
-      // Process audio chunks every 2 seconds
+      // Process audio chunks more frequently for better real-time performance
       intervalRef.current = setInterval(async () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           mediaRecorderRef.current.stop();
-          mediaRecorderRef.current.start(2000);
+          mediaRecorderRef.current.start(chunkSize);
         }
-      }, 2000);
+      }, chunkSize);
 
       console.log('Recording started');
       setIsLoading(false);
@@ -762,14 +822,36 @@ export default function LiveLecturePage() {
               <h2 className="text-xl font-semibold text-white">
                 📝 Live Transcript
               </h2>
-              <div className="text-sm text-gray-400">
-                {transcript.split(' ').length} words
+              <div className="flex items-center space-x-4">
+                {currentSpeaker && (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span className="text-sm text-gray-400">Speaker {currentSpeaker}</span>
+                  </div>
+                )}
+                <div className="text-sm text-gray-400">
+                  {transcript.split(' ').length} words
+                  {transcriptConfidence > 0 && (
+                    <span className="ml-2 text-xs">
+                      ({Math.round(transcriptConfidence * 100)}% conf)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             
             <div className="h-96 overflow-y-auto bg-black/20 rounded-xl p-4 border border-white/10">
               {transcript ? (
-                <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">{transcript}</p>
+                <div className="text-gray-200 leading-relaxed">
+                  <div className="whitespace-pre-wrap">{transcript}</div>
+                  {partialTranscript && (
+                    <div className="mt-4 pt-4 border-t border-gray-600">
+                      <div className="text-gray-400 text-sm italic">
+                        Live: {partialTranscript}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <p className="text-gray-400 italic">Transcript will appear here...</p>
               )}

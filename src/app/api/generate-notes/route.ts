@@ -21,17 +21,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert AI assistant creating PERFECT, SMART lecture notes from transcripts. Your job is to create study-ready notes that are clear, organized, and actually useful for learning.
+    const prompt = `You are an expert AI assistant creating PERFECT, SMART lecture notes from corrected transcripts. Your job is to create study-ready notes that are clear, organized, and actually useful for learning.
 
 Context: ${context || 'General Lecture'}
 
 CRITICAL INSTRUCTIONS:
 1. Create SHORT, UNDERSTANDABLE notes that students can actually use
-2. Focus on ACTUAL LEARNING CONTENT, not just word extraction
+2. Focus on ACTUAL LEARNING CONTENT from the corrected transcript
 3. Make notes READABLE and LOGICAL, not fragmented
 4. Use proper formatting with clear hierarchy
 5. Include only MEANINGFUL information that helps with studying
-6. If transcript is unclear, create FEWER but BETTER notes
+6. Extract the MOST IMPORTANT concepts and key points
+7. Create notes that are PERFECT for exam preparation
 
 Transcript: "${text}"
 
@@ -41,11 +42,12 @@ Create SMART, READABLE notes that are:
 - WELL-ORGANIZED with clear structure
 - FOCUSED on actual learning content
 - PROFESSIONAL quality for academic use
+- PERFECT for studying and exam preparation
 
 Return a JSON array of note objects with this structure:
 [
   {
-    "content": "• **Main Topic**: Clear, concise explanation\n• **Key Points**:\n  - Important detail 1\n  - Important detail 2\n• **Important Terms**: Key vocabulary with brief definitions",
+    "content": "• **Main Concept**: Clear, concise explanation\n• **Key Points**:\n  - Important detail 1\n  - Important detail 2\n• **Important Terms**: Key vocabulary with brief definitions",
     "type": "key_point|definition|example|concept",
     "importance": "high|medium|low",
     "title": "Clear topic title (2-4 words)",
@@ -56,16 +58,17 @@ Return a JSON array of note objects with this structure:
 ]
 
 SMART FORMATTING RULES:
-- Use **bold** for main topics and key terms
+- Use **bold** for main concepts and key terms
 - Use bullet points (•) for main points
 - Use sub-bullets (-) for supporting details
-- Keep each note FOCUSED on ONE main topic
+- Keep each note FOCUSED on ONE main concept
 - Make titles SHORT and DESCRIPTIVE
 - Only include content that makes SENSE for studying
-- If transcript is unclear, create FEWER but BETTER notes
+- Extract the MOST IMPORTANT information only
 - Focus on QUALITY over quantity
+- Make notes PERFECT for exam preparation
 
-Generate 1-2 high-quality notes maximum. Focus on creating notes that are actually useful for studying.`;
+Generate 1-2 high-quality notes maximum. Focus on creating notes that are actually useful for studying and exam preparation.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

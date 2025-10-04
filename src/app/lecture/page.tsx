@@ -134,7 +134,7 @@ export default function LiveLecturePage() {
   // Generate smart notes using AI with fallback
   const generateSmartNotes = async (text: string) => {
     try {
-      console.log('Generating smart notes for text:', text.substring(0, 100) + '...');
+      console.log('Generating smart notes for corrected transcript:', text.substring(0, 100) + '...');
       
       // First try AI generation
       const response = await fetch('/api/generate-notes', {
@@ -241,6 +241,8 @@ export default function LiveLecturePage() {
   // Generate flashcards using AI
   const generateFlashcards = async (text: string) => {
     try {
+      console.log('Generating flashcards for corrected transcript:', text.substring(0, 100) + '...');
+      
       const response = await fetch('/api/generate-flashcards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -253,6 +255,8 @@ export default function LiveLecturePage() {
 
       if (response.ok) {
         const result = await response.json();
+        console.log('Flashcards generation result:', result);
+        
         if (result.flashcards && Array.isArray(result.flashcards)) {
           const newFlashcards: Flashcard[] = result.flashcards.map((card: any, index: number) => ({
             id: `card_${Date.now()}_${index}`,
@@ -262,6 +266,7 @@ export default function LiveLecturePage() {
             category: currentSection?.title || 'General'
           }));
           
+          console.log('Adding new flashcards:', newFlashcards.length);
           setFlashcards(prev => [...prev, ...newFlashcards]);
           
           // Add to current section
@@ -272,6 +277,8 @@ export default function LiveLecturePage() {
             } : null);
           }
         }
+      } else {
+        console.error('Flashcards generation failed:', response.status);
       }
     } catch (error) {
       console.error('Error generating flashcards:', error);
@@ -281,22 +288,32 @@ export default function LiveLecturePage() {
   // Extract keywords
   const extractKeywords = async (text: string) => {
     try {
+      console.log('Extracting keywords for corrected transcript:', text.substring(0, 100) + '...');
+      
       const response = await fetch('/api/extract-keywords', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ 
+          text,
+          context: currentSection?.title || 'General Lecture'
+        })
       });
 
       if (response.ok) {
         const result = await response.json();
+        console.log('Keywords extraction result:', result);
+        
         if (result.keywords && Array.isArray(result.keywords)) {
           setKeywords(prev => {
             const newKeywords = result.keywords.filter((kw: Keyword) => 
               !prev.some(existing => existing.term === kw.term)
             );
+            console.log('Adding new keywords:', newKeywords.length);
             return [...prev, ...newKeywords];
           });
         }
+      } else {
+        console.error('Keywords extraction failed:', response.status);
       }
     } catch (error) {
       console.error('Error extracting keywords:', error);
@@ -417,19 +434,19 @@ export default function LiveLecturePage() {
 
   // Process accumulated transcript for smart features
   const processTranscriptBuffer = async () => {
-    if (transcriptBufferRef.current.length < 150) return; // Higher threshold for better content
+    if (transcriptBufferRef.current.length < 200) return; // Higher threshold for better content
     
     const text = transcriptBufferRef.current;
     console.log('Processing transcript buffer for smart features:', text);
     
     // Generate notes if we have meaningful content
-    if (text.length > 150) {
+    if (text.length > 200) {
       console.log('Generating smart notes...');
       await generateSmartNotes(text);
     }
     
     // Generate flashcards and keywords if we have decent text
-    if (text.length > 300) {
+    if (text.length > 400) {
       console.log('Generating flashcards and keywords...');
       await generateFlashcards(text);
       await extractKeywords(text);

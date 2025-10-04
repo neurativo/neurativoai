@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert AI assistant extracting SMART, USEFUL keywords from lecture transcripts. Your job is to identify the most important terms that students need to know for studying.
+    const prompt = `You are an expert AI assistant extracting SMART, USEFUL keywords from corrected lecture transcripts. Your job is to identify the most important terms that students need to know for studying.
 
 CRITICAL INSTRUCTIONS:
 1. Extract ONLY the MOST IMPORTANT keywords and concepts
@@ -29,7 +29,8 @@ CRITICAL INSTRUCTIONS:
 3. Include technical terms, key concepts, and important vocabulary
 4. Make descriptions CLEAR and HELPFUL for studying
 5. Prioritize QUALITY over quantity
-6. Only include terms that are ACTUALLY MENTIONED in the transcript
+6. Only include terms that are ACTUALLY MENTIONED in the corrected transcript
+7. Extract the MOST IMPORTANT terms for exam preparation
 
 Text: "${text}"
 
@@ -39,6 +40,7 @@ Extract SMART, USEFUL keywords that are:
 - Relevant to the actual lecture content
 - Useful for studying and exam preparation
 - Properly categorized by type
+- PERFECT for exam preparation
 
 Return a JSON array of keyword objects with this structure:
 [
@@ -57,8 +59,10 @@ SMART GUIDELINES:
 - Ensure all terms are relevant to the lecture
 - Prioritize terms that are essential for understanding
 - Focus on QUALITY over quantity
+- Extract the MOST IMPORTANT information only
+- Make keywords PERFECT for exam preparation
 
-Extract keywords that are actually useful for studying.`;
+Extract keywords that are actually useful for studying and exam preparation.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

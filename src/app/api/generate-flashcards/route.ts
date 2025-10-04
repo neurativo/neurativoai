@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert AI assistant creating PERFECT, SMART flashcards from lecture transcripts. Your job is to create study-ready flashcards that help students learn and retain information effectively.
+    const prompt = `You are an expert AI assistant creating PERFECT, SMART flashcards from corrected lecture transcripts. Your job is to create study-ready flashcards that help students learn and retain information effectively.
 
 Context: ${context || 'General Lecture'}
 
@@ -33,16 +33,19 @@ CRITICAL INSTRUCTIONS:
 5. Use PROPER ACADEMIC TERMINOLOGY
 6. Ensure questions are RELEVANT to the actual lecture content
 7. Create flashcards that are ACTUALLY USEFUL for studying
+8. Extract the MOST IMPORTANT concepts from the corrected transcript
+9. Make flashcards PERFECT for exam preparation
 
 Transcript: "${text}"
 
 Create SMART, USEFUL flashcards that are:
-- Focused on the MOST IMPORTANT concepts from the transcript
+- Focused on the MOST IMPORTANT concepts from the corrected transcript
 - Clear and specific in their questions
 - Complete but concise in their answers
 - Relevant to the actual lecture content
 - Useful for studying and exam preparation
 - Easy to understand and memorize
+- PERFECT for exam preparation
 
 Create exactly ${count} flashcards. Return a JSON array of flashcard objects with this structure:
 [
@@ -55,13 +58,15 @@ Create exactly ${count} flashcards. Return a JSON array of flashcard objects wit
 ]
 
 SMART GUIDELINES:
-- Focus on the MOST IMPORTANT concepts from the transcript
+- Focus on the MOST IMPORTANT concepts from the corrected transcript
 - Make questions test understanding, not just recall
 - Keep answers complete but concise (2-3 sentences max)
 - Use proper academic terminology
 - Ensure all content is relevant to the lecture
 - Make flashcards that are EASY to study with
 - Focus on QUALITY over quantity
+- Extract the MOST IMPORTANT information only
+- Make flashcards PERFECT for exam preparation
 - Use bullet points (•) for lists
 - Use numbered lists (1., 2., 3.) for steps
 - Use > for important quotes or examples

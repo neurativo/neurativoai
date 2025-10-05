@@ -68,6 +68,13 @@ export default function LiveLecturePage() {
   const [aiReconstructionEnabled, setAiReconstructionEnabled] = useState<boolean>(true);
   const [reconstructionFailures, setReconstructionFailures] = useState<number>(0);
   
+  // Real-time confidence-aware buffer states
+  const [rawTranscript, setRawTranscript] = useState<string>('');
+  const [polishedTranscript, setPolishedTranscript] = useState<string>('');
+  const [showRawTranscript, setShowRawTranscript] = useState<boolean>(false);
+  const [lowConfidenceBuffer, setLowConfidenceBuffer] = useState<string>('');
+  const [bufferTimeout, setBufferTimeout] = useState<NodeJS.Timeout | null>(null);
+  
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -80,6 +87,10 @@ export default function LiveLecturePage() {
   // Simplified buffering
   const lastTranscriptTimeRef = useRef<number>(0);
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Topic continuity watchdog
+  const topicContextRef = useRef<string[]>([]);
+  const lastTopicRef = useRef<string>('');
 
   // Timer for session duration
   useEffect(() => {
@@ -407,6 +418,18 @@ export default function LiveLecturePage() {
             clearTimeout(flushTimeoutRef.current);
           }
           
+          // Use confidence-aware buffer system
+          handleLowConfidenceText(newTranscript, confidence);
+          
+          // Check topic continuity for final transcripts
+          if (isFinal) {
+            const topicFits = await checkTopicContinuity(newTranscript);
+            if (!topicFits) {
+              console.log('Topic continuity check failed - segment discarded');
+              return;
+            }
+          }
+          
           // Confidence-aware triggers for correction
           const needsCorrection = shouldTriggerCorrection(newTranscript, confidence, transcriptBufferRef.current);
           
@@ -416,12 +439,11 @@ export default function LiveLecturePage() {
             const processedText = await processTranscript(transcriptBufferRef.current, confidence);
             console.log(`Processed text: "${processedText}"`);
             
-            // Add to main transcript
-            setTranscript(prev => {
-              const newText = prev + ' ' + processedText;
-              console.log(`Total transcript length: ${newText.length}`);
-              return newText;
-            });
+            // Add to both raw and polished transcripts
+            setRawTranscript(prev => prev + ' ' + transcriptBufferRef.current);
+            if (processedText) {
+              setPolishedTranscript(prev => prev + ' ' + processedText);
+            }
             
             // Clear buffer for next sentence
             transcriptBufferRef.current = '';
@@ -545,7 +567,7 @@ export default function LiveLecturePage() {
     return similarity;
   };
 
-  // Enhanced confidence-aware triggers for physics lectures
+  // Enhanced confidence-aware triggers with filler detection
   const shouldTriggerCorrection = (newTranscript: string, confidence: number, buffer: string): boolean => {
     // Low confidence trigger (more sensitive for physics)
     if (confidence < 0.65) {
@@ -553,10 +575,22 @@ export default function LiveLecturePage() {
       return true;
     }
     
-    // Physics-specific broken patterns
-    const physicsBrokenPatterns = [
+    // Filler word detection patterns
+    const fillerPatterns = [
+      /\b(uh|hmm|like|right|okay|you know|alright|so|um)\b/i, // Common fillers
       /\b(right|uh|um|okay|so)\b.*\b(right|uh|um|okay|so)\b/i, // Multiple filler words
       /\b\d+\b.*\b(right|uh|um|okay|so)\b/i, // Numbers followed by filler words
+    ];
+    
+    for (const pattern of fillerPatterns) {
+      if (pattern.test(newTranscript) || pattern.test(buffer)) {
+        console.log('Filler word trigger:', pattern);
+        return true;
+      }
+    }
+    
+    // Physics-specific broken patterns
+    const physicsBrokenPatterns = [
       /\.\s*[A-Z][a-z]*\s*\./g, // Word. Word. pattern
       /\b\w+\s*\.\s*\w+\s*\.\s*\w+\s*\./g, // Multiple single words with periods
       /\b(equals|times|plus|minus|divided)\b.*\b(something|blank|missing)\b/i, // Incomplete equations
@@ -611,6 +645,93 @@ export default function LiveLecturePage() {
     }
     
     return false;
+  };
+
+  // Topic continuity watchdog
+  const checkTopicContinuity = async (newSegment: string): Promise<boolean> => {
+    if (topicContextRef.current.length === 0) {
+      topicContextRef.current.push(newSegment);
+      lastTopicRef.current = newSegment;
+      return true;
+    }
+
+    // Get last 3 sentences for context
+    const context = topicContextRef.current.slice(-3).join(' ');
+    
+    try {
+      const response = await fetch('/api/check-topic-continuity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          newSegment,
+          context,
+          lastTopic: lastTopicRef.current
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.fitsContext) {
+          topicContextRef.current.push(newSegment);
+          lastTopicRef.current = newSegment;
+          return true;
+        } else {
+          console.log('Topic continuity check failed - segment discarded');
+          return false;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking topic continuity:', error);
+    }
+
+    // Fallback: simple keyword matching
+    const contextWords = context.toLowerCase().split(/\s+/);
+    const segmentWords = newSegment.toLowerCase().split(/\s+/);
+    const commonWords = contextWords.filter(word => segmentWords.includes(word));
+    const similarity = commonWords.length / Math.max(contextWords.length, segmentWords.length);
+    
+    if (similarity > 0.3) {
+      topicContextRef.current.push(newSegment);
+      lastTopicRef.current = newSegment;
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Real-time confidence-aware buffer
+  const handleLowConfidenceText = (text: string, confidence: number) => {
+    if (confidence < 0.7) {
+      setLowConfidenceBuffer(prev => prev + ' ' + text);
+      
+      // Clear existing timeout
+      if (bufferTimeout) {
+        clearTimeout(bufferTimeout);
+      }
+      
+      // Set new timeout to process buffer after 500ms
+      const timeout = setTimeout(async () => {
+        if (lowConfidenceBuffer.trim().length > 0) {
+          console.log('Processing low confidence buffer:', lowConfidenceBuffer);
+          const processedText = await processTranscript(lowConfidenceBuffer, 0.5);
+          if (processedText) {
+            setRawTranscript(prev => prev + ' ' + processedText);
+            setPolishedTranscript(prev => prev + ' ' + processedText);
+          }
+          setLowConfidenceBuffer('');
+        }
+      }, 500);
+      
+      setBufferTimeout(timeout);
+    } else {
+      // High confidence - process immediately
+      setRawTranscript(prev => prev + ' ' + text);
+      processTranscript(text, confidence).then(processedText => {
+        if (processedText) {
+          setPolishedTranscript(prev => prev + ' ' + processedText);
+        }
+      });
+    }
   };
 
   // Flush incomplete sentences after timeout
@@ -1061,20 +1182,55 @@ export default function LiveLecturePage() {
             </div>
             </div>
             
+            {/* Transcript Toggle */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setShowRawTranscript(false)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                  !showRawTranscript
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                }`}
+              >
+                🤍 Polished
+              </button>
+              <button
+                onClick={() => setShowRawTranscript(true)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                  showRawTranscript
+                    ? 'bg-gray-500 text-white'
+                    : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                }`}
+              >
+                🩶 Raw
+              </button>
+            </div>
+
             <div className="h-96 overflow-y-auto bg-black/20 rounded-xl p-4 border border-white/10">
-              {transcript ? (
-                <div className="text-white leading-relaxed">
-                  <div className="whitespace-pre-wrap">{transcript}</div>
-                  {partialTranscript && (
+              {showRawTranscript ? (
+                // Raw transcript (gray)
+                <div className="text-gray-400 leading-relaxed">
+                  <div className="whitespace-pre-wrap">{rawTranscript || 'Raw transcript will appear here...'}</div>
+                  {lowConfidenceBuffer && (
                     <div className="mt-4 pt-4 border-t border-gray-600">
-                      <div className="text-gray-400 text-sm italic">
-                        Raw: {partialTranscript}
+                      <div className="text-yellow-400 text-sm italic">
+                        Buffering: {lowConfidenceBuffer}
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-gray-400 italic">Transcript will appear here...</p>
+                // Polished transcript (white)
+                <div className="text-white leading-relaxed">
+                  <div className="whitespace-pre-wrap">{polishedTranscript || 'Polished transcript will appear here...'}</div>
+                  {partialTranscript && (
+                    <div className="mt-4 pt-4 border-t border-gray-600">
+                      <div className="text-blue-300 text-sm italic">
+                        Processing: {partialTranscript}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

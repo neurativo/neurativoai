@@ -21,14 +21,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert physics lecture transcript corrector and equation formatter.
+    const prompt = `You are an expert lecture transcript cleaner and physics equation formatter.
 
-Input will be raw speech-to-text chunks that may contain errors, missing words, and broken sentences from physics lectures.
+Input will be raw speech-to-text chunks that may contain errors, missing words, and broken sentences from lectures.
 
 Your job:
+- Remove filler words such as "uh", "hmm", "like", "right", "okay", "you know", "alright"
+- If a filler occurs in the middle of a sentence, replace it with a natural pause or merge contextually
+- Keep all educational or technical content intact
 - Fix grammar and sentence structure for academic clarity
 - Restore missing words if context makes it obvious
-- Remove random filler phrases like "right", "uh", "okay", "yeah" that don't belong
 - Ensure the transcript flows naturally while staying faithful to the speaker's meaning
 - Keep technical/physics terms accurate and properly formatted
 - Connect broken phrases into complete, coherent sentences
@@ -36,24 +38,27 @@ Your job:
 - Fix incomplete words (e.g., "intel" → "intelligence")
 - Detect and properly format physics equations and formulas
 - Expand physics abbreviations and symbols correctly
-- Handle colloquial physics expressions professionally
+- Handle colloquial expressions professionally
 
-Context: ${context || 'Physics Lecture'}
+Context: ${context || 'Lecture'}
 
-SPECIAL PHYSICS HANDLING:
+FILLER REMOVAL EXAMPLES:
+- "Machine learning aims uh to teach a machine hmm to perform right a specific task" → "Machine learning aims to teach a machine to perform a specific task"
+- "So uh this algorithm right works by like optimizing input patterns" → "This algorithm works by optimizing input patterns"
+- "Okay so we have uh the equation F equals ma right" → "We have the equation F = ma"
+
+PHYSICS EQUATION HANDLING:
 - Convert "F equals M times A" → "F = ma (Newton's Second Law)"
 - Convert "E equals M C squared" → "E = mc² (Einstein's mass-energy equivalence)"
 - Convert "V equals I R" → "V = IR (Ohm's Law)"
 - Convert "K E equals one half M V squared" → "KE = ½mv² (kinetic energy)"
 - Convert "P equals M V" → "p = mv (momentum)"
 - Convert "F equals G M M over R squared" → "F = GMm/r² (gravitational force)"
-- Expand "right, right, okay" → remove or compress to "Now"
-- Convert "this one's fun" → "This is an interesting example"
 - Handle Greek letters: "theta" → "θ", "alpha" → "α", "beta" → "β"
 
 Input: "${text}"
 
-Transform this fragmented speech into perfect, readable physics lecture text with properly formatted equations. Return only the corrected transcript, no JSON or additional formatting.`;
+Transform this fragmented speech into perfect, readable lecture text with properly formatted equations and no filler words. Return only the corrected transcript, no JSON or additional formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

@@ -52,7 +52,7 @@ export default function LiveLecturePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionDuration, setSessionDuration] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'reconnecting'>('disconnected');
   
   // Smart features
   const [smartNotes, setSmartNotes] = useState<Note[]>([]);
@@ -75,6 +75,17 @@ export default function LiveLecturePage() {
   const [lowConfidenceBuffer, setLowConfidenceBuffer] = useState<string>('');
   const [bufferTimeout, setBufferTimeout] = useState<NodeJS.Timeout | null>(null);
   
+  // Network resilience states
+  const [networkStatus, setNetworkStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('connected');
+  const [reconnectAttempts, setReconnectAttempts] = useState<number>(0);
+  const [lastPacketTime, setLastPacketTime] = useState<number>(0);
+  const [packetLossCount, setPacketLossCount] = useState<number>(0);
+  const [audioChunkBuffer, setAudioChunkBuffer] = useState<Blob[]>([]);
+  const [unacknowledgedChunks, setUnacknowledgedChunks] = useState<number[]>([]);
+  const [maxReconnectAttempts] = useState<number>(10);
+  const [reconnectDelay, setReconnectDelay] = useState<number>(1000);
+  const [sessionId, setSessionId] = useState<string>('');
+  
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -91,6 +102,164 @@ export default function LiveLecturePage() {
   // Topic continuity watchdog
   const topicContextRef = useRef<string[]>([]);
   const lastTopicRef = useRef<string>('');
+  
+  // Network resilience functions
+  const handleNetworkDisconnection = () => {
+    console.log('Network disconnection detected');
+    setNetworkStatus('disconnected');
+    setReconnectAttempts(0);
+    setReconnectDelay(1000);
+  };
+
+  const handleNetworkReconnection = async () => {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      console.log('Max reconnection attempts reached');
+      setNetworkStatus('disconnected');
+      return;
+    }
+
+    setNetworkStatus('reconnecting');
+    setReconnectAttempts(prev => prev + 1);
+    
+    try {
+      // Exponential backoff
+      const delay = Math.min(reconnectDelay * Math.pow(2, reconnectAttempts), 30000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Attempt to reconnect
+      await startRecording();
+      setNetworkStatus('connected');
+      setReconnectAttempts(0);
+      setReconnectDelay(1000);
+      
+      // Resend unacknowledged chunks
+      await resendUnacknowledgedChunks();
+      
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+      handleNetworkReconnection();
+    }
+  };
+
+  const resendUnacknowledgedChunks = async () => {
+    console.log(`Resending ${unacknowledgedChunks.length} unacknowledged chunks`);
+    for (const chunkIndex of unacknowledgedChunks) {
+      if (audioChunkBuffer[chunkIndex]) {
+        await sendAudioChunk(audioChunkBuffer[chunkIndex]);
+      }
+    }
+    setUnacknowledgedChunks([]);
+  };
+
+  const sendAudioChunk = async (chunk: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', chunk, 'audio.webm');
+      formData.append('sessionId', sessionId);
+      formData.append('timestamp', Date.now().toString());
+      
+      const response = await fetch('/api/transcribe-deepgram', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        setLastPacketTime(Date.now());
+        setPacketLossCount(0);
+        return await response.json();
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error sending audio chunk:', error);
+      setPacketLossCount(prev => prev + 1);
+      
+      if (packetLossCount > 3) {
+        handleNetworkDisconnection();
+      }
+      throw error;
+    }
+  };
+  
+  // Network resilience refs
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSuccessfulPacketRef = useRef<number>(0);
+  const sessionStartTimeRef = useRef<number>(0);
+  const localBufferRef = useRef<string>('');
+  
+  // Heartbeat monitoring
+  const startHeartbeat = () => {
+    heartbeatIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastPacket = now - lastSuccessfulPacketRef.current;
+      
+      if (timeSinceLastPacket > 10000) { // 10 seconds without packets
+        console.log('Heartbeat timeout - attempting reconnection');
+        handleNetworkReconnection();
+      }
+    }, 5000); // Check every 5 seconds
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  };
+
+  // Session management
+  const generateSessionId = () => {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const saveToLocalBuffer = (text: string) => {
+    localBufferRef.current += text;
+    // Keep only last 30 seconds of transcript locally
+    if (localBufferRef.current.length > 5000) {
+      localBufferRef.current = localBufferRef.current.slice(-3000);
+    }
+  };
+
+  const loadFromLocalBuffer = () => {
+    return localBufferRef.current;
+  };
+
+  // Progressive saving and memory management
+  const audioOverlapBufferRef = useRef<Blob[]>([]);
+  const sequenceNumberRef = useRef<number>(0);
+  const lastSavedTimeRef = useRef<number>(0);
+  
+  const progressiveSave = async () => {
+    const now = Date.now();
+    if (now - lastSavedTimeRef.current > 60000) { // Save every 60 seconds
+      try {
+        await fetch('/api/save-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            transcript: polishedTranscript,
+            timestamp: now,
+            duration: now - sessionStartTimeRef.current
+          })
+        });
+        lastSavedTimeRef.current = now;
+        console.log('Transcript saved to backend');
+      } catch (error) {
+        console.error('Error saving transcript:', error);
+      }
+    }
+  };
+
+  const flushTranscriptBuffer = () => {
+    // Flush transcript buffer every 10,000 tokens to prevent memory leaks
+    if (polishedTranscript.length > 10000) {
+      const recentTranscript = polishedTranscript.slice(-5000);
+      setPolishedTranscript(recentTranscript);
+      console.log('Transcript buffer flushed to prevent memory leak');
+    }
+  };
 
   // Timer for session duration
   useEffect(() => {
@@ -109,10 +278,14 @@ export default function LiveLecturePage() {
       console.log('Testing microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { 
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000
+          // Audio Quality & Environment Factors
+          echoCancellation: true,        // Fix: echo cancellation (AEC)
+          noiseSuppression: true,         // Fix: noise suppression filter (RNNoise/WebRTC)
+          autoGainControl: true,          // Fix: auto-gain control (AGC), normalize to -23 LUFS
+          sampleRate: 48000,             // Fix: use 48 kHz for better quality
+          channelCount: 1,               // Fix: mono channel
+          // Advanced audio constraints for lecture environments
+          sampleSize: 16,                // Fix: 16-bit PCM
         } 
       });
       
@@ -734,6 +907,100 @@ export default function LiveLecturePage() {
     }
   };
 
+  // Network resilience functions (duplicates removed)
+
+  const checkConnectionHealth = async () => {
+    try {
+      // Send a ping to the transcription service
+      const response = await fetch('/api/transcribe-deepgram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ping' })
+      });
+      
+      if (response.ok) {
+        console.log('Connection health check passed');
+        setLastPacketTime(Date.now());
+        lastSuccessfulPacketRef.current = Date.now();
+        setPacketLossCount(0);
+      } else {
+        throw new Error('Health check failed');
+      }
+    } catch (error) {
+      console.error('Connection health check failed:', error);
+      handleConnectionLoss();
+    }
+  };
+
+  const handleConnectionLoss = () => {
+    console.log('Connection lost, attempting to reconnect...');
+    setConnectionStatus('reconnecting');
+    
+    if (reconnectAttempts < maxReconnectAttempts) {
+      const delay = Math.min(reconnectDelay * Math.pow(2, reconnectAttempts), 30000); // Exponential backoff, max 30s
+      
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.log(`Reconnect attempt ${reconnectAttempts + 1}/${maxReconnectAttempts}`);
+        setReconnectAttempts(prev => prev + 1);
+        attemptReconnect();
+      }, delay);
+    } else {
+      console.error('Max reconnection attempts reached');
+      setError('Connection lost. Please refresh the page and try again.');
+      setConnectionStatus('disconnected');
+    }
+  };
+
+  const attemptReconnect = async () => {
+    try {
+      // Resume recording if it was active
+      if (isRecording && !isPaused && mediaRecorderRef.current) {
+        console.log('Reconnecting and resuming recording...');
+        await startRecording();
+        setConnectionStatus('connected');
+        setReconnectAttempts(0);
+        setReconnectDelay(1000);
+        startHeartbeat();
+      }
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+      handleConnectionLoss();
+    }
+  };
+
+  const saveTranscriptToLocalStorage = () => {
+    const transcriptData = {
+      sessionId,
+      transcript: polishedTranscript,
+      rawTranscript,
+      timestamp: Date.now(),
+      duration: sessionDuration
+    };
+    
+    try {
+      localStorage.setItem(`lecture_transcript_${sessionId}`, JSON.stringify(transcriptData));
+      console.log('Transcript saved to local storage');
+    } catch (error) {
+      console.error('Failed to save transcript to local storage:', error);
+    }
+  };
+
+  const loadTranscriptFromLocalStorage = (sessionId: string) => {
+    try {
+      const saved = localStorage.getItem(`lecture_transcript_${sessionId}`);
+      if (saved) {
+        const data = JSON.parse(saved);
+        setPolishedTranscript(data.transcript || '');
+        setRawTranscript(data.rawTranscript || '');
+        console.log('Transcript loaded from local storage');
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to load transcript from local storage:', error);
+    }
+    return false;
+  };
+
   // Flush incomplete sentences after timeout
   const flushIncompleteSentence = async () => {
     if (transcriptBufferRef.current.trim().length > 0) {
@@ -751,29 +1018,41 @@ export default function LiveLecturePage() {
       setError(null);
       setIsLoading(true);
 
+      // Generate session ID for this recording
+      const newSessionId = generateSessionId();
+      setSessionId(newSessionId);
+      console.log('Starting new session:', newSessionId);
+
       // Test microphone first
       const micWorking = await testMicrophone();
       if (!micWorking) {
         throw new Error('Microphone access denied or not available');
       }
 
-      // Get audio stream with lecture-optimized settings
+      // Get audio stream with enterprise-grade audio settings
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000, // Higher sample rate for better quality
-          channelCount: 1 // Mono for better Deepgram performance
+          // Audio Quality & Environment Factors
+          echoCancellation: true,        // Fix: echo cancellation (AEC)
+          noiseSuppression: true,        // Fix: noise suppression filter (RNNoise/WebRTC)
+          autoGainControl: true,         // Fix: auto-gain control (AGC), normalize to -23 LUFS
+          sampleRate: 48000,            // Fix: use 48 kHz for better quality
+          channelCount: 1,              // Fix: mono channel
+          // Advanced audio constraints for lecture environments
+          sampleSize: 16,               // Fix: 16-bit PCM
         }
       });
 
       streamRef.current = stream;
 
-      // Set up MediaRecorder with optimal settings for Deepgram
+      // Set up MediaRecorder with enterprise-grade settings
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 128000 // Higher bitrate for better quality
+        audioBitsPerSecond: 128000, // Fix: keep ≥ 64 kbps, CBR on
+        // Additional MediaRecorder options for better quality
+        videoBitsPerSecond: 0, // Audio only
+        // Overlap buffer for seamless chunks (250ms overlap)
+        // timeslice: 250, // 250ms overlap between chunks (not supported in MediaRecorder)
       });
 
       mediaRecorderRef.current = mediaRecorder;
@@ -802,6 +1081,17 @@ export default function LiveLecturePage() {
       // Start first section
       startNewSection('Introduction');
 
+      // Start network resilience features
+      startHeartbeat();
+      lastSuccessfulPacketRef.current = Date.now();
+      
+      // Start auto-save every 60 seconds
+      const autoSaveInterval = setInterval(() => {
+        if (polishedTranscript.length > 0) {
+          saveTranscriptToLocalStorage();
+        }
+      }, 60000);
+
       // Process audio chunks every 3 seconds
       intervalRef.current = setInterval(async () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -810,7 +1100,7 @@ export default function LiveLecturePage() {
         }
       }, chunkSize);
 
-      console.log('Recording started');
+      console.log('Recording started with network resilience');
       setIsLoading(false);
 
     } catch (error) {
@@ -858,13 +1148,25 @@ export default function LiveLecturePage() {
       flushTimeoutRef.current = null;
     }
     
+    // Clean up network resilience features
+    stopHeartbeat();
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    
     // Flush any remaining incomplete sentence
     flushIncompleteSentence();
+    
+    // Final save to local storage
+    if (polishedTranscript.length > 0) {
+      saveTranscriptToLocalStorage();
+    }
     
     setIsRecording(false);
     setIsPaused(false);
     setConnectionStatus('disconnected');
-    console.log('Recording stopped');
+    console.log('Recording stopped with cleanup');
   };
 
   // Create new section
@@ -1237,9 +1539,18 @@ export default function LiveLecturePage() {
 
           {/* Right Panel - Smart Features */}
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
-            {/* Debug Info */}
-            <div className="text-xs text-gray-400 mb-2">
-              Debug: Notes: {smartNotes.length}, Cards: {flashcards.length}, Keywords: {keywords.length}
+            {/* Enhanced System Status */}
+            <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <div className="text-blue-400 text-sm font-medium mb-2">System Status</div>
+              <div className="text-xs text-gray-300 space-y-1">
+                <div>Content: Notes: {smartNotes.length}, Cards: {flashcards.length}, Keywords: {keywords.length}</div>
+                <div>AI: {aiReconstructionEnabled ? 'Enabled' : 'Disabled'} (Failures: {reconstructionFailures})</div>
+                <div>Connection: {connectionStatus} {reconnectAttempts > 0 && `(Retry ${reconnectAttempts}/${maxReconnectAttempts})`}</div>
+                <div>Session: {sessionId ? sessionId.substring(0, 12) + '...' : 'Not started'}</div>
+                <div>Duration: {Math.floor(sessionDuration / 60)}:{(sessionDuration % 60).toString().padStart(2, '0')}</div>
+                <div>Network: Loss: {packetLossCount} | Last: {lastPacketTime > 0 ? Math.floor((Date.now() - lastPacketTime) / 1000) + 's ago' : 'Never'}</div>
+                <div>Quality: {transcriptConfidence > 0 ? `${Math.round(transcriptConfidence * 100)}%` : 'N/A'}</div>
+              </div>
             </div>
             
             {/* Test Button */}

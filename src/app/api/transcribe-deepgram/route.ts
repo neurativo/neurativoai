@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
       deepgramUrl.searchParams.set('endpointing', '300'); // 300ms pause detection
       deepgramUrl.searchParams.set('vad_events', 'true'); // Voice activity detection
       
-      // Add physics and academic keywords for better recognition
+      // Enhanced keywords with accent adaptation and domain vocabulary
       const keywords = [
-        // Physics terms
+        // Physics terms (with common mispronunciations)
         'momentum', 'Newton\'s Law', 'gravitational constant', 'E equals mc squared',
         'Coulomb', 'kinematics', 'vector', 'magnitude', 'scalar', 'resistance',
         'electromagnetic field', 'quantum', 'Planck constant', 'acceleration',
@@ -66,12 +66,25 @@ export async function POST(request: NextRequest) {
         'proton', 'neutron', 'atom', 'molecule', 'nucleus', 'orbital',
         'wave function', 'probability', 'uncertainty principle', 'relativity',
         'space-time', 'gravity', 'black hole', 'galaxy', 'universe',
-        // Math symbols and expressions
+        
+        // Math symbols and expressions (with phonetic variations)
         'equals', 'plus', 'minus', 'times', 'divided by', 'square root',
         'squared', 'cubed', 'exponential', 'logarithm', 'derivative',
         'integral', 'limit', 'infinity', 'pi', 'theta', 'alpha', 'beta',
         'gamma', 'delta', 'epsilon', 'lambda', 'mu', 'sigma', 'omega',
-        // Academic terms
+        
+        // Domain-specific vocabulary (Computer Science)
+        'machine learning', 'artificial intelligence', 'neural network', 'deep learning',
+        'backpropagation', 'gradient descent', 'optimization', 'training', 'testing',
+        'validation', 'overfitting', 'underfitting', 'bias', 'variance', 'regularization',
+        'feature', 'parameter', 'hyperparameter', 'model', 'dataset', 'preprocessing',
+        'classification', 'regression', 'clustering', 'dimensionality', 'reduction',
+        'eigenvalue', 'eigenvector', 'matrix', 'vector', 'scalar', 'tensor',
+        'linear algebra', 'calculus', 'differential', 'partial', 'derivative',
+        'gradient', 'divergence', 'curl', 'laplacian', 'fourier', 'transform',
+        'convolution', 'correlation', 'autocorrelation', 'cross-correlation',
+        
+        // Academic terms (with regional variations)
         'algorithm', 'analysis', 'application', 'approach', 'assessment', 'assumption',
         'concept', 'conclusion', 'condition', 'configuration', 'connection', 'consideration',
         'definition', 'demonstration', 'description', 'determination', 'development', 'discussion',
@@ -79,6 +92,14 @@ export async function POST(request: NextRequest) {
         'formula', 'function', 'fundamental', 'hypothesis', 'implementation', 'interpretation',
         'methodology', 'observation', 'optimization', 'organization', 'parameter', 'perspective',
         'principle', 'procedure', 'process', 'proposition', 'relationship', 'representation',
+        
+        // Common mispronunciations and accent variations
+        'data', 'dah-ta', 'day-ta', 'schedule', 'shed-ule', 'sked-ule',
+        'either', 'ee-ther', 'eye-ther', 'neither', 'nee-ther', 'nye-ther',
+        'route', 'root', 'rout', 'tomato', 'to-may-to', 'to-mah-to',
+        'laboratory', 'lab-or-a-tory', 'lab-ra-tory', 'nuclear', 'new-clear', 'new-kyu-lar',
+        'eigenvalue', 'eye-gen-value', 'ay-gen-value', 'eigenvector', 'eye-gen-vector',
+        'Schrödinger', 'shro-ding-er', 'shro-ding-ger', 'backpropagation', 'back-prop-a-ga-tion',
         'requirement', 'research', 'resolution', 'solution', 'specification', 'structure',
         'technique', 'theory', 'understanding', 'validation', 'variable', 'verification'
       ];

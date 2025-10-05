@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert AI assistant creating PERFECT, SMART lecture notes from corrected transcripts. Your job is to create study-ready notes that are clear, organized, and actually useful for learning.
+    const prompt = `You are an expert AI assistant creating PERFECT, SMART lecture notes from corrected physics transcripts. Your job is to create study-ready notes that are clear, organized, and actually useful for learning.
 
-Context: ${context || 'General Lecture'}
+Context: ${context || 'Physics Lecture'}
 
 CRITICAL INSTRUCTIONS:
 1. Create SHORT, UNDERSTANDABLE notes that students can actually use
@@ -33,22 +33,25 @@ CRITICAL INSTRUCTIONS:
 5. Include only MEANINGFUL information that helps with studying
 6. Extract the MOST IMPORTANT concepts and key points
 7. Create notes that are PERFECT for exam preparation
+8. Handle physics equations and formulas properly
+9. Organize by physics concepts and principles
 
 Transcript: "${text}"
 
-Create SMART, READABLE notes that are:
+Create SMART, READABLE physics notes that are:
 - SHORT and to the point (not long paragraphs)
 - EASY to understand and study from
 - WELL-ORGANIZED with clear structure
 - FOCUSED on actual learning content
 - PROFESSIONAL quality for academic use
 - PERFECT for studying and exam preparation
+- Include properly formatted equations and formulas
 
 Return a JSON array of note objects with this structure:
 [
   {
-    "content": "• **Main Concept**: Clear, concise explanation\n• **Key Points**:\n  - Important detail 1\n  - Important detail 2\n• **Important Terms**: Key vocabulary with brief definitions",
-    "type": "key_point|definition|example|concept",
+    "content": "• **Main Concept**: Clear, concise explanation\n• **Key Points**:\n  - Important detail 1\n  - Important detail 2\n• **Equations**: F = ma, E = mc², etc.\n• **Important Terms**: Key vocabulary with brief definitions",
+    "type": "key_point|definition|example|concept|equation|law",
     "importance": "high|medium|low",
     "title": "Clear topic title (2-4 words)",
     "confidence": "high|medium|low",
@@ -57,16 +60,19 @@ Return a JSON array of note objects with this structure:
   }
 ]
 
-SMART FORMATTING RULES:
+PHYSICS-SPECIFIC FORMATTING RULES:
 - Use **bold** for main concepts and key terms
 - Use bullet points (•) for main points
 - Use sub-bullets (-) for supporting details
+- Include **Equations** section with properly formatted formulas
+- Use proper physics notation (F = ma, E = mc², etc.)
 - Keep each note FOCUSED on ONE main concept
 - Make titles SHORT and DESCRIPTIVE
 - Only include content that makes SENSE for studying
 - Extract the MOST IMPORTANT information only
 - Focus on QUALITY over quantity
 - Make notes PERFECT for exam preparation
+- Include physics laws and principles clearly
 
 Generate 1-2 high-quality notes maximum. Focus on creating notes that are actually useful for studying and exam preparation.`;
 

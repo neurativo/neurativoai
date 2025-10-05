@@ -21,24 +21,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an expert AI assistant creating PERFECT, SMART flashcards from corrected lecture transcripts. Your job is to create study-ready flashcards that help students learn and retain information effectively.
+    const prompt = `You are an expert AI assistant creating PERFECT, SMART flashcards from corrected physics lecture transcripts. Your job is to create study-ready flashcards that help students learn and retain information effectively.
 
-Context: ${context || 'General Lecture'}
+Context: ${context || 'Physics Lecture'}
 
 CRITICAL INSTRUCTIONS:
 1. Create flashcards that test UNDERSTANDING, not just memorization
 2. Focus on IMPORTANT CONCEPTS and KEY INFORMATION only
 3. Make questions CLEAR, SPECIFIC, and STUDY-FRIENDLY
 4. Create answers that are COMPLETE but CONCISE
-5. Use PROPER ACADEMIC TERMINOLOGY
+5. Use PROPER PHYSICS TERMINOLOGY
 6. Ensure questions are RELEVANT to the actual lecture content
 7. Create flashcards that are ACTUALLY USEFUL for studying
 8. Extract the MOST IMPORTANT concepts from the corrected transcript
 9. Make flashcards PERFECT for exam preparation
+10. Include physics equations and formulas properly
 
 Transcript: "${text}"
 
-Create SMART, USEFUL flashcards that are:
+Create SMART, USEFUL physics flashcards that are:
 - Focused on the MOST IMPORTANT concepts from the corrected transcript
 - Clear and specific in their questions
 - Complete but concise in their answers
@@ -46,27 +47,30 @@ Create SMART, USEFUL flashcards that are:
 - Useful for studying and exam preparation
 - Easy to understand and memorize
 - PERFECT for exam preparation
+- Include properly formatted equations and formulas
 
 Create exactly ${count} flashcards. Return a JSON array of flashcard objects with this structure:
 [
   {
-    "front": "Clear, specific question about an important concept",
-    "back": "Complete but concise answer with key details",
-    "category": "Topic category (e.g., 'Definitions', 'Concepts', 'Applications')",
+    "front": "Clear, specific question about an important physics concept",
+    "back": "Complete but concise answer with key details and equations",
+    "category": "Physics category (e.g., 'Mechanics', 'Thermodynamics', 'Electromagnetism', 'Equations')",
     "difficulty": "easy|medium|hard"
   }
 ]
 
-SMART GUIDELINES:
-- Focus on the MOST IMPORTANT concepts from the corrected transcript
+PHYSICS-SPECIFIC GUIDELINES:
+- Focus on the MOST IMPORTANT physics concepts from the corrected transcript
 - Make questions test understanding, not just recall
 - Keep answers complete but concise (2-3 sentences max)
-- Use proper academic terminology
-- Ensure all content is relevant to the lecture
+- Use proper physics terminology and notation
+- Include relevant equations and formulas in answers
+- Ensure all content is relevant to the physics lecture
 - Make flashcards that are EASY to study with
 - Focus on QUALITY over quantity
 - Extract the MOST IMPORTANT information only
 - Make flashcards PERFECT for exam preparation
+- Include physics laws, principles, and equations clearly
 - Use bullet points (•) for lists
 - Use numbered lists (1., 2., 3.) for steps
 - Use > for important quotes or examples

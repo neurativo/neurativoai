@@ -51,8 +51,27 @@ export async function POST(request: NextRequest) {
       deepgramUrl.searchParams.set('endpointing', '300'); // 300ms pause detection
       deepgramUrl.searchParams.set('vad_events', 'true'); // Voice activity detection
       
-      // Add academic keywords for better recognition
+      // Add physics and academic keywords for better recognition
       const keywords = [
+        // Physics terms
+        'momentum', 'Newton\'s Law', 'gravitational constant', 'E equals mc squared',
+        'Coulomb', 'kinematics', 'vector', 'magnitude', 'scalar', 'resistance',
+        'electromagnetic field', 'quantum', 'Planck constant', 'acceleration',
+        'velocity', 'force', 'mass', 'energy', 'kinetic energy', 'potential energy',
+        'wavelength', 'frequency', 'amplitude', 'oscillation', 'harmonic',
+        'thermodynamics', 'entropy', 'temperature', 'pressure', 'volume',
+        'electric field', 'magnetic field', 'current', 'voltage', 'capacitance',
+        'inductance', 'impedance', 'resonance', 'diffraction', 'interference',
+        'refraction', 'reflection', 'polarization', 'photon', 'electron',
+        'proton', 'neutron', 'atom', 'molecule', 'nucleus', 'orbital',
+        'wave function', 'probability', 'uncertainty principle', 'relativity',
+        'space-time', 'gravity', 'black hole', 'galaxy', 'universe',
+        // Math symbols and expressions
+        'equals', 'plus', 'minus', 'times', 'divided by', 'square root',
+        'squared', 'cubed', 'exponential', 'logarithm', 'derivative',
+        'integral', 'limit', 'infinity', 'pi', 'theta', 'alpha', 'beta',
+        'gamma', 'delta', 'epsilon', 'lambda', 'mu', 'sigma', 'omega',
+        // Academic terms
         'algorithm', 'analysis', 'application', 'approach', 'assessment', 'assumption',
         'concept', 'conclusion', 'condition', 'configuration', 'connection', 'consideration',
         'definition', 'demonstration', 'description', 'determination', 'development', 'discussion',

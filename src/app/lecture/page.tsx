@@ -545,25 +545,28 @@ export default function LiveLecturePage() {
     return similarity;
   };
 
-  // Confidence-aware triggers for correction
+  // Enhanced confidence-aware triggers for physics lectures
   const shouldTriggerCorrection = (newTranscript: string, confidence: number, buffer: string): boolean => {
-    // Low confidence trigger
-    if (confidence < 0.7) {
+    // Low confidence trigger (more sensitive for physics)
+    if (confidence < 0.65) {
       console.log('Low confidence trigger:', confidence);
       return true;
     }
     
-    // Broken sentence patterns
-    const brokenPatterns = [
+    // Physics-specific broken patterns
+    const physicsBrokenPatterns = [
       /\b(right|uh|um|okay|so)\b.*\b(right|uh|um|okay|so)\b/i, // Multiple filler words
       /\b\d+\b.*\b(right|uh|um|okay|so)\b/i, // Numbers followed by filler words
       /\.\s*[A-Z][a-z]*\s*\./g, // Word. Word. pattern
       /\b\w+\s*\.\s*\w+\s*\.\s*\w+\s*\./g, // Multiple single words with periods
+      /\b(equals|times|plus|minus|divided)\b.*\b(something|blank|missing)\b/i, // Incomplete equations
+      /\b(F|E|V|P|K|G)\b.*\b(equals|times)\b.*\b(blank|missing|something)\b/i, // Incomplete physics equations
+      /\b(this one's fun|oh yeah|right right)\b/i, // Colloquial physics expressions
     ];
     
-    for (const pattern of brokenPatterns) {
+    for (const pattern of physicsBrokenPatterns) {
       if (pattern.test(newTranscript) || pattern.test(buffer)) {
-        console.log('Broken pattern trigger:', pattern);
+        console.log('Physics broken pattern trigger:', pattern);
         return true;
       }
     }
@@ -575,17 +578,33 @@ export default function LiveLecturePage() {
       return true;
     }
     
-    // Numbers that don't fit context (like "50" in your example)
+    // Physics equation detection and validation
+    const equationPattern = /\b[A-Za-z]\s*=\s*.+|\b\d+\s*[A-Za-z]+|\b[A-Za-z]+\s*\^\d+/g;
+    const equations = newTranscript.match(equationPattern);
+    if (equations && equations.length > 0) {
+      // Check if equations look incomplete or malformed
+      const incompleteEquations = equations.filter(eq => 
+        eq.includes('something') || eq.includes('blank') || eq.includes('missing') ||
+        eq.length < 5 || !eq.includes('=')
+      );
+      
+      if (incompleteEquations.length > 0) {
+        console.log('Incomplete equation trigger:', incompleteEquations);
+        return true;
+      }
+    }
+    
+    // Numbers that don't fit physics context
     const numberPattern = /\b\d+\b/g;
     const numbers = newTranscript.match(numberPattern);
     if (numbers && numbers.length > 0) {
-      // Check if numbers make sense in context
+      // Check if numbers make sense in physics context
       const contextWords = buffer.toLowerCase().split(/\s+/);
-      const hasTechnicalContext = contextWords.some(word => 
-        ['machine', 'learning', 'intelligence', 'task', 'pattern', 'algorithm'].includes(word)
+      const hasPhysicsContext = contextWords.some(word => 
+        ['force', 'mass', 'energy', 'velocity', 'acceleration', 'momentum', 'equation', 'formula', 'law'].includes(word)
       );
       
-      if (!hasTechnicalContext && numbers.some(num => parseInt(num) > 20)) {
+      if (!hasPhysicsContext && numbers.some(num => parseInt(num) > 20)) {
         console.log('Suspicious number trigger:', numbers);
         return true;
       }
@@ -851,12 +870,20 @@ export default function LiveLecturePage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Enhanced markdown renderer for clean, readable text
+  // Enhanced markdown renderer for clean, readable text with physics equation highlighting
   const renderMarkdown = (text: string) => {
     return text
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>')
       .replace(/`(.*?)`/g, '<code class="bg-gray-800 text-green-400 px-2 py-1 rounded text-sm font-mono border border-gray-600">$1</code>')
+      // Highlight physics equations
+      .replace(/([A-Za-z]\s*=\s*[^<\n]+)/g, '<span class="text-blue-300 bg-blue-500/10 px-2 py-1 rounded border border-blue-400/30 font-mono text-sm">$1</span>')
+      // Highlight Greek letters
+      .replace(/([αβγδεζηθικλμνξοπρστυφχψω])/g, '<span class="text-purple-300 font-mono font-bold">$1</span>')
+      // Highlight physics constants
+      .replace(/\b(c|G|h|k|e|m_e|m_p|N_A)\b/g, '<span class="text-green-300 font-mono font-bold">$1</span>')
+      // Highlight physics units
+      .replace(/\b(m\/s|kg|N|J|W|V|A|Ω|Hz|Pa|K)\b/g, '<span class="text-yellow-300 font-mono text-sm">$1</span>')
       .replace(/^• (.*$)/gm, '<div class="flex items-start my-2"><span class="text-blue-400 mr-3 mt-1 text-sm">•</span><span class="flex-1">$1</span></div>')
       .replace(/^  - (.*$)/gm, '<div class="flex items-start my-1 ml-6"><span class="text-gray-400 mr-3 mt-1 text-xs">-</span><span class="flex-1 text-sm">$1</span></div>')
       .replace(/^(\d+)\. (.*$)/gm, '<div class="flex items-start my-2"><span class="text-blue-400 mr-3 mt-1 font-semibold text-sm">$1.</span><span class="flex-1">$2</span></div>')
@@ -874,7 +901,9 @@ export default function LiveLecturePage() {
       key_point: '🔑',
       definition: '📖',
       example: '💡',
-      concept: '🧠'
+      concept: '🧠',
+      equation: '⚡',
+      law: '⚖️'
     };
     return emojis[type as keyof typeof emojis] || '📝';
   };
@@ -1123,7 +1152,7 @@ export default function LiveLecturePage() {
                     <div className="prose prose-invert max-w-none">
                       {notesViewMode === 'organized' ? (
                         /* Organized by type */
-                        ['key_point', 'definition', 'example', 'concept'].map(type => {
+                        ['key_point', 'definition', 'example', 'concept', 'equation', 'law'].map(type => {
                           const typeNotes = smartNotes.filter(note => note.type === type);
                           if (typeNotes.length === 0) return null;
                           

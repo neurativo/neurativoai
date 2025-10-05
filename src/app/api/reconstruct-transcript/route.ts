@@ -21,25 +21,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are an AI transcription corrector for university lectures. 
+    const prompt = `You are an expert physics lecture transcript corrector and equation formatter.
 
-Input will be raw speech-to-text chunks that may contain errors, missing words, and broken sentences.
+Input will be raw speech-to-text chunks that may contain errors, missing words, and broken sentences from physics lectures.
 
 Your job:
-- Fix grammar and sentence structure
+- Fix grammar and sentence structure for academic clarity
 - Restore missing words if context makes it obvious
-- Remove random filler phrases like "right", "uh", "50" that don't belong
+- Remove random filler phrases like "right", "uh", "okay", "yeah" that don't belong
 - Ensure the transcript flows naturally while staying faithful to the speaker's meaning
-- Keep technical/academic terms accurate
+- Keep technical/physics terms accurate and properly formatted
 - Connect broken phrases into complete, coherent sentences
 - Remove repetitive words and meaningless fragments
 - Fix incomplete words (e.g., "intel" → "intelligence")
+- Detect and properly format physics equations and formulas
+- Expand physics abbreviations and symbols correctly
+- Handle colloquial physics expressions professionally
 
-Context: ${context || 'General Lecture'}
+Context: ${context || 'Physics Lecture'}
+
+SPECIAL PHYSICS HANDLING:
+- Convert "F equals M times A" → "F = ma (Newton's Second Law)"
+- Convert "E equals M C squared" → "E = mc² (Einstein's mass-energy equivalence)"
+- Convert "V equals I R" → "V = IR (Ohm's Law)"
+- Convert "K E equals one half M V squared" → "KE = ½mv² (kinetic energy)"
+- Convert "P equals M V" → "p = mv (momentum)"
+- Convert "F equals G M M over R squared" → "F = GMm/r² (gravitational force)"
+- Expand "right, right, okay" → remove or compress to "Now"
+- Convert "this one's fun" → "This is an interesting example"
+- Handle Greek letters: "theta" → "θ", "alpha" → "α", "beta" → "β"
 
 Input: "${text}"
 
-Transform this fragmented speech into perfect, readable text that sounds like a natural lecture transcript. Return only the corrected transcript, no JSON or additional formatting.`;
+Transform this fragmented speech into perfect, readable physics lecture text with properly formatted equations. Return only the corrected transcript, no JSON or additional formatting.`;
 
     const response = await fetch(OPENAI_URL, {
       method: 'POST',

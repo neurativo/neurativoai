@@ -84,10 +84,6 @@ async function listPayments(params: {
         plans!crypto_payments_plan_key_fkey (
           name,
           key
-        ),
-        auth.users!crypto_payments_user_id_fkey (
-          email,
-          user_metadata
         )
       `)
       .order('created_at', { ascending: false })
@@ -109,7 +105,7 @@ async function listPayments(params: {
 
     return NextResponse.json({
       success: true,
-      payments: payments.map(payment => ({
+      payments: (payments || []).map((payment: any) => ({
         id: payment.id,
         txId: payment.tx_id,
         fromAddress: payment.from_address,
@@ -128,7 +124,7 @@ async function listPayments(params: {
         adminOverride: payment.admin_override,
         paymentMethod: payment.crypto_payment_methods,
         plan: payment.plans,
-        user: payment.auth?.users
+        userId: payment.user_id
       }))
     });
   } catch (error) {
@@ -155,10 +151,6 @@ async function getPaymentDetails(paymentId: string) {
         plans (
           name,
           key
-        ),
-        auth.users!crypto_payments_user_id_fkey (
-          email,
-          user_metadata
         ),
         crypto_payment_verifications (
           id,
@@ -204,7 +196,7 @@ async function getPaymentDetails(paymentId: string) {
         adminOverride: payment.admin_override,
         paymentMethod: payment.crypto_payment_methods,
         plan: payment.plans,
-        user: payment.auth?.users,
+        userId: payment.user_id,
         verifications: payment.crypto_payment_verifications
       }
     });
@@ -267,7 +259,7 @@ async function getPaymentMethods() {
 
     return NextResponse.json({
       success: true,
-      methods: methods.map(method => ({
+      methods: (methods || []).map((method: any) => ({
         id: method.id,
         name: method.name,
         symbol: method.symbol,

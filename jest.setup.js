@@ -29,6 +29,14 @@ jest.mock('next/image', () => ({
   },
 }))
 
+// Mock Next.js Link component
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ children, href, ...props }) => {
+    return <a href={href} {...props}>{children}</a>
+  },
+}))
+
 // Mock Supabase client
 jest.mock('@/app/lib/supabaseClient', () => ({
   getSupabaseBrowser: () => ({

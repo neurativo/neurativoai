@@ -19,6 +19,7 @@ export default function Navbar() {
 	const [userEmail, setUserEmail] = useState<string | null>(null);
 	const [logoutLoading, setLogoutLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement | null>(null);
+    const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
 	const isActive = (href: string) => pathname === href;
 
@@ -56,6 +57,19 @@ export default function Navbar() {
 		document.addEventListener('mousedown', onDocClick);
 		return () => document.removeEventListener('mousedown', onDocClick);
 	}, [isUserMenuOpen]);
+
+	// Close mobile menu on outside click
+	useEffect(() => {
+		function onDocClick(e: MouseEvent) {
+			if (!isMobileOpen) return;
+			const target = e.target as Node;
+			if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+				setIsMobileOpen(false);
+			}
+		}
+		document.addEventListener('mousedown', onDocClick);
+		return () => document.removeEventListener('mousedown', onDocClick);
+	}, [isMobileOpen]);
 
 	async function handleAuthSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -175,15 +189,15 @@ export default function Navbar() {
 				</div>
 				</div>
 				{isMobileOpen && (
-					<div className="md:hidden mt-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-3">
+					<div ref={mobileMenuRef} className="mobile-menu-container md:hidden mt-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-3">
 						<ul className="menu menu-vertical">
-							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`}>Home</Link></li>
-							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`}>Quiz</Link></li>
-							<li><Link href="/lecture" className={`nav-link ${isActive("/lecture") ? "active" : ""}`}>Live Lecture</Link></li>
-							<li><Link href="/study-pack" className={`nav-link ${isActive("/study-pack") ? "active" : ""}`}>Study Pack</Link></li>
-							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`}>Pricing</Link></li>
-							<li><Link href="/library" className={`nav-link ${isActive("/library") ? "active" : ""}`}>Library</Link></li>
-							<li><Link href="/about" className={`nav-link ${isActive("/about") ? "active" : ""}`}>About</Link></li>
+							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Home</Link></li>
+							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Quiz</Link></li>
+							<li><Link href="/lecture" className={`nav-link ${isActive("/lecture") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Live Lecture</Link></li>
+							<li><Link href="/study-pack" className={`nav-link ${isActive("/study-pack") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Study Pack</Link></li>
+							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Pricing</Link></li>
+							<li><Link href="/library" className={`nav-link ${isActive("/library") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Library</Link></li>
+							<li><Link href="/about" className={`nav-link ${isActive("/about") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>About</Link></li>
 						</ul>
 					</div>
 				)}

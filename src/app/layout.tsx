@@ -16,40 +16,123 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Neurativo - AI-Powered Learning Platform",
-	description: "Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
+	title: {
+		default: "Neurativo - AI-Powered Learning Platform",
+		template: "%s | Neurativo"
+	},
+	description: "Transform your learning with AI-generated quizzes, live lectures, and personalized study materials. Master any subject with intelligent learning that adapts to your pace. Join 10,000+ students already using our revolutionary platform.",
 	metadataBase: new URL("https://www.neurativo.com"),
-	alternates: { canonical: "/" },
+	alternates: { 
+		canonical: "/",
+		languages: {
+			'en-US': '/en-US',
+			'es-ES': '/es-ES',
+		},
+	},
 	keywords: [
+		"AI learning",
+		"educational technology",
+		"personalized quizzes",
+		"study tools",
+		"online learning",
+		"artificial intelligence",
+		"learning platform",
+		"quiz generator",
+		"study materials",
+		"educational AI",
+		"live lecture assistant",
+		"study pack generator",
+		"flashcard maker",
+		"exam preparation",
+		"student success",
+		"adaptive learning",
+		"intelligent tutoring",
+		"academic performance",
+		"learning analytics",
+		"study optimization",
 		"Neurativo",
 		"AI quizzes",
-		"quiz generator",
-		"study tools",
-		"learning platform",
 		"edtech",
 		"practice questions",
 		"flashcards",
 	],
+	authors: [{ name: "Neurativo Team" }],
+	creator: "Neurativo",
+	publisher: "Neurativo",
+	formatDetection: {
+		email: false,
+		address: false,
+		telephone: false,
+	},
 	openGraph: {
 		type: "website",
 		title: "Neurativo - AI-Powered Learning Platform",
-		description:
-			"Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
+		description: "Transform your learning with AI-generated quizzes, live lectures, and personalized study materials. Join 10,000+ students already using our revolutionary platform.",
 		url: "https://www.neurativo.com/",
 		siteName: "Neurativo",
 		images: [
-			{ url: "/file.svg", width: 1200, height: 630, alt: "Neurativo" },
+			{ 
+				url: "/og-image.jpg", 
+				width: 1200, 
+				height: 630, 
+				alt: "Neurativo - AI-Powered Learning Platform",
+				type: "image/jpeg"
+			},
 		],
+		locale: "en_US",
 	},
 	twitter: {
 		card: "summary_large_image",
 		title: "Neurativo - AI-Powered Learning Platform",
-		description:
-			"Transform your learning experience with AI-powered quizzes, intelligent progress tracking, and gamified challenges that adapt to your pace.",
-		images: ["/file.svg"],
+		description: "Transform your learning with AI-generated quizzes, live lectures, and personalized study materials.",
+		images: ["/twitter-image.jpg"],
+		creator: "@neurativo",
+		site: "@neurativo",
+	},
+	robots: {
+		index: true,
+		follow: true,
+		nocache: true,
+		googleBot: {
+			index: true,
+			follow: true,
+			noimageindex: true,
+			"max-video-preview": -1,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+		},
+	},
+	verification: {
+		google: "your-google-verification-code",
+		yandex: "your-yandex-verification-code",
+		yahoo: "your-yahoo-verification-code",
 	},
 	icons: {
-		icon: [ { url: "/file.svg" } ],
+		icon: [
+			{ url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+			{ url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+		],
+		shortcut: "/favicon.ico",
+		apple: [
+			{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+		],
+		other: [
+			{
+				rel: "mask-icon",
+				url: "/safari-pinned-tab.svg",
+				color: "#8b5cf6",
+			},
+		],
+	},
+	manifest: "/manifest.json",
+	category: "education",
+	classification: "Educational Technology",
+	other: {
+		"msapplication-TileColor": "#8b5cf6",
+		"theme-color": "#8b5cf6",
+		"apple-mobile-web-app-capable": "yes",
+		"apple-mobile-web-app-status-bar-style": "black-translucent",
+		"apple-mobile-web-app-title": "Neurativo",
 	},
 };
 

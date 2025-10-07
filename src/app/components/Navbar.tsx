@@ -183,13 +183,19 @@ export default function Navbar() {
 						</button>
 					)}
 					{/* Mobile menu toggle as last item to stick to the far right */}
-					<button className="btn btn-ghost md:hidden order-last ml-2" onClick={() => setIsMobileOpen(!isMobileOpen)} aria-label="Toggle menu">
-						<i className="fas fa-bars-staggered text-white" />
+					<button 
+						className="btn btn-ghost md:hidden order-last ml-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 rounded-lg" 
+						onClick={() => setIsMobileOpen(!isMobileOpen)} 
+						aria-label="Toggle mobile menu"
+						aria-expanded={isMobileOpen}
+						aria-controls="mobile-menu"
+					>
+						<i className="fas fa-bars-staggered text-white" aria-hidden="true" />
 					</button>
 				</div>
 				</div>
 				{isMobileOpen && (
-					<div ref={mobileMenuRef} className="mobile-menu-container md:hidden mt-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-3">
+					<div ref={mobileMenuRef} id="mobile-menu" className="mobile-menu-container md:hidden mt-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-3" role="menu" aria-label="Mobile navigation menu">
 						<ul className="menu menu-vertical">
 							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Home</Link></li>
 							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Quiz</Link></li>

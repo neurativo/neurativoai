@@ -74,7 +74,7 @@ PHYSICS-SPECIFIC GUIDELINES:
 - Use bullet points (•) for lists
 - Use numbered lists (1., 2., 3.) for steps
 - Use > for important quotes or examples
-- Use `code` formatting for technical terms
+- Use \`code\` formatting for technical terms
 - Use --- for visual separators
 - Make questions specific and answers comprehensive but concise
 

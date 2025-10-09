@@ -98,10 +98,10 @@ function PricingPageInner() {
                             <div className="relative z-10">
                                 <div className="text-center mb-8">
                                     <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gray-500/20 text-gray-300 border border-gray-500/30 mb-6">
-                                        <i className="fas fa-rocket mr-2"></i>
-                                        Starter
+                                        <i className="fas fa-seedling mr-2"></i>
+                                        Foundation
                                     </div>
-                                    <h3 className="text-3xl font-bold text-white mb-4">Free</h3>
+                                    <h3 className="text-3xl font-bold text-white mb-4">Essential</h3>
                                     <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-gray-400 mb-2">$0</div>
                                     <p className="text-lg text-gray-300 mb-6">Perfect for getting started</p>
                                 </div>
@@ -172,11 +172,11 @@ function PricingPageInner() {
                                 <div className="text-center mb-8">
                                     <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border border-purple-500/30 mb-6">
                                         <i className="fas fa-star mr-2"></i>
-                                        Recommended
+                                        Most Popular
                                     </div>
-                                    <h3 className="text-3xl font-bold text-white mb-4">Plus</h3>
+                                    <h3 className="text-3xl font-bold text-white mb-4">Professional</h3>
                                     <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300 mb-2">$9</div>
-                                    <p className="text-lg text-gray-300 mb-2">More power for regular learners</p>
+                                    <p className="text-lg text-gray-300 mb-2">Perfect for professionals and students</p>
                                     <div className="text-sm text-purple-300 font-medium">Up to 300 quizzes/month</div>
                                 </div>
                                 
@@ -262,12 +262,12 @@ function PricingPageInner() {
                             <div className="relative z-10">
                                 <div className="text-center mb-8">
                                     <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 border border-blue-500/30 mb-6">
-                                        <i className="fas fa-gem mr-2"></i>
-                                        Best Offer
+                                        <i className="fas fa-crown mr-2"></i>
+                                        Advanced
                                     </div>
-                                    <h3 className="text-3xl font-bold text-white mb-4">Premium</h3>
+                                    <h3 className="text-3xl font-bold text-white mb-4">Mastery</h3>
                                     <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300 mb-2">$19</div>
-                                    <p className="text-lg text-gray-300 mb-2">For serious mastery</p>
+                                    <p className="text-lg text-gray-300 mb-2">For advanced learners and educators</p>
                                     <div className="text-sm text-blue-300 font-medium">Up to 1000 quizzes/month</div>
                                 </div>
                                 
@@ -340,7 +340,7 @@ function PricingPageInner() {
                                 ) : (
                                     <Link href="/pricing/upgrade?plan=premium" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center group">
                                         <i className="fas fa-crown mr-2 group-hover:animate-pulse"></i>
-                                        Go Premium
+                                        Go Mastery
                                     </Link>
                                 )}
                             </div>
@@ -353,12 +353,12 @@ function PricingPageInner() {
                             <div className="relative z-10">
                                 <div className="text-center mb-8">
                                     <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/30 mb-6">
-                                        <i className="fas fa-fire mr-2"></i>
-                                        Special
+                                        <i className="fas fa-rocket mr-2"></i>
+                                        Ultimate
                                     </div>
-                                    <h3 className="text-3xl font-bold text-white mb-4">Special</h3>
+                                    <h3 className="text-3xl font-bold text-white mb-4">Innovation</h3>
                                     <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-300 mb-2">$29</div>
-                                    <p className="text-lg text-gray-300 mb-2">Live Lecture Assistant + Premium</p>
+                                    <p className="text-lg text-gray-300 mb-2">Revolutionary AI-powered learning experience</p>
                                     <div className="text-sm text-amber-300 font-medium">Everything + Live Lecture AI</div>
                                 </div>
                                 
@@ -430,8 +430,8 @@ function PricingPageInner() {
                                     </button>
                                 ) : (
                                     <Link href="/pricing/upgrade?plan=special" className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center group">
-                                        <i className="fas fa-fire mr-2 group-hover:animate-pulse"></i>
-                                        Go Special
+                                        <i className="fas fa-rocket mr-2 group-hover:animate-pulse"></i>
+                                        Go Innovation
                                     </Link>
                                 )}
                             </div>

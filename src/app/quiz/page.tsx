@@ -13,7 +13,7 @@ type LimitState = {
 };
 
 export default function QuizPage() {
-	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document" | "study-pack">("text");
+	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document" | "study-pack" | "3d-quiz">("text");
 	const [documentProcessing, setDocumentProcessing] = useState(false);
 	const [processedDocument, setProcessedDocument] = useState<any>(null);
 	const [studyPackMode, setStudyPackMode] = useState(false);
@@ -389,6 +389,14 @@ export default function QuizPage() {
 									className={`px-4 py-2 rounded-lg transition ${sourceTab === "study-pack" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
 								>
 									Study Pack
+								</button>
+								<button
+									onClick={() => setSourceTab("3d-quiz")}
+									aria-current={sourceTab === "3d-quiz"}
+									className={`px-4 py-2 rounded-lg transition ${sourceTab === "3d-quiz" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
+								>
+									<i className="fas fa-cube mr-2"></i>
+									3D Quiz
 								</button>
 							</div>
 						</div>
@@ -788,6 +796,105 @@ export default function QuizPage() {
 										</div>
 									)}
 
+									{sourceTab === "3d-quiz" && (
+										<div className="md:col-span-2">
+											<div className="text-center py-12">
+												<div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+													<i className="fas fa-cube text-4xl text-white"></i>
+												</div>
+												<h3 className="text-2xl font-bold text-white mb-4">Immersive 3D Learning</h3>
+												<p className="text-gray-300 mb-8 max-w-2xl mx-auto">
+													Experience learning like never before with interactive 3D environments. 
+													Manipulate objects, explore virtual worlds, and learn through immersive experiences.
+												</p>
+												
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+														<div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+															<i className="fas fa-atom text-2xl text-white"></i>
+														</div>
+														<h4 className="text-xl font-bold text-white mb-3">Physics</h4>
+														<p className="text-gray-300 text-sm mb-4">
+															Manipulate levers, pulleys, and circuits in 3D. Learn mechanics through interactive experiments.
+														</p>
+														<button 
+															onClick={() => window.open('/3d-quiz', '_blank')}
+															className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
+														>
+															Start Physics Quiz
+														</button>
+													</div>
+													
+													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+														<div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+															<i className="fas fa-dna text-2xl text-white"></i>
+														</div>
+														<h4 className="text-xl font-bold text-white mb-3">Biology</h4>
+														<p className="text-gray-300 text-sm mb-4">
+															Explore 3D cells and organelles. Click on structures to learn their functions.
+														</p>
+														<button 
+															onClick={() => window.open('/3d-quiz', '_blank')}
+															className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
+														>
+															Start Biology Quiz
+														</button>
+													</div>
+													
+													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+														<div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+															<i className="fas fa-globe text-2xl text-white"></i>
+														</div>
+														<h4 className="text-xl font-bold text-white mb-3">Geography</h4>
+														<p className="text-gray-300 text-sm mb-4">
+															Explore 3D Earth and locate continents, countries, and geographical features.
+														</p>
+														<button 
+															onClick={() => window.open('/3d-quiz', '_blank')}
+															className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
+														>
+															Start Geography Quiz
+														</button>
+													</div>
+													
+													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+														<div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+															<i className="fas fa-code text-2xl text-white"></i>
+														</div>
+														<h4 className="text-xl font-bold text-white mb-3">Computer Science</h4>
+														<p className="text-gray-300 text-sm mb-4">
+															Build algorithm flows in 3D. Drag and arrange nodes to create working programs.
+														</p>
+														<button 
+															onClick={() => window.open('/3d-quiz', '_blank')}
+															className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
+														>
+															Start CS Quiz
+														</button>
+													</div>
+												</div>
+												
+												<div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl p-6 border border-purple-500/30">
+													<h4 className="text-lg font-bold text-white mb-3">Why 3D Learning?</h4>
+													<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+														<div className="text-center">
+															<i className="fas fa-hand-paper text-2xl text-purple-400 mb-2"></i>
+															<p className="text-gray-300">Interactive Learning</p>
+														</div>
+														<div className="text-center">
+															<i className="fas fa-brain text-2xl text-blue-400 mb-2"></i>
+															<p className="text-gray-300">Better Retention</p>
+														</div>
+														<div className="text-center">
+															<i className="fas fa-gamepad text-2xl text-green-400 mb-2"></i>
+															<p className="text-gray-300">Engaging Experience</p>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+									)}
+
 									<div>
 										<label className="text-white font-semibold mb-2 block">Difficulty Level</label>
 										<select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value)} className="select select-bordered w-full bg-white/5 text-white">
@@ -845,8 +952,12 @@ export default function QuizPage() {
 
 								<div className="mt-2">
 									<button 
-										disabled={loading || limits?.blocked || (sourceTab === "study-pack" && !studyPack)} 
+										disabled={loading || limits?.blocked || (sourceTab === "study-pack" && !studyPack) || sourceTab === "3d-quiz"} 
 										onClick={async () => {
+											if (sourceTab === "3d-quiz") {
+												window.open('/3d-quiz', '_blank');
+												return;
+											}
 											await generateQuiz();
 										}} 
 										className="btn btn-primary w-full"
@@ -859,6 +970,7 @@ export default function QuizPage() {
 										) : (
 											limits?.blocked ? "Limit reached" : 
 											sourceTab === "study-pack" && !studyPack ? "Generate Study Pack First" :
+											sourceTab === "3d-quiz" ? "Open 3D Quiz Portal" :
 											"Generate Quiz"
 										)}
 									</button>

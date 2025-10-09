@@ -23,7 +23,6 @@ export default function Home() {
 						<div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
 							<a href="/quiz" className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
 								<i className="fas fa-rocket mr-2 group-hover:animate-bounce" />
-								Start Learning Free
 								<div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 								<span className="relative z-10">Start Learning Free</span>
 							</a>
@@ -199,67 +198,88 @@ export default function Home() {
 			</section>
 
 			{/* How It Works Section */}
-			<section className="py-24 bg-black/20">
+			<section className="py-24 bg-gradient-to-b from-black/20 to-black/40">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="text-center mb-20">
-						<div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-green-500/20 text-green-300 border border-green-500/30 mb-6">
-							<i className="fas fa-lightbulb mr-2"></i>
-							Simple & Effective
+						<div className="inline-flex items-center px-6 py-3 rounded-full text-lg font-medium bg-gradient-to-r from-green-500/20 to-blue-500/20 text-green-300 border border-green-500/30 mb-8">
+							<i className="fas fa-lightbulb mr-3 text-xl"></i>
+							Simple & Effective Process
 						</div>
-						<h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+						<h2 className="text-5xl md:text-6xl font-bold text-white mb-8">
 							How <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-400">It Works</span>
 						</h2>
-						<p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+						<p className="text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
 							Get started in minutes with our intuitive 3-step process that transforms any content into powerful learning materials.
 						</p>
 					</div>
 					
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-						<div className="text-center group">
-							<div className="relative mb-8">
-								<div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-upload text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-white text-purple-600 rounded-full flex items-center justify-center font-bold text-sm">
-									1
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+						{/* Step 1 */}
+						<div className="group relative">
+							<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 hover:bg-white/10 hover:border-purple-500/50 transition-all duration-500 hover:transform hover:scale-105 h-full">
+								<div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+								<div className="relative z-10 text-center">
+									<div className="relative mb-8">
+										<div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-3xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-500 shadow-2xl">
+											<i className="fas fa-upload text-4xl text-white"></i>
+										</div>
+										<div className="absolute -top-3 -right-3 w-10 h-10 bg-white text-purple-600 rounded-full flex items-center justify-center font-bold text-lg shadow-lg">
+											1
+										</div>
+									</div>
+									<h3 className="text-3xl font-bold text-white mb-6">Upload Content</h3>
+									<p className="text-lg text-gray-300 leading-relaxed">
+										Upload your study materials - PDFs, documents, text, or even URLs. Our AI analyzes and understands your content instantly.
+									</p>
 								</div>
 							</div>
-							<h3 className="text-2xl font-bold text-white mb-4">Upload Content</h3>
-							<p className="text-gray-300 leading-relaxed">
-								Upload your study materials - PDFs, documents, text, or even URLs. Our AI analyzes and understands your content instantly.
-							</p>
 						</div>
 						
-						<div className="text-center group">
-							<div className="relative mb-8">
-								<div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-magic text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-sm">
-									2
+						{/* Step 2 */}
+						<div className="group relative">
+							<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 hover:bg-white/10 hover:border-green-500/50 transition-all duration-500 hover:transform hover:scale-105 h-full">
+								<div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+								<div className="relative z-10 text-center">
+									<div className="relative mb-8">
+										<div className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-500 rounded-3xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-500 shadow-2xl">
+											<i className="fas fa-magic text-4xl text-white"></i>
+										</div>
+										<div className="absolute -top-3 -right-3 w-10 h-10 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-lg shadow-lg">
+											2
+										</div>
+									</div>
+									<h3 className="text-3xl font-bold text-white mb-6">AI Processing</h3>
+									<p className="text-lg text-gray-300 leading-relaxed">
+										Our advanced AI creates personalized quizzes, flashcards, and study materials tailored to your learning style and needs.
+									</p>
 								</div>
 							</div>
-							<h3 className="text-2xl font-bold text-white mb-4">AI Processing</h3>
-							<p className="text-gray-300 leading-relaxed">
-								Our advanced AI creates personalized quizzes, flashcards, and study materials tailored to your learning style and needs.
-							</p>
 						</div>
 						
-						<div className="text-center group">
-							<div className="relative mb-8">
-								<div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-graduation-cap text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-white text-orange-600 rounded-full flex items-center justify-center font-bold text-sm">
-									3
+						{/* Step 3 */}
+						<div className="group relative">
+							<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 hover:bg-white/10 hover:border-orange-500/50 transition-all duration-500 hover:transform hover:scale-105 h-full">
+								<div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+								<div className="relative z-10 text-center">
+									<div className="relative mb-8">
+										<div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-500 shadow-2xl">
+											<i className="fas fa-graduation-cap text-4xl text-white"></i>
+										</div>
+										<div className="absolute -top-3 -right-3 w-10 h-10 bg-white text-orange-600 rounded-full flex items-center justify-center font-bold text-lg shadow-lg">
+											3
+										</div>
+									</div>
+									<h3 className="text-3xl font-bold text-white mb-6">Start Learning</h3>
+									<p className="text-lg text-gray-300 leading-relaxed">
+										Begin your personalized learning journey with interactive quizzes, progress tracking, and adaptive difficulty levels.
+									</p>
 								</div>
 							</div>
-							<h3 className="text-2xl font-bold text-white mb-4">Start Learning</h3>
-							<p className="text-gray-300 leading-relaxed">
-								Begin your personalized learning journey with interactive quizzes, progress tracking, and adaptive difficulty levels.
-							</p>
 						</div>
 					</div>
+					
+					{/* Connection Lines */}
+					<div className="hidden md:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500/30 via-green-500/30 to-orange-500/30 transform -translate-y-1/2 z-0"></div>
 				</div>
 			</section>
 
@@ -363,7 +383,6 @@ export default function Home() {
 						<div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
 							<a href="/quiz" className="group relative inline-flex items-center px-10 py-5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-xl rounded-2xl shadow-2xl hover:shadow-purple-500/25 transform hover:scale-105 transition-all duration-300">
 								<i className="fas fa-rocket mr-3 text-2xl group-hover:animate-bounce" />
-								Start Learning Free
 								<div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 								<span className="relative z-10">Start Learning Free</span>
 							</a>

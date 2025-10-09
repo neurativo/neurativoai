@@ -63,7 +63,7 @@ export class AudioRecorder {
           autoGainControl: true,
           sampleRate: this.config.sampleRate,
           channelCount: this.config.channels,
-          latency: 0.01 // Low latency
+          // latency: 0.01 // Low latency - not supported in MediaTrackConstraints
         }
       });
 
@@ -141,11 +141,7 @@ export class AudioRecorder {
 
     this.mediaRecorder.onerror = (event) => {
       console.error('MediaRecorder error:', event);
-      this.handleError({
-        type: 'format',
-        message: 'Audio recording error',
-        code: 'MEDIA_RECORDER_ERROR'
-      });
+      this.handleError(new Error('Audio recording error'));
     };
   }
 
@@ -211,7 +207,7 @@ export class AudioRecorder {
     }
 
     this.onChunkCallback = onChunk;
-    this.onErrorCallback = onError;
+    this.onErrorCallback = onError || null;
     this.lastChunkTime = Date.now();
     this.totalDuration = 0;
 

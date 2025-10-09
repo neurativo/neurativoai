@@ -23,8 +23,8 @@ export class WebSocketProxyService {
 
   constructor(config: WebSocketProxyConfig) {
     this.config = {
-      proxyUrl: '/api/realtime-proxy',
-      ...config
+      ...config,
+      proxyUrl: config.proxyUrl || '/api/realtime-proxy'
     };
   }
 

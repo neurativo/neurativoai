@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
         timestamp: new Date(timestamp),
         duration: duration,
         created_at: new Date()
-      });
+      })
+      .select();
 
     if (error) {
       console.error('Error saving transcript:', error);

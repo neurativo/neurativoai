@@ -290,7 +290,12 @@ export class AILectureService {
   }
 
   private parseQuizQuestions(response: string): any[] {
-    const questions = [];
+    const questions: Array<{
+      question: string;
+      options: string[];
+      correctAnswer: number;
+      explanation: string;
+    }> = [];
     const questionBlocks = response.split('---').filter(block => block.trim());
 
     for (const block of questionBlocks) {
@@ -299,7 +304,7 @@ export class AILectureService {
 
       const question = {
         question: '',
-        options: [],
+        options: [] as string[],
         correctAnswer: 0,
         explanation: ''
       };

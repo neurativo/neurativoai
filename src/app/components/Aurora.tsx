@@ -147,7 +147,7 @@ export default function Aurora(props: AuroraProps) {
 		}
 		window.addEventListener("resize", resize);
 
-		const geometry = new Triangle(gl);
+		const geometry = new Triangle(gl as any);
 		if ((geometry as any).attributes.uv) {
 			delete (geometry as any).attributes.uv;
 		}
@@ -157,7 +157,7 @@ export default function Aurora(props: AuroraProps) {
 			return [c.r, c.g, c.b];
 		});
 
-		program = new Program(gl, {
+		program = new Program(gl as any, {
 			vertex: VERT,
 			fragment: FRAG,
 			uniforms: {
@@ -169,8 +169,8 @@ export default function Aurora(props: AuroraProps) {
 			},
 		});
 
-		const mesh = new Mesh(gl, { geometry, program });
-		ctn.appendChild(gl.canvas);
+		const mesh = new Mesh(gl as any, { geometry, program });
+		ctn.appendChild(gl.canvas as HTMLCanvasElement);
 
 		let animateId = 0;
 		const update = (t: number) => {

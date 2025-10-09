@@ -287,6 +287,19 @@ export class AIStudyPackGenerator {
     return 'intermediate';
   }
 
+  private mapDifficultyLevel(level: 'basic' | 'intermediate' | 'advanced'): 'easy' | 'medium' | 'hard' {
+    switch (level) {
+      case 'basic':
+        return 'easy';
+      case 'intermediate':
+        return 'medium';
+      case 'advanced':
+        return 'hard';
+      default:
+        return 'medium';
+    }
+  }
+
   private async generateFlashcards(sections: DocumentSection[]): Promise<Flashcard[]> {
     console.log('Generating flashcards...');
     
@@ -318,7 +331,7 @@ export class AIStudyPackGenerator {
         id: `flashcard_${section.id}_${i}`,
         front: qa.question,
         back: qa.answer,
-        difficulty: this.determineDifficultyLevel(section.content),
+        difficulty: this.mapDifficultyLevel(this.determineDifficultyLevel(section.content)),
         topic: section.title,
         tags: section.topics
       });
@@ -398,7 +411,7 @@ export class AIStudyPackGenerator {
       questions,
       totalQuestions: questions.length,
       estimatedTime: questions.length * 2, // 2 minutes per question
-      difficulty: this.determineDifficultyLevel(chapter.content)
+      difficulty: this.mapDifficultyLevel(this.determineDifficultyLevel(chapter.content))
     };
   }
 

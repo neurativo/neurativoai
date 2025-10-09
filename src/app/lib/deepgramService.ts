@@ -52,15 +52,12 @@ export class DeepgramTranscriptionService {
           sample_rate: '16000'
         });
 
-        const wsUrl = `wss://api.deepgram.com/v1/listen?${params.toString()}`;
+        const wsUrl = `wss://api.deepgram.com/v1/listen?${params.toString()}&token=${this.config.apiKey}`;
         console.log('Connecting to Deepgram WebSocket...');
 
-        this.websocket = new WebSocket(wsUrl, [], {
-          headers: {
-            'Authorization': `Token ${this.config.apiKey}`
-          }
-        });
+        this.websocket = new WebSocket(wsUrl);
 
+        // Set authorization header after connection
         this.websocket.onopen = () => {
           console.log('Deepgram WebSocket connected successfully');
           this.isConnected = true;

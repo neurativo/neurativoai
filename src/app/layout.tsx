@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Aurora from "./components/Aurora";
 
-const geistSans = Geist({
+const inter = Inter({
 	variable: "--font-geist-sans",
 	subsets: ["latin"],
+	display: "swap",
+	fallback: ["system-ui", "arial"],
 });
 
-const geistMono = Geist_Mono({
+const jetbrainsMono = JetBrains_Mono({
 	variable: "--font-geist-mono",
 	subsets: ["latin"],
+	display: "swap",
+	fallback: ["monospace"],
 });
 
 export const metadata: Metadata = {
@@ -151,7 +155,7 @@ export default function RootLayout({
 				/>
 			</head>
 			<body
-				className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen`}
+				className={`${inter.variable} ${jetbrainsMono.variable} antialiased bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen`}
 			>
 				<Navbar />
 				<Aurora colorStops={["#D946EF", "#8B5CF6", "#3B82F6"]} amplitude={1.3} blend={0.65} speed={0.5} />

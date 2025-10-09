@@ -47,7 +47,7 @@ class AnalyticsService {
       new PerformanceObserver((list) => {
         const entries = list.getEntries();
         entries.forEach((entry) => {
-          this.trackPerformanceMetric('FID', entry.processingStart - entry.startTime, 'ms');
+          this.trackPerformanceMetric('FID', (entry as any).processingStart - entry.startTime, 'ms');
         });
       }).observe({ entryTypes: ['first-input'] });
 
@@ -92,7 +92,7 @@ class AnalyticsService {
         userId: this.userId
       },
       timestamp: Date.now(),
-      userId: this.userId,
+      userId: this.userId || undefined,
       sessionId: this.sessionId
     };
 
@@ -100,8 +100,8 @@ class AnalyticsService {
     this.sendToAnalytics(analyticsEvent);
 
     // Also send to Google Analytics if available
-    if (typeof gtag !== 'undefined') {
-      gtag('event', event, properties);
+    if (typeof (window as any).gtag !== 'undefined') {
+      (window as any).gtag('event', event, properties);
     }
   }
 

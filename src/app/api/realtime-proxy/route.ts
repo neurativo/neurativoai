@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 // Store active connections
 const activeConnections = new Map<string, {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Create a WebSocket server for this connection
-  const wss = new WebSocket.Server({ noServer: true });
+  const wss = new WebSocketServer({ noServer: true });
   
   return new Promise<Response>((resolve) => {
     wss.on('connection', (clientWs: WebSocket) => {

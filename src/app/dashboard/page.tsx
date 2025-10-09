@@ -52,7 +52,7 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-      setEmail(user.email);
+      setEmail(user.email || null);
       setUserId(user.id);
       // Call server API with service role to avoid PostgREST 400s
       const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
@@ -104,7 +104,7 @@ export default function DashboardPage() {
     if (!userId) return;
     const supabase = getSupabaseBrowser();
 
-    let timer: NodeJS.Timer | null = null;
+    let timer: NodeJS.Timeout | null = null;
 
     async function refreshUsage() {
       try {

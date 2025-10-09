@@ -50,7 +50,7 @@ export function middleware(req: NextRequest) {
 	}
 	// Only rate-limit heavy endpoints
 	if (pathname.startsWith("/api/quiz")) {
-		const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "unknown";
+		const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
 		if (!takeToken(ip)) {
 			return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
 		}

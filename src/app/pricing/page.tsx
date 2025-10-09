@@ -66,10 +66,10 @@ function PricingPageInner() {
                         <i className="fas fa-crown mr-2 sm:mr-3 text-lg sm:text-xl"></i>
                         Choose Your Learning Journey
                     </div>
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8">
                         Simple <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Pricing</span>
                     </h1>
-                    <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed mb-8 sm:mb-12">
+                    <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed mb-8 sm:mb-12">
                         Start free and upgrade as you grow. All plans include our core AI features with no hidden fees.
                     </p>
                     
@@ -435,31 +435,6 @@ function PricingPageInner() {
                                     </Link>
                                 )}
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* FAQ Section */}
-                <div className="mt-16 sm:mt-24 text-center">
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 sm:mb-8">
-                        Frequently Asked <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Questions</span>
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
-                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-                            <h3 className="text-xl font-bold text-white mb-3">Can I change plans anytime?</h3>
-                            <p className="text-gray-300">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-                            <h3 className="text-xl font-bold text-white mb-3">What payment methods do you accept?</h3>
-                            <p className="text-gray-300">We accept all major credit cards, PayPal, and cryptocurrency payments for maximum flexibility.</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-                            <h3 className="text-xl font-bold text-white mb-3">Is there a free trial?</h3>
-                            <p className="text-gray-300">Yes! Our Free plan gives you full access to core features with generous usage limits to get started.</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-                            <h3 className="text-xl font-bold text-white mb-3">Can I cancel anytime?</h3>
-                            <p className="text-gray-300">Absolutely! Cancel anytime with no questions asked. Your data remains accessible until your billing period ends.</p>
                         </div>
                     </div>
                 </div>

@@ -205,10 +205,10 @@ export default function Home() {
 							<i className="fas fa-lightbulb mr-2 sm:mr-3 text-lg sm:text-xl"></i>
 							Simple & Effective Process
 						</div>
-						<h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 sm:mb-8">
+						<h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8">
 							How <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-400">It Works</span>
 						</h2>
-						<p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
+						<p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
 							Get started in minutes with our intuitive 3-step process that transforms any content into powerful learning materials.
 						</p>
 					</div>

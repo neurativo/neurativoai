@@ -40,17 +40,17 @@ export default function ComputerScienceQuiz({ onAnswer, onComplete }: ComputerSc
   ];
 
   const nodes = {
-    start: { position: [0, 2, 0], color: '#4CAF50', name: 'Start', type: 'start' },
-    input: { position: [-2, 1, 0], color: '#2196F3', name: 'Input', type: 'process' },
-    loop: { position: [-1, 0, 0], color: '#FF9800', name: 'Loop', type: 'process' },
-    compare: { position: [0, 0, 0], color: '#9C27B0', name: 'Compare', type: 'decision' },
-    swap: { position: [1, 0, 0], color: '#F44336', name: 'Swap', type: 'process' },
-    middle: { position: [0, 1, 0], color: '#607D8B', name: 'Middle', type: 'process' },
-    found: { position: [1, 1, 0], color: '#795548', name: 'Found', type: 'process' },
-    condition: { position: [0, 1, 0], color: '#E91E63', name: 'Condition', type: 'decision' },
-    true: { position: [-1, 0, 0], color: '#8BC34A', name: 'True', type: 'process' },
-    false: { position: [1, 0, 0], color: '#FF5722', name: 'False', type: 'process' },
-    end: { position: [0, -2, 0], color: '#9E9E9E', name: 'End', type: 'end' }
+    start: { position: [0, 2, 0] as [number, number, number], color: '#4CAF50', name: 'Start', type: 'start' },
+    input: { position: [-2, 1, 0] as [number, number, number], color: '#2196F3', name: 'Input', type: 'process' },
+    loop: { position: [-1, 0, 0] as [number, number, number], color: '#FF9800', name: 'Loop', type: 'process' },
+    compare: { position: [0, 0, 0] as [number, number, number], color: '#9C27B0', name: 'Compare', type: 'decision' },
+    swap: { position: [1, 0, 0] as [number, number, number], color: '#F44336', name: 'Swap', type: 'process' },
+    middle: { position: [0, 1, 0] as [number, number, number], color: '#607D8B', name: 'Middle', type: 'process' },
+    found: { position: [1, 1, 0] as [number, number, number], color: '#795548', name: 'Found', type: 'process' },
+    condition: { position: [0, 1, 0] as [number, number, number], color: '#E91E63', name: 'Condition', type: 'decision' },
+    true: { position: [-1, 0, 0] as [number, number, number], color: '#8BC34A', name: 'True', type: 'process' },
+    false: { position: [1, 0, 0] as [number, number, number], color: '#FF5722', name: 'False', type: 'process' },
+    end: { position: [0, -2, 0] as [number, number, number], color: '#9E9E9E', name: 'End', type: 'end' }
   };
 
   const [nodePositions, setNodePositions] = useState(nodes);

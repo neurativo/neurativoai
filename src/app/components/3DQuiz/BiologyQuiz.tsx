@@ -45,12 +45,12 @@ export default function BiologyQuiz({ onAnswer, onComplete }: BiologyQuizProps) 
   ];
 
   const organelles = {
-    nucleus: { position: [0, 0, 0], color: '#4A90E2', size: 1.2, name: 'Nucleus' },
-    mitochondria: { position: [1.5, 0.5, 0], color: '#7ED321', size: 0.8, name: 'Mitochondria' },
-    ribosome: { position: [-1.5, -0.5, 0], color: '#F5A623', size: 0.4, name: 'Ribosome' },
-    golgi: { position: [0, -1.5, 0], color: '#BD10E0', size: 0.6, name: 'Golgi Apparatus' },
-    er: { position: [-0.5, 1, 0], color: '#50E3C2', size: 0.7, name: 'Endoplasmic Reticulum' },
-    lysosome: { position: [1, -1, 0], color: '#B8E986', size: 0.5, name: 'Lysosome' }
+    nucleus: { position: [0, 0, 0] as [number, number, number], color: '#4A90E2', size: 1.2, name: 'Nucleus' },
+    mitochondria: { position: [1.5, 0.5, 0] as [number, number, number], color: '#7ED321', size: 0.8, name: 'Mitochondria' },
+    ribosome: { position: [-1.5, -0.5, 0] as [number, number, number], color: '#F5A623', size: 0.4, name: 'Ribosome' },
+    golgi: { position: [0, -1.5, 0] as [number, number, number], color: '#BD10E0', size: 0.6, name: 'Golgi Apparatus' },
+    er: { position: [-0.5, 1, 0] as [number, number, number], color: '#50E3C2', size: 0.7, name: 'Endoplasmic Reticulum' },
+    lysosome: { position: [1, -1, 0] as [number, number, number], color: '#B8E986', size: 0.5, name: 'Lysosome' }
   };
 
   const handleOrganelleClick = (organelleName: string) => {

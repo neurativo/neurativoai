@@ -46,61 +46,61 @@ export default function GeographyQuiz({ onAnswer, onComplete }: GeographyQuizPro
 
   const locations = useMemo(() => ({
     africa: { 
-      position: new Vector3(0, 0, 0), 
+      position: [0, 0, 0] as [number, number, number], 
       color: '#8B4513', 
       name: 'Africa',
       size: 0.8
     },
     asia: { 
-      position: new Vector3(1.2, 0.3, 0), 
+      position: [1.2, 0.3, 0] as [number, number, number], 
       color: '#FF6B6B', 
       name: 'Asia',
       size: 1.0
     },
     europe: { 
-      position: new Vector3(0.3, 0.8, 0), 
+      position: [0.3, 0.8, 0] as [number, number, number], 
       color: '#4ECDC4', 
       name: 'Europe',
       size: 0.6
     },
     northAmerica: { 
-      position: new Vector3(-1.5, 0.5, 0), 
+      position: [-1.5, 0.5, 0] as [number, number, number], 
       color: '#45B7D1', 
       name: 'North America',
       size: 0.9
     },
     southAmerica: { 
-      position: new Vector3(-1.2, -0.8, 0), 
+      position: [-1.2, -0.8, 0] as [number, number, number], 
       color: '#96CEB4', 
       name: 'South America',
       size: 0.7
     },
     australia: { 
-      position: new Vector3(1.8, -0.9, 0), 
+      position: [1.8, -0.9, 0] as [number, number, number], 
       color: '#FFEAA7', 
       name: 'Australia',
       size: 0.5
     },
     antarctica: { 
-      position: new Vector3(0, -1.5, 0), 
+      position: [0, -1.5, 0] as [number, number, number], 
       color: '#DDA0DD', 
       name: 'Antarctica',
       size: 0.6
     },
     pacific: { 
-      position: new Vector3(2.5, 0, 0), 
+      position: [2.5, 0, 0] as [number, number, number], 
       color: '#87CEEB', 
       name: 'Pacific Ocean',
       size: 1.2
     },
     atlantic: { 
-      position: new Vector3(-0.5, 0, 0), 
+      position: [-0.5, 0, 0] as [number, number, number], 
       color: '#4682B4', 
       name: 'Atlantic Ocean',
       size: 0.8
     },
     himalayas: { 
-      position: new Vector3(1.0, 0.2, 0.3), 
+      position: [1.0, 0.2, 0.3] as [number, number, number], 
       color: '#8B7355', 
       name: 'Himalayas',
       size: 0.3
@@ -187,7 +187,7 @@ export default function GeographyQuiz({ onAnswer, onComplete }: GeographyQuizPro
           <group key={name}>
             <Box
               args={[location.size, location.size * 0.3, location.size * 0.1]}
-              position={[location.position.x, location.position.y, location.position.z + 2.1]}
+              position={[location.position[0], location.position[1], location.position[2] + 2.1]}
               onClick={() => handleLocationClick(name)}
               onPointerOver={() => setHoveredLocation(name)}
               onPointerOut={() => setHoveredLocation(null)}
@@ -209,7 +209,7 @@ export default function GeographyQuiz({ onAnswer, onComplete }: GeographyQuizPro
             
             {/* Location Label */}
             <Text
-              position={[location.position.x, location.position.y - location.size - 0.3, location.position.z + 2.5]}
+              position={[location.position[0], location.position[1] - location.size - 0.3, location.position[2] + 2.5]}
               fontSize={0.2}
               color="white"
               anchorX="center"

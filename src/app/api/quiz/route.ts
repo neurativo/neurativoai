@@ -360,8 +360,8 @@ export async function POST(req: Request) {
 				return NextResponse.json({ success: false, error: "Failed to parse AI response as JSON" }, { status: 502 });
 			}
 
-			// Save to ephemeral store with unique id
-			const saved = saveQuiz(parsed);
+			// Save to database with unique id
+			const saved = await saveQuiz(parsed, user.id);
 			// Return comprehensive usage data
 			let usagePayload: any = { 
 				...monthlyUsage, 
@@ -389,7 +389,7 @@ export async function GET(req: NextRequest) {
 	// Fetch quiz by id
 	const id = searchParams.get("id");
 	if (id) {
-		const quiz = getQuiz(id);
+		const quiz = await getQuiz(id);
 		if (!quiz) return NextResponse.json({ success: false, error: "Quiz not found" }, { status: 404 });
 		return NextResponse.json({ success: true, data: quiz });
 	}
@@ -561,24 +561,87 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
 	throw new Error(errorText || "OpenAI request failed after retries");
 }
 
-// Ephemeral in-memory store (OK for dev; replace with DB in production)
- type SavedQuiz = { id: string; quiz: any; metadata: any };
- const memoryStore = new Map<string, SavedQuiz>();
+// Database storage for quizzes
+type SavedQuiz = { id: string; quiz: any; metadata: any };
 
- function saveQuiz(parsed: any): SavedQuiz {
- 	const id = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
- 	const saved = {
- 		id,
- 		quiz: parsed.quiz,
- 		metadata: { ...(parsed.metadata || {}), id, generated_at: new Date().toISOString() },
- 	};
- 	memoryStore.set(id, saved);
- 	return saved;
- }
+// Fallback in-memory store for when database is not available
+const memoryStore = new Map<string, SavedQuiz>();
 
- function getQuiz(id: string): SavedQuiz | undefined {
- 	return memoryStore.get(id);
- }
+async function saveQuiz(parsed: any, userId: string): Promise<SavedQuiz> {
+	const id = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+	const saved = {
+		id,
+		quiz: parsed.quiz,
+		metadata: { ...(parsed.metadata || {}), id, generated_at: new Date().toISOString() },
+	};
+	
+	// Try to save to Supabase first
+	const supabase = getSupabaseService();
+	const { error } = await supabase
+		.from('quizzes')
+		.insert({
+			id,
+			user_id: userId,
+			title: parsed.quiz.title || 'Untitled Quiz',
+			description: parsed.quiz.description || '',
+			difficulty: parsed.quiz.difficulty || 'medium',
+			questions: parsed.quiz.questions || [],
+			metadata: saved.metadata,
+			created_at: new Date().toISOString()
+		});
+	
+	if (error) {
+		console.error('Error saving quiz to database:', error);
+		// Fallback to in-memory storage if DB fails
+		memoryStore.set(id, saved);
+		console.log('Quiz saved to memory store as fallback');
+		return saved;
+	}
+	
+	return saved;
+}
+
+async function getQuiz(id: string): Promise<SavedQuiz | undefined> {
+	// Try to get from Supabase first
+	const supabase = getSupabaseService();
+	const { data, error } = await supabase
+		.from('quizzes')
+		.select('*')
+		.eq('id', id)
+		.single();
+	
+	if (error) {
+		console.error('Error fetching quiz from database:', error);
+		// Fallback to memory store
+		const memoryQuiz = memoryStore.get(id);
+		if (memoryQuiz) {
+			console.log('Quiz found in memory store');
+			return memoryQuiz;
+		}
+		return undefined;
+	}
+	
+	if (!data) {
+		// Check memory store as fallback
+		const memoryQuiz = memoryStore.get(id);
+		if (memoryQuiz) {
+			console.log('Quiz found in memory store');
+			return memoryQuiz;
+		}
+		return undefined;
+	}
+	
+	return {
+		id: data.id,
+		quiz: {
+			title: data.title,
+			description: data.description,
+			difficulty: data.difficulty,
+			questions: data.questions
+		},
+		metadata: data.metadata
+	};
+}
 
  // legacy helper removed; using RPC reserve_quiz_generation instead
 

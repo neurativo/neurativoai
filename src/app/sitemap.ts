@@ -30,9 +30,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		{ url: `${baseUrl}/study-pack`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
 		{ url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
 		{ url: `${baseUrl}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-		// Social Media Profiles
-		{ url: "https://www.instagram.com/neurativo.official", lastModified: now, changeFrequency: "daily", priority: 0.7 },
-		{ url: "https://www.facebook.com/neurativo.official", lastModified: now, changeFrequency: "daily", priority: 0.7 },
-		{ url: "https://www.linkedin.com/company/neurativo", lastModified: now, changeFrequency: "daily", priority: 0.7 },
 	];
 }

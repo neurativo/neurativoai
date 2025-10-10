@@ -448,7 +448,7 @@ Return ONLY valid JSON matching exactly this shape:
               "position": [x, y, z],
               "size": [width, height, depth],
               "color": "#hexcolor",
-              "interactive": true|false,
+              "interactive": true,
               "label": "Object Label"
             }
           ]

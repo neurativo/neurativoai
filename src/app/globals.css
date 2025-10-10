@@ -101,7 +101,7 @@ html {
 @media (max-width: 768px) {
 	.aurora-container {
 		z-index: 10; /* Same as desktop - behind navbar, above background */
-		height: 100vh; /* Full height on mobile for better coverage */
+		height: calc(50vh + var(--nav-h)); /* Same as desktop - half viewport + navbar height */
 	}
 }
 

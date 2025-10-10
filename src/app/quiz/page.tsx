@@ -27,7 +27,6 @@ export default function QuizPage() {
 	const [aiTypes, setAiTypes] = useState<string[]>(["multiple_choice", "true_false"]);
     const [aiFocus] = useState("");
     const [aiTopic] = useState("");
-    const [enable3DMode, setEnable3DMode] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [urlLoading, setUrlLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -263,7 +262,6 @@ export default function QuizPage() {
 			form.set("question_types", JSON.stringify(aiTypes));
 			form.set("focus_areas", aiFocus);
 			form.set("topic", aiTopic);
-			form.set("enable_3d_mode", String(enable3DMode));
 			// Map study-pack to text since we're providing extracted content
 			const apiSource = sourceTab === "study-pack" ? "text" : sourceTab;
 			form.set("source", apiSource);
@@ -844,28 +842,6 @@ export default function QuizPage() {
 										</div>
 									</div>
 
-									<div className="md:col-span-2">
-										<label className="text-white font-semibold mb-2 block">Interactive Learning</label>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-											<label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
-												<input
-													type="checkbox"
-													checked={enable3DMode}
-													onChange={(e) => setEnable3DMode(e.target.checked)}
-													className="checkbox checkbox-primary checkbox-lg mr-4"
-												/>
-												<div className="flex items-center">
-													<div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center mr-4">
-														<i className="fas fa-cube text-white text-xl"></i>
-													</div>
-													<div>
-														<span className="text-white font-medium text-lg">3D Interactive Mode</span>
-														<p className="text-gray-400 text-sm">Create immersive 3D scenarios for visual learning</p>
-													</div>
-												</div>
-											</label>
-										</div>
-									</div>
 								</div>
 								<div className="divider my-6 opacity-20"></div>
 
@@ -881,11 +857,11 @@ export default function QuizPage() {
 										{loading ? (
 											urlLoading ? "Extracting content..." : 
 											documentProcessing ? (sourceTab === "study-pack" ? "Generating from study pack..." : "Processing document...") : 
-											enable3DMode ? "Generating 3D Interactive Quiz..." : "Generating quiz..."
+											"Generating quiz..."
 										) : (
 											limits?.blocked ? "Limit reached" : 
 											sourceTab === "study-pack" && !studyPack ? "Generate Study Pack First" :
-											enable3DMode ? "Generate 3D Interactive Quiz" : "Generate Quiz"
+											"Generate Quiz"
 										)}
 									</button>
                                     {limits && (
@@ -914,15 +890,7 @@ export default function QuizPage() {
 					</section>
 					<div className={"modal" + (previewOpen ? " modal-open" : "")}>
 						<div className="modal-box max-w-5xl bg-white/5 backdrop-blur-xl border border-white/20">
-							<div className="flex items-center justify-between mb-4">
-								<h3 className="font-bold text-lg text-white">{previewData?.quiz?.title || "Quiz Preview"}</h3>
-								{enable3DMode && (
-									<div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 px-3 py-1 rounded-full border border-purple-500/30">
-										<i className="fas fa-cube text-purple-400"></i>
-										<span className="text-purple-300 text-sm font-medium">3D Interactive</span>
-									</div>
-								)}
-							</div>
+							<h3 className="font-bold text-lg text-white mb-4">{previewData?.quiz?.title || "Quiz Preview"}</h3>
 							{previewData?.quiz?.description && (
 								<p className="text-gray-300 mb-4">{previewData.quiz.description}</p>
 							)}
@@ -932,28 +900,8 @@ export default function QuizPage() {
 										<div key={q.id ?? idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
 											<div className="flex items-start justify-between gap-3">
 												<h4 className="text-white font-semibold">{idx + 1}. {q.question}</h4>
-												<div className="flex items-center space-x-2">
-													{q.type && <span className="badge badge-outline text-xs text-gray-300">{q.type}</span>}
-													{(q as any).scenario && (
-														<span className="badge badge-primary text-xs">
-															<i className="fas fa-cube mr-1"></i>
-															{(q as any).scenario.type}
-														</span>
-													)}
-												</div>
+												{q.type && <span className="badge badge-outline text-xs text-gray-300">{q.type}</span>}
 											</div>
-											{(q as any).scenario && (
-												<div className="mt-3 p-3 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20">
-													<div className="flex items-center space-x-2 mb-2">
-														<i className="fas fa-cube text-purple-400"></i>
-														<span className="text-purple-300 text-sm font-medium">3D Interactive Scenario</span>
-													</div>
-													<p className="text-gray-300 text-sm">
-														This question includes interactive 3D objects that you can manipulate to find the answer.
-														{(q as any).scenario.objects && ` (${(q as any).scenario.objects.length} interactive objects)`}
-													</p>
-												</div>
-											)}
 										</div>
 									))
 								) : (
@@ -964,18 +912,13 @@ export default function QuizPage() {
 								<button onClick={() => setPreviewOpen(false)} className="btn btn-outline"><i className="fas fa-edit mr-2"></i>Edit</button>
 								<button onClick={() => { 
 									if (previewData?.id) { 
-										if (enable3DMode) {
-											// Open 3D quiz in new tab
-											window.open(`/quiz/${previewData.id}?mode=3d`, '_blank');
-										} else {
-											window.location.href = `/quiz/${previewData.id}`;
-										}
+										window.location.href = `/quiz/${previewData.id}`;
 									} else { 
 										setPreviewOpen(false); 
 									} 
 								}} className="btn btn-primary">
-									<i className={`fas ${enable3DMode ? 'fa-cube' : 'fa-play'} mr-2`}></i>
-									{enable3DMode ? 'Start 3D Quiz' : 'Start Quiz'}
+									<i className="fas fa-play mr-2"></i>
+									Start Quiz
 								</button>
 							</div>
 						</div>

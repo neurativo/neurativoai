@@ -240,9 +240,7 @@ export async function POST(req: Request) {
 		} catch {}
 		const focus = (formData?.get("focus_areas")?.toString() || body?.focus_areas || "");
 		const topic = (formData?.get("topic")?.toString() || body?.topic || "");
-		const enable3DMode = (formData?.get("enable_3d_mode")?.toString() || body?.enable_3d_mode || "false") === "true";
-
-            const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic, enable3DMode });
+            const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
 
 		// Reserve SOURCE-SPECIFIC usage via new RPC user_source_usage_claim
 		const { data: sourceClaimData, error: sourceClaimErr } = await supabase.rpc('user_source_usage_claim', {
@@ -396,7 +394,7 @@ export async function GET(req: NextRequest) {
 	return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
 }
 
-function buildQuizPrompt({ content, numQuestions, difficulty, types, focus, topic, enable3DMode }: { content: string; numQuestions: number; difficulty: string; types: string[]; focus: string; topic: string; enable3DMode: boolean; }) {
+function buildQuizPrompt({ content, numQuestions, difficulty, types, focus, topic }: { content: string; numQuestions: number; difficulty: string; types: string[]; focus: string; topic: string; }) {
 	const questionTypes = types && types.length ? types.join(", ") : "multiple_choice, true_false";
 	const focusText = focus ? `Focus on: ${focus}` : "Cover the main concepts and key points";
 	
@@ -416,7 +414,6 @@ Requirements:
 - ${typeInstruction}
 - ${focusText}
 - Topic: ${topic}
-${enable3DMode ? `- 3D INTERACTIVE MODE: Each question should be designed for 3D interactive learning. Include a "scenario" object for each question with 3D objects that students can interact with to answer the question.` : ''}
 
 Return ONLY valid JSON matching exactly this shape:
 {
@@ -438,21 +435,7 @@ Return ONLY valid JSON matching exactly this shape:
           "1": "Why Option B is incorrect", 
           "2": "Why Option C is incorrect",
           "3": "Why Option D is incorrect"
-        }${enable3DMode ? `,
-        "scenario": {
-          "type": "physics|biology|geography|chemistry|math|history|general",
-          "objects": [
-            {
-              "id": "object1",
-              "type": "box|sphere|cylinder|plane",
-              "position": [x, y, z],
-              "size": [width, height, depth],
-              "color": "#hexcolor",
-              "interactive": true,
-              "label": "Object Label"
-            }
-          ]
-        }` : ''}
+        }
       },
       {
         "id": 2,
@@ -503,17 +486,7 @@ Question Type Guidelines:
 - fill_blank: Multiple blanks with specific correct answers
 - Always include explanation and hint for each question
 - Make hints helpful but not giving away the answer
-- Ensure explanations are educational and detailed${enable3DMode ? `
-
-3D Interactive Mode Guidelines:
-- Each question MUST include a "scenario" object with 3D interactive elements
-- Choose scenario type based on content: physics (mechanics, forces), biology (cells, organs), geography (continents, features), chemistry (molecules, reactions), math (equations, shapes), history (timeline, artifacts), or general
-- Create 2-6 interactive 3D objects that relate to the question
-- Use appropriate colors and sizes for objects
-- Make objects clickable if they represent answer choices
-- Position objects in logical 3D arrangements
-- Use descriptive labels for clarity
-- Objects should help students visualize and interact with the concept being tested` : ''}`;
+- Ensure explanations are educational and detailed`;
 }
 
 function extractJson(text: string): any | null {

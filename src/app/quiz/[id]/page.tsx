@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Adaptive3DQuiz from "@/app/components/3DQuiz/Adaptive3DQuiz";
+import { useParams, useRouter } from "next/navigation";
 
 type SavedQuiz = { id: string; quiz: { title: string; description?: string; difficulty?: string; questions: any[] }; metadata: any };
 
@@ -15,9 +14,7 @@ type Telemetry = {
 export default function QuizPlayerPage() {
 	const params = useParams();
 	const router = useRouter();
-	const searchParams = useSearchParams();
 	const id = String(params?.id || "");
-	const is3DMode = searchParams.get('mode') === '3d';
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [data, setData] = useState<SavedQuiz | null>(null);
@@ -302,37 +299,6 @@ export default function QuizPlayerPage() {
 	if (error) return <div className="pt-24 text-center text-red-300">{error}</div>;
 	if (!quiz) return <div className="pt-24 text-center text-gray-300">Quiz not found</div>;
 
-	// Handle 3D mode
-	if (is3DMode) {
-		const questionsWithScenarios = questions.map((q: any) => ({
-			id: String(q.id),
-			question: q.question,
-			options: q.options?.map((opt: string, index: number) => ({
-				id: String(index),
-				text: opt,
-				correct: index === q.correct_answer
-			})) || [],
-			explanation: q.explanation || '',
-			scenario: q.scenario
-		}));
-
-		return (
-			<Adaptive3DQuiz
-				questions={questionsWithScenarios}
-				onAnswer={(correct: boolean) => {
-					// Handle answer tracking
-					const currentQ = questions[current];
-					if (currentQ) {
-						setAnswers(prev => ({ ...prev, [currentQ.id]: correct }));
-					}
-				}}
-				onComplete={(score: number) => {
-					setFinished(true);
-					// You can add score tracking here
-				}}
-			/>
-		);
-	}
 
 	return (
 		<main className="relative z-30 pt-16 md:pt-16 pb-20 md:pb-0">

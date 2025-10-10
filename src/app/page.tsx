@@ -17,23 +17,24 @@ export default function Home() {
 								<TypingText texts={["Transform Learning with AI", "Create Personalized Quizzes", "Master Any Subject"]} />
 							</span>
 						</h1>
-						<p className="block w-full text-lg sm:text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-							Experience the future of education with Neurativo's AI-powered platform. Create personalized quizzes, track progress, and master any subject with intelligent learning that adapts to your pace.
+						<p className="block w-full text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 mb-6 sm:mb-8 max-w-2xl sm:max-w-3xl mx-auto leading-relaxed">
+							<span className="block sm:hidden">AI-powered learning platform. Create quizzes, track progress, and master any subject.</span>
+							<span className="hidden sm:block">Experience the future of education with Neurativo's AI-powered platform. Create personalized quizzes, track progress, and master any subject with intelligent learning that adapts to your pace.</span>
 						</p>
-						<div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-							<a href="/quiz" className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+						<div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-8 sm:mb-12">
+							<a href="/quiz" className="group relative inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-sm sm:text-base">
 								<i className="fas fa-rocket mr-2 group-hover:animate-bounce" />
 								<div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 								<span className="relative z-10">Start Learning Free</span>
 							</a>
-							<a href="/pricing" className="group inline-flex items-center px-8 py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300">
+							<a href="/pricing" className="group inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 text-sm sm:text-base">
 								<i className="fas fa-crown mr-2 group-hover:text-yellow-400 transition-colors" />
 								View Pricing
 							</a>
 						</div>
 						
 						{/* Trust Indicators */}
-						<div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-gray-400 text-sm">
+						<div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-gray-400 text-xs sm:text-sm">
 							<div className="flex items-center">
 								<i className="fas fa-shield-alt text-green-400 mr-2"></i>
 								<span>100% Secure</span>

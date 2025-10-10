@@ -163,35 +163,50 @@ export default function RootLayout({
 					dangerouslySetInnerHTML={{
 						__html: JSON.stringify({
 							"@context": "https://schema.org",
-							"@type": "Organization",
+							"@type": "EducationalOrganization",
 							"name": "Neurativo",
-							"description": "AI-powered learning platform that transforms education through personalized quizzes, live lectures, and intelligent study materials.",
 							"url": "https://www.neurativo.com",
 							"logo": "https://www.neurativo.com/logo.png",
-							"foundingDate": "2024",
-							"founders": [
+							"description": "Neurativo is an AI-powered education platform that transforms the way students learn through intelligent insights, adaptive study experiences, and personalized guidance.",
+							"founder": [
 								{
 									"@type": "Person",
-									"name": "Neurativo Team"
+									"name": "Shazad Arshad"
+								},
+								{
+									"@type": "Person",
+									"name": "Shariff Ahamed"
 								}
 							],
+							"foundingDate": "2025",
 							"sameAs": [
-								"https://instagram.com/neurativo.official",
-								"https://facebook.com/neurativo.official"
+								"https://www.instagram.com/neurativo.official",
+								"https://www.facebook.com/neurativo.official",
+								"https://www.linkedin.com/company/neurativo"
 							],
-							"contactPoint": {
-								"@type": "ContactPoint",
-								"contactType": "customer service",
-								"email": "support@neurativo.com"
+							"offers": [
+								{
+									"@type": "Offer",
+									"name": "AI Learning Plans",
+									"priceSpecification": {
+										"@type": "PriceSpecification",
+										"priceCurrency": "USD",
+										"price": "Varies",
+										"priceType": "startingFrom",
+										"description": "Flexible subscription options for students and institutions."
+									},
+									"availability": "https://schema.org/InStock"
+								}
+							],
+							"brand": {
+								"@type": "Brand",
+								"name": "Neurativo",
+								"slogan": "Transforming Education with Intelligence"
 							},
-							"offers": {
-								"@type": "Offer",
-								"description": "AI-powered learning platform with personalized quizzes and study materials",
-								"price": "0",
-								"priceCurrency": "USD"
-							},
-							"areaServed": "Worldwide",
-							"serviceType": "Educational Technology"
+							"address": {
+								"@type": "PostalAddress",
+								"addressCountry": "LK"
+							}
 						})
 					}}
 				/>

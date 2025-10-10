@@ -38,7 +38,7 @@ export default function Footer() {
 								href="https://www.instagram.com/neurativo.official" 
 								target="_blank" 
 								rel="noopener noreferrer"
-								className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300"
+								className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300 opacity-100"
 								aria-label="Follow us on Instagram"
 							>
 								<i className="fab fa-instagram text-white text-lg"></i>
@@ -47,7 +47,7 @@ export default function Footer() {
 								href="https://www.facebook.com/neurativo.official" 
 								target="_blank" 
 								rel="noopener noreferrer"
-								className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300"
+								className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300 opacity-100"
 								aria-label="Follow us on Facebook"
 							>
 								<i className="fab fa-facebook-f text-white text-lg"></i>
@@ -56,7 +56,7 @@ export default function Footer() {
 								href="https://www.linkedin.com/company/neurativo" 
 								target="_blank" 
 								rel="noopener noreferrer"
-								className="w-10 h-10 bg-gradient-to-r from-blue-700 to-blue-800 rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300"
+								className="w-10 h-10 bg-gradient-to-r from-blue-700 to-blue-800 rounded-lg flex items-center justify-center hover:scale-110 transition-transform duration-300 opacity-100"
 								aria-label="Follow us on LinkedIn"
 							>
 								<i className="fab fa-linkedin-in text-white text-lg"></i>

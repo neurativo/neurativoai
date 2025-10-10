@@ -59,6 +59,11 @@ export const metadata: Metadata = {
 		"edtech",
 		"practice questions",
 		"flashcards",
+		"neurativo official",
+		"neurativo instagram",
+		"neurativo facebook",
+		"neurativo social media",
+		"neurativo sitemap",
 	],
 	authors: [{ name: "Neurativo Team" }],
 	creator: "Neurativo",
@@ -152,6 +157,43 @@ export default function RootLayout({
 				<link
 					rel="stylesheet"
 					href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+				/>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{
+						__html: JSON.stringify({
+							"@context": "https://schema.org",
+							"@type": "Organization",
+							"name": "Neurativo",
+							"description": "AI-powered learning platform that transforms education through personalized quizzes, live lectures, and intelligent study materials.",
+							"url": "https://www.neurativo.com",
+							"logo": "https://www.neurativo.com/logo.png",
+							"foundingDate": "2024",
+							"founders": [
+								{
+									"@type": "Person",
+									"name": "Neurativo Team"
+								}
+							],
+							"sameAs": [
+								"https://instagram.com/neurativo.official",
+								"https://facebook.com/neurativo.official"
+							],
+							"contactPoint": {
+								"@type": "ContactPoint",
+								"contactType": "customer service",
+								"email": "support@neurativo.com"
+							},
+							"offers": {
+								"@type": "Offer",
+								"description": "AI-powered learning platform with personalized quizzes and study materials",
+								"price": "0",
+								"priceCurrency": "USD"
+							},
+							"areaServed": "Worldwide",
+							"serviceType": "Educational Technology"
+						})
+					}}
 				/>
 			</head>
 			<body

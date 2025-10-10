@@ -28,5 +28,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		{ url: `${baseUrl}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
 		{ url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
 		{ url: `${baseUrl}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+		// Social Media Profiles
+		{ url: "https://instagram.com/neurativo.official", lastModified: now, changeFrequency: "daily", priority: 0.7 },
+		{ url: "https://facebook.com/neurativo.official", lastModified: now, changeFrequency: "daily", priority: 0.7 },
 	];
 }

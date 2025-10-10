@@ -35,7 +35,7 @@ body {
 	left: 0;
 	width: 100%;
 	height: calc(50vh + var(--nav-h)); /* cover navbar + half viewport */
-	z-index: 20; /* below navbar (z-50), above page background */
+	z-index: -10; /* behind all content */
 	pointer-events: none;
 	overflow: hidden;
 }
@@ -43,6 +43,14 @@ body {
 	display: block;
 	width: 100% !important;
 	height: 100% !important;
+}
+
+/* Mobile-specific Aurora positioning */
+@media (max-width: 768px) {
+	.aurora-container {
+		z-index: -20; /* Even further behind on mobile */
+		height: 100vh; /* Full height on mobile for better coverage */
+	}
 }
 
 /* Legacy CSS aurora (kept in case we switch back) */

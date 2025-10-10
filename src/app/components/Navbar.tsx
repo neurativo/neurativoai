@@ -133,8 +133,8 @@ export default function Navbar() {
 							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`}>Home</Link></li>
 							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`}>Quiz</Link></li>
 							<li><Link href="/lecture" className={`nav-link ${isActive("/lecture") ? "active" : ""}`}>Live Lecture</Link></li>
-							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`}>Pricing</Link></li>
 							<li><Link href="/library" className={`nav-link ${isActive("/library") ? "active" : ""}`}>Library</Link></li>
+							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`}>Pricing</Link></li>
 							<li><Link href="/about" className={`nav-link ${isActive("/about") ? "active" : ""}`}>About</Link></li>
 						</ul>
 					</div>
@@ -199,8 +199,8 @@ export default function Navbar() {
 							<li><Link href="/" className={`nav-link ${isActive("/") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Home</Link></li>
 							<li><Link href="/quiz" className={`nav-link ${isActive("/quiz") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Quiz</Link></li>
 							<li><Link href="/lecture" className={`nav-link ${isActive("/lecture") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Live Lecture</Link></li>
-							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Pricing</Link></li>
 							<li><Link href="/library" className={`nav-link ${isActive("/library") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Library</Link></li>
+							<li><Link href="/pricing" className={`nav-link ${isActive("/pricing") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>Pricing</Link></li>
 							<li><Link href="/about" className={`nav-link ${isActive("/about") ? "active" : ""}`} onClick={() => setIsMobileOpen(false)}>About</Link></li>
 						</ul>
 					</div>

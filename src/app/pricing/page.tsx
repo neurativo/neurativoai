@@ -90,11 +90,10 @@ function PricingPageInner() {
                 </div>
 
                 {/* Pricing Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                     {/* Free Plan */}
                     <div className="group relative">
-                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 hover:bg-white/10 hover:border-gray-400/50 transition-all duration-500 hover:transform hover:scale-105 h-full">
-                            <div className="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-gray-600/5 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 hover:bg-white/10 hover:border-gray-400/50 transition-colors duration-200 h-full">
                             <div className="relative z-10">
                                 <div className="text-center mb-6 sm:mb-8">
                                     <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-gray-500/20 text-gray-300 border border-gray-500/30 mb-4 sm:mb-6">

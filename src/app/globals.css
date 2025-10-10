@@ -26,6 +26,58 @@ body {
   color: var(--foreground);
 	font-family: var(--font-geist-sans);
 	overflow-x: hidden; /* Prevent horizontal scroll from aurora */
+	/* Performance optimizations */
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeSpeed;
+}
+
+/* Performance optimizations */
+* {
+	box-sizing: border-box;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* Optimize images */
+img {
+	max-width: 100%;
+	height: auto;
+	loading: lazy;
+}
+
+/* Optimize scroll performance */
+html {
+	scroll-behavior: smooth;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+	/* Reduce complex animations on mobile */
+	.group:hover .group-hover\:scale-110 {
+		transform: none;
+	}
+	
+	/* Optimize touch interactions */
+	button, a {
+		touch-action: manipulation;
+	}
+	
+	/* Reduce backdrop blur on mobile for better performance */
+	.backdrop-blur-sm {
+		backdrop-filter: none;
+		background-color: rgba(255, 255, 255, 0.1);
+	}
 }
 
 /* Aurora (shader) behind navbar and through it */

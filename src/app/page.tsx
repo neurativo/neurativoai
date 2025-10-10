@@ -22,13 +22,12 @@ export default function Home() {
 							<span className="hidden sm:block">Experience the future of education with Neurativo's AI-powered platform. Create personalized quizzes, track progress, and master any subject with intelligent learning that adapts to your pace.</span>
 						</p>
 						<div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-8 sm:mb-12">
-							<a href="/quiz" className="group relative inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-sm sm:text-base">
-								<i className="fas fa-rocket mr-2 group-hover:animate-bounce" />
-								<div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+							<a href="/quiz" className="group relative inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-transform duration-200 text-sm sm:text-base">
+								<i className="fas fa-rocket mr-2" />
 								<span className="relative z-10">Start Learning Free</span>
 							</a>
-							<a href="/pricing" className="group inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 text-sm sm:text-base">
-								<i className="fas fa-crown mr-2 group-hover:text-yellow-400 transition-colors" />
+							<a href="/pricing" className="group inline-flex items-center px-6 sm:px-8 py-3 sm:py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-colors duration-200 text-sm sm:text-base">
+								<i className="fas fa-crown mr-2" />
 								View Pricing
 							</a>
 						</div>
@@ -80,58 +79,53 @@ export default function Home() {
 							</div>
 						</div>
 						
-						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 hover:border-green-500/50 transition-all duration-300 hover:transform hover:scale-105">
-							<div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:bg-white/10 hover:border-green-500/50 transition-colors duration-200">
 							<div className="relative z-10">
-								<div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-chart-line text-2xl text-white" />
+								<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
+									<i className="fas fa-chart-line text-lg sm:text-2xl text-white" />
 								</div>
-								<h3 className="text-2xl font-bold text-white mb-4">Smart Analytics</h3>
-								<p className="text-gray-300 leading-relaxed">Track your progress with detailed insights, performance analytics, and personalized recommendations for improvement.</p>
+								<h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Smart Analytics</h3>
+								<p className="text-gray-300 leading-relaxed text-sm sm:text-base">Track your progress with detailed insights, performance analytics, and personalized recommendations for improvement.</p>
 							</div>
 						</div>
 						
-						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 hover:border-orange-500/50 transition-all duration-300 hover:transform hover:scale-105">
-							<div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:bg-white/10 hover:border-orange-500/50 transition-colors duration-200">
 							<div className="relative z-10">
-								<div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-gamepad text-2xl text-white" />
+								<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
+									<i className="fas fa-gamepad text-lg sm:text-2xl text-white" />
 								</div>
-								<h3 className="text-2xl font-bold text-white mb-4">Gamified Learning</h3>
-								<p className="text-gray-300 leading-relaxed">Engage with interactive quizzes, challenges, and achievements that make learning fun and addictive.</p>
+								<h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Gamified Learning</h3>
+								<p className="text-gray-300 leading-relaxed text-sm sm:text-base">Engage with interactive quizzes, challenges, and achievements that make learning fun and addictive.</p>
 							</div>
 						</div>
 						
-						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 hover:border-pink-500/50 transition-all duration-300 hover:transform hover:scale-105">
-							<div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-rose-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:bg-white/10 hover:border-pink-500/50 transition-colors duration-200">
 							<div className="relative z-10">
-								<div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-users text-2xl text-white" />
+								<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
+									<i className="fas fa-users text-lg sm:text-2xl text-white" />
 								</div>
-								<h3 className="text-2xl font-bold text-white mb-4">Collaborative Learning</h3>
-								<p className="text-gray-300 leading-relaxed">Share quizzes, compete with friends, and learn together in a supportive community environment.</p>
+								<h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Collaborative Learning</h3>
+								<p className="text-gray-300 leading-relaxed text-sm sm:text-base">Share quizzes, compete with friends, and learn together in a supportive community environment.</p>
 							</div>
 						</div>
 						
-						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 hover:border-cyan-500/50 transition-all duration-300 hover:transform hover:scale-105">
-							<div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:bg-white/10 hover:border-cyan-500/50 transition-colors duration-200">
 							<div className="relative z-10">
-								<div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-mobile-alt text-2xl text-white" />
+								<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
+									<i className="fas fa-mobile-alt text-lg sm:text-2xl text-white" />
 								</div>
-								<h3 className="text-2xl font-bold text-white mb-4">Mobile First</h3>
-								<p className="text-gray-300 leading-relaxed">Learn anywhere, anytime with a responsive design that works perfectly on all devices and screen sizes.</p>
+								<h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Mobile First</h3>
+								<p className="text-gray-300 leading-relaxed text-sm sm:text-base">Learn anywhere, anytime with a responsive design that works perfectly on all devices and screen sizes.</p>
 							</div>
 						</div>
 						
-						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 hover:border-yellow-500/50 transition-all duration-300 hover:transform hover:scale-105">
-							<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+						<div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:bg-white/10 hover:border-yellow-500/50 transition-colors duration-200">
 							<div className="relative z-10">
-								<div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-shield-alt text-2xl text-white" />
+								<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
+									<i className="fas fa-shield-alt text-lg sm:text-2xl text-white" />
 								</div>
-								<h3 className="text-2xl font-bold text-white mb-4">Secure & Private</h3>
-								<p className="text-gray-300 leading-relaxed">Your data is protected with enterprise-grade security and privacy controls that you can trust.</p>
+								<h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Secure & Private</h3>
+								<p className="text-gray-300 leading-relaxed text-sm sm:text-base">Your data is protected with enterprise-grade security and privacy controls that you can trust.</p>
 							</div>
 						</div>
 					</div>

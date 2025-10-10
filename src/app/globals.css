@@ -87,7 +87,7 @@ html {
 	left: 0;
 	width: 100%;
 	height: calc(50vh + var(--nav-h)); /* cover navbar + half viewport */
-	z-index: -10; /* behind all content */
+	z-index: 10; /* behind navbar (z-50), above page background */
 	pointer-events: none;
 	overflow: hidden;
 }
@@ -100,7 +100,7 @@ html {
 /* Mobile-specific Aurora positioning */
 @media (max-width: 768px) {
 	.aurora-container {
-		z-index: -20; /* Even further behind on mobile */
+		z-index: 10; /* Same as desktop - behind navbar, above background */
 		height: 100vh; /* Full height on mobile for better coverage */
 	}
 }

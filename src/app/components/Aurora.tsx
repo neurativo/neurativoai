@@ -201,7 +201,7 @@ export default function Aurora(props: AuroraProps) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [amplitude]);
 
-	return <div ref={ctnDom} className="aurora-container fixed inset-0 -z-10 pointer-events-none" />;
+	return <div ref={ctnDom} className="aurora-container" />;
 }
 
 

@@ -27,6 +27,7 @@ export default function QuizPage() {
 	const [aiTypes, setAiTypes] = useState<string[]>(["multiple_choice", "true_false"]);
     const [aiFocus] = useState("");
     const [aiTopic] = useState("");
+    const [enable3DMode, setEnable3DMode] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [urlLoading, setUrlLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -262,6 +263,7 @@ export default function QuizPage() {
 			form.set("question_types", JSON.stringify(aiTypes));
 			form.set("focus_areas", aiFocus);
 			form.set("topic", aiTopic);
+			form.set("enable_3d_mode", String(enable3DMode));
 			// Map study-pack to text since we're providing extracted content
 			const apiSource = sourceTab === "study-pack" ? "text" : sourceTab;
 			form.set("source", apiSource);
@@ -389,14 +391,6 @@ export default function QuizPage() {
 									className={`px-4 py-2 rounded-lg transition ${sourceTab === "study-pack" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
 								>
 									Study Pack
-								</button>
-								<button
-									onClick={() => setSourceTab("3d-quiz")}
-									aria-current={sourceTab === "3d-quiz"}
-									className={`px-4 py-2 rounded-lg transition ${sourceTab === "3d-quiz" ? "bg-white/20 text-white shadow-inner" : "text-gray-300 hover:text-white hover:bg-white/10"}`}
-								>
-									<i className="fas fa-cube mr-2"></i>
-									3D Quiz
 								</button>
 							</div>
 						</div>
@@ -796,104 +790,6 @@ export default function QuizPage() {
 										</div>
 									)}
 
-									{sourceTab === "3d-quiz" && (
-										<div className="md:col-span-2">
-											<div className="text-center py-12">
-												<div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-													<i className="fas fa-cube text-4xl text-white"></i>
-												</div>
-												<h3 className="text-2xl font-bold text-white mb-4">Immersive 3D Learning</h3>
-												<p className="text-gray-300 mb-8 max-w-2xl mx-auto">
-													Experience learning like never before with interactive 3D environments. 
-													Manipulate objects, explore virtual worlds, and learn through immersive experiences.
-												</p>
-												
-												<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-														<div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-															<i className="fas fa-atom text-2xl text-white"></i>
-														</div>
-														<h4 className="text-xl font-bold text-white mb-3">Physics</h4>
-														<p className="text-gray-300 text-sm mb-4">
-															Manipulate levers, pulleys, and circuits in 3D. Learn mechanics through interactive experiments.
-														</p>
-														<button 
-															onClick={() => window.open('/3d-quiz', '_blank')}
-															className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
-														>
-															Start Physics Quiz
-														</button>
-													</div>
-													
-													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-														<div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-															<i className="fas fa-dna text-2xl text-white"></i>
-														</div>
-														<h4 className="text-xl font-bold text-white mb-3">Biology</h4>
-														<p className="text-gray-300 text-sm mb-4">
-															Explore 3D cells and organelles. Click on structures to learn their functions.
-														</p>
-														<button 
-															onClick={() => window.open('/3d-quiz', '_blank')}
-															className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
-														>
-															Start Biology Quiz
-														</button>
-													</div>
-													
-													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-														<div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-															<i className="fas fa-globe text-2xl text-white"></i>
-														</div>
-														<h4 className="text-xl font-bold text-white mb-3">Geography</h4>
-														<p className="text-gray-300 text-sm mb-4">
-															Explore 3D Earth and locate continents, countries, and geographical features.
-														</p>
-														<button 
-															onClick={() => window.open('/3d-quiz', '_blank')}
-															className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
-														>
-															Start Geography Quiz
-														</button>
-													</div>
-													
-													<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-														<div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-															<i className="fas fa-code text-2xl text-white"></i>
-														</div>
-														<h4 className="text-xl font-bold text-white mb-3">Computer Science</h4>
-														<p className="text-gray-300 text-sm mb-4">
-															Build algorithm flows in 3D. Drag and arrange nodes to create working programs.
-														</p>
-														<button 
-															onClick={() => window.open('/3d-quiz', '_blank')}
-															className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-2 px-4 rounded-xl transition-all duration-300"
-														>
-															Start CS Quiz
-														</button>
-													</div>
-												</div>
-												
-												<div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl p-6 border border-purple-500/30">
-													<h4 className="text-lg font-bold text-white mb-3">Why 3D Learning?</h4>
-													<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-														<div className="text-center">
-															<i className="fas fa-hand-paper text-2xl text-purple-400 mb-2"></i>
-															<p className="text-gray-300">Interactive Learning</p>
-														</div>
-														<div className="text-center">
-															<i className="fas fa-brain text-2xl text-blue-400 mb-2"></i>
-															<p className="text-gray-300">Better Retention</p>
-														</div>
-														<div className="text-center">
-															<i className="fas fa-gamepad text-2xl text-green-400 mb-2"></i>
-															<p className="text-gray-300">Engaging Experience</p>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									)}
 
 									<div>
 										<label className="text-white font-semibold mb-2 block">Difficulty Level</label>
@@ -947,17 +843,36 @@ export default function QuizPage() {
 											</label>
 										</div>
 									</div>
+
+									<div className="md:col-span-2">
+										<label className="text-white font-semibold mb-2 block">Interactive Learning</label>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<label className="flex items-center p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
+												<input
+													type="checkbox"
+													checked={enable3DMode}
+													onChange={(e) => setEnable3DMode(e.target.checked)}
+													className="checkbox checkbox-primary checkbox-lg mr-4"
+												/>
+												<div className="flex items-center">
+													<div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center mr-4">
+														<i className="fas fa-cube text-white text-xl"></i>
+													</div>
+													<div>
+														<span className="text-white font-medium text-lg">3D Interactive Mode</span>
+														<p className="text-gray-400 text-sm">Create immersive 3D scenarios for visual learning</p>
+													</div>
+												</div>
+											</label>
+										</div>
+									</div>
 								</div>
 								<div className="divider my-6 opacity-20"></div>
 
 								<div className="mt-2">
 									<button 
-										disabled={loading || limits?.blocked || (sourceTab === "study-pack" && !studyPack) || sourceTab === "3d-quiz"} 
+										disabled={loading || limits?.blocked || (sourceTab === "study-pack" && !studyPack)} 
 										onClick={async () => {
-											if (sourceTab === "3d-quiz") {
-												window.open('/3d-quiz', '_blank');
-												return;
-											}
 											await generateQuiz();
 										}} 
 										className="btn btn-primary w-full"
@@ -966,12 +881,11 @@ export default function QuizPage() {
 										{loading ? (
 											urlLoading ? "Extracting content..." : 
 											documentProcessing ? (sourceTab === "study-pack" ? "Generating from study pack..." : "Processing document...") : 
-											"Generating quiz..."
+											enable3DMode ? "Generating 3D Interactive Quiz..." : "Generating quiz..."
 										) : (
 											limits?.blocked ? "Limit reached" : 
 											sourceTab === "study-pack" && !studyPack ? "Generate Study Pack First" :
-											sourceTab === "3d-quiz" ? "Open 3D Quiz Portal" :
-											"Generate Quiz"
+											enable3DMode ? "Generate 3D Interactive Quiz" : "Generate Quiz"
 										)}
 									</button>
                                     {limits && (
@@ -1000,7 +914,15 @@ export default function QuizPage() {
 					</section>
 					<div className={"modal" + (previewOpen ? " modal-open" : "")}>
 						<div className="modal-box max-w-5xl bg-white/5 backdrop-blur-xl border border-white/20">
-							<h3 className="font-bold text-lg text-white mb-1">{previewData?.quiz?.title || "Quiz Preview"}</h3>
+							<div className="flex items-center justify-between mb-4">
+								<h3 className="font-bold text-lg text-white">{previewData?.quiz?.title || "Quiz Preview"}</h3>
+								{enable3DMode && (
+									<div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 px-3 py-1 rounded-full border border-purple-500/30">
+										<i className="fas fa-cube text-purple-400"></i>
+										<span className="text-purple-300 text-sm font-medium">3D Interactive</span>
+									</div>
+								)}
+							</div>
 							{previewData?.quiz?.description && (
 								<p className="text-gray-300 mb-4">{previewData.quiz.description}</p>
 							)}
@@ -1010,8 +932,28 @@ export default function QuizPage() {
 										<div key={q.id ?? idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
 											<div className="flex items-start justify-between gap-3">
 												<h4 className="text-white font-semibold">{idx + 1}. {q.question}</h4>
-												{q.type && <span className="badge badge-outline text-xs text-gray-300">{q.type}</span>}
+												<div className="flex items-center space-x-2">
+													{q.type && <span className="badge badge-outline text-xs text-gray-300">{q.type}</span>}
+													{(q as any).scenario && (
+														<span className="badge badge-primary text-xs">
+															<i className="fas fa-cube mr-1"></i>
+															{(q as any).scenario.type}
+														</span>
+													)}
+												</div>
 											</div>
+											{(q as any).scenario && (
+												<div className="mt-3 p-3 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20">
+													<div className="flex items-center space-x-2 mb-2">
+														<i className="fas fa-cube text-purple-400"></i>
+														<span className="text-purple-300 text-sm font-medium">3D Interactive Scenario</span>
+													</div>
+													<p className="text-gray-300 text-sm">
+														This question includes interactive 3D objects that you can manipulate to find the answer.
+														{(q as any).scenario.objects && ` (${(q as any).scenario.objects.length} interactive objects)`}
+													</p>
+												</div>
+											)}
 										</div>
 									))
 								) : (
@@ -1020,7 +962,21 @@ export default function QuizPage() {
 							</div>
 							<div className="modal-action">
 								<button onClick={() => setPreviewOpen(false)} className="btn btn-outline"><i className="fas fa-edit mr-2"></i>Edit</button>
-								<button onClick={() => { if (previewData?.id) { window.location.href = `/quiz/${previewData.id}`; } else { setPreviewOpen(false); } }} className="btn btn-primary"><i className="fas fa-play mr-2"></i>Start</button>
+								<button onClick={() => { 
+									if (previewData?.id) { 
+										if (enable3DMode) {
+											// Open 3D quiz in new tab
+											window.open(`/quiz/${previewData.id}?mode=3d`, '_blank');
+										} else {
+											window.location.href = `/quiz/${previewData.id}`;
+										}
+									} else { 
+										setPreviewOpen(false); 
+									} 
+								}} className="btn btn-primary">
+									<i className={`fas ${enable3DMode ? 'fa-cube' : 'fa-play'} mr-2`}></i>
+									{enable3DMode ? 'Start 3D Quiz' : 'Start Quiz'}
+								</button>
 							</div>
 						</div>
 						<button className="modal-backdrop" onClick={() => setPreviewOpen(false)}>Close</button>

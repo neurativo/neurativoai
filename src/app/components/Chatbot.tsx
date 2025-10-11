@@ -91,6 +91,145 @@ export default function Chatbot() {
     }
   };
 
+  // Function to render markdown-like formatting
+  const renderFormattedContent = (content: string) => {
+    // Split content into lines for processing
+    const lines = content.split('\n');
+    const elements: React.JSX.Element[] = [];
+    let listItems: string[] = [];
+    let inCodeBlock = false;
+    let codeBlockContent: string[] = [];
+
+    const flushList = () => {
+      if (listItems.length > 0) {
+        elements.push(
+          <ul key={`list-${elements.length}`} className="list-disc list-inside space-y-1 my-2">
+            {listItems.map((item, index) => (
+              <li key={index} className="text-sm">{item}</li>
+            ))}
+          </ul>
+        );
+        listItems = [];
+      }
+    };
+
+    const flushCodeBlock = () => {
+      if (codeBlockContent.length > 0) {
+        elements.push(
+          <pre key={`code-${elements.length}`} className="bg-gray-800/50 p-3 rounded-lg my-2 overflow-x-auto">
+            <code className="text-xs text-gray-300">{codeBlockContent.join('\n')}</code>
+          </pre>
+        );
+        codeBlockContent = [];
+        inCodeBlock = false;
+      }
+    };
+
+    lines.forEach((line, index) => {
+      // Handle code blocks
+      if (line.startsWith('```')) {
+        if (inCodeBlock) {
+          flushCodeBlock();
+        } else {
+          flushList();
+          inCodeBlock = true;
+        }
+        return;
+      }
+
+      if (inCodeBlock) {
+        codeBlockContent.push(line);
+        return;
+      }
+
+      // Handle headers
+      if (line.startsWith('### ')) {
+        flushList();
+        elements.push(
+          <h3 key={index} className="text-sm font-semibold text-white mt-3 mb-2">
+            {line.replace('### ', '')}
+          </h3>
+        );
+        return;
+      }
+
+      if (line.startsWith('## ')) {
+        flushList();
+        elements.push(
+          <h2 key={index} className="text-base font-bold text-white mt-4 mb-2">
+            {line.replace('## ', '')}
+          </h2>
+        );
+        return;
+      }
+
+      if (line.startsWith('# ')) {
+        flushList();
+        elements.push(
+          <h1 key={index} className="text-lg font-bold text-white mt-4 mb-3">
+            {line.replace('# ', '')}
+          </h1>
+        );
+        return;
+      }
+
+      // Handle list items
+      if (line.startsWith('- ')) {
+        listItems.push(line.replace('- ', ''));
+        return;
+      }
+
+      // Handle bold text
+      if (line.includes('**')) {
+        flushList();
+        const parts = line.split('**');
+        const formattedLine = parts.map((part, i) => 
+          i % 2 === 1 ? <strong key={i} className="font-semibold text-white">{part}</strong> : part
+        );
+        elements.push(
+          <p key={index} className="text-sm my-1">
+            {formattedLine}
+          </p>
+        );
+        return;
+      }
+
+      // Handle links
+      if (line.includes('(/')) {
+        flushList();
+        const linkRegex = /\[([^\]]+)\]\(\/([^)]+)\)/g;
+        const formattedLine = line.replace(linkRegex, (match, text, path) => {
+          return `<a href="/${path}" class="text-blue-300 hover:text-blue-200 underline">${text}</a>`;
+        });
+        elements.push(
+          <p key={index} className="text-sm my-1" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+        );
+        return;
+      }
+
+      // Handle empty lines
+      if (line.trim() === '') {
+        flushList();
+        elements.push(<br key={index} />);
+        return;
+      }
+
+      // Regular text
+      flushList();
+      elements.push(
+        <p key={index} className="text-sm my-1">
+          {line}
+        </p>
+      );
+    });
+
+    // Flush any remaining lists or code blocks
+    flushList();
+    flushCodeBlock();
+
+    return elements;
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -113,7 +252,11 @@ export default function Chatbot() {
     'How do I create a quiz?',
     'What is Live Lecture?',
     'How much does it cost?',
-    'How do I upgrade my plan?'
+    'How do I use Study Pack?',
+    'What features are available?',
+    'How do I upgrade my plan?',
+    'Troubleshooting help',
+    'What subjects are supported?'
   ];
 
   return (
@@ -174,14 +317,20 @@ export default function Chatbot() {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl ${
+                  className={`max-w-[85%] p-3 rounded-2xl ${
                     message.role === 'user'
                       ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
                       : 'bg-white/10 text-gray-100 border border-white/10'
                   }`}
                 >
-                  <p className="text-sm leading-relaxed">{message.content}</p>
-                  <p className="text-xs opacity-70 mt-1">
+                  {message.role === 'assistant' ? (
+                    <div className="text-sm leading-relaxed">
+                      {renderFormattedContent(message.content)}
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed">{message.content}</p>
+                  )}
+                  <p className="text-xs opacity-70 mt-2">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>

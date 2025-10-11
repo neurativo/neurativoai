@@ -251,12 +251,7 @@ export default function Chatbot() {
   const quickQuestions = [
     'How do I create a quiz?',
     'What is Live Lecture?',
-    'How much does it cost?',
-    'How do I use Study Pack?',
-    'What features are available?',
-    'How do I upgrade my plan?',
-    'Troubleshooting help',
-    'What subjects are supported?'
+    'How much does it cost?'
   ];
 
   return (

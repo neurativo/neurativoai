@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Aurora from "./components/Aurora";
 import PerformanceOptimizer from "./components/PerformanceOptimizer";
+import Chatbot from "./components/Chatbot";
 
 const inter = Inter({
 	variable: "--font-geist-sans",
@@ -212,17 +213,18 @@ export default function RootLayout({
 					}}
 				/>
 			</head>
-			<body
-				className={`${inter.variable} ${jetbrainsMono.variable} antialiased bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen`}
-			>
-				<PerformanceOptimizer />
-				<Navbar />
-				<Aurora colorStops={["#D946EF", "#8B5CF6", "#3B82F6"]} amplitude={1.3} blend={0.65} speed={0.5} />
-				<main className="relative z-30 pt-16 md:pt-16 pb-20 md:pb-0">
-					{children}
-				</main>
-				<Footer />
-			</body>
+		<body
+			className={`${inter.variable} ${jetbrainsMono.variable} antialiased bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen`}
+		>
+			<PerformanceOptimizer />
+			<Navbar />
+			<Aurora colorStops={["#D946EF", "#8B5CF6", "#3B82F6"]} amplitude={1.3} blend={0.65} speed={0.5} />
+			<main className="relative z-30 pt-16 md:pt-16 pb-20 md:pb-0">
+				{children}
+			</main>
+			<Footer />
+			<Chatbot />
+		</body>
 		</html>
 	);
 }

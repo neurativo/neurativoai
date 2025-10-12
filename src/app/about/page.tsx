@@ -79,7 +79,7 @@ export default function AboutPage() {
 							The Visionaries Behind <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Neurativo</span>
 						</h2>
 						<p className="text-xl text-gray-300 leading-relaxed max-w-3xl mx-auto">
-							Two passionate students who believed that education could be transformed through the power of artificial intelligence.
+							Two visionary students who founded Neurativo with a shared dream: to revolutionize education by implementing artificial intelligence that makes learning personalized, engaging, and accessible to every student worldwide.
 						</p>
 					</div>
 
@@ -99,7 +99,7 @@ export default function AboutPage() {
 										</div>
 									</div>
 									<p className="text-gray-300 leading-relaxed mb-6">
-										A visionary student with a passion for educational technology and artificial intelligence.
+										A visionary student with a passion for educational innovation and AI technology. Shazad brings creative thinking and technical expertise to transform how students interact with learning materials.
 									</p>
 									<div className="flex items-center text-purple-300">
 										<i className="fas fa-graduation-cap mr-2"></i>
@@ -124,7 +124,7 @@ export default function AboutPage() {
 										</div>
 									</div>
 									<p className="text-gray-300 leading-relaxed mb-6">
-										A dedicated student with expertise in software development and AI implementation.
+										A dedicated student with expertise in software development and AI implementation. Shariff combines technical skills with a deep understanding of student needs to create intuitive and powerful learning tools.
 									</p>
 									<div className="flex items-center text-blue-300">
 										<i className="fas fa-code mr-2"></i>
@@ -144,9 +144,8 @@ export default function AboutPage() {
 							<h3 className="text-3xl font-bold text-white mb-6">The Story Behind Neurativo</h3>
 							<p className="text-xl text-gray-300 leading-relaxed max-w-4xl mx-auto">
 								As students themselves, Shazad and Shariff experienced firsthand the challenges of traditional learning methods. 
-								They noticed how difficult it was to create personalized study materials and how time-consuming it was to generate 
-								effective quizzes and notes. This frustration sparked an idea: what if AI could make learning more personalized, 
-								efficient, and engaging for every student?
+								They recognized the potential of artificial intelligence to revolutionize education and founded Neurativo to implement 
+								AI-powered solutions that make learning more personalized, efficient, and engaging for students everywhere.
 							</p>
 							<div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
 								<div className="flex items-center text-purple-300">

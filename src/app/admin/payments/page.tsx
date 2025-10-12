@@ -19,10 +19,15 @@ type PaymentRow = {
 function FileViewer({ url, type }: { url: string; type: string }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  if (!url) return <span className="text-gray-400">No proof uploaded</span>;
+  // Debug logging
+  console.log('FileViewer received:', { url, type });
 
-  const isImage = type.startsWith('image/') || url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-  const isPdf = type === 'application/pdf' || url.match(/\.pdf$/i);
+  if (!url || url.trim() === '') return <span className="text-gray-400">No proof uploaded</span>;
+
+  // Better file type detection
+  const fileExtension = url.split('.').pop()?.toLowerCase() || '';
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension) || type.startsWith('image/');
+  const isPdf = fileExtension === 'pdf' || type === 'application/pdf';
 
   if (isFullscreen) {
     return (
@@ -126,7 +131,7 @@ export default function AdminPaymentsPage() {
       setIsAdmin(true);
       const { data: payData, error } = await supabase
         .from("payments")
-        .select("id,user_id,plan,method,amount_cents,currency,proof_url,status,created_at")
+        .select("id,user_id,plan,method,amount_cents,currency,proof_url,status,created_at,admin_note")
         .order("created_at", { ascending: false });
       if (error) setError(error.message);
       setRows(payData ?? []);
@@ -298,9 +303,9 @@ export default function AdminPaymentsPage() {
                 <div className="border-t border-white/10 my-4" />
                 <label className="text-white font-semibold mb-2 block">Approve with plan</label>
                 <select className="select select-bordered w-full bg-white/5 text-white mb-3" value={selectedPlan} onChange={(e)=>setSelectedPlan(e.target.value)}>
-                  <option value="plus">Plus ($9/month)</option>
-                  <option value="premium">Premium ($19/month)</option>
-                  <option value="special">Special ($29/month)</option>
+                  <option value="plus">Professional ($9/month)</option>
+                  <option value="premium">Mastery ($19/month)</option>
+                  <option value="special">Innovation ($29/month)</option>
                 </select>
                 <label className="text-white font-semibold mb-2 block">Admin note</label>
                 <textarea className="textarea textarea-bordered w-full bg-white/5 text-white" rows={3} value={reviewNote} onChange={(e)=>setReviewNote(e.target.value)} placeholder="Optional note..." />

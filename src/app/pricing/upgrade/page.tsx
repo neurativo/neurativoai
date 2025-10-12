@@ -133,12 +133,20 @@ function UpgradePageInner() {
             <div className="feature-card text-left">
               <h2 className="text-xl font-semibold mb-4">Binance USDT (TRC20)</h2>
               <div className="space-y-3">
-                <CopyableText text="neurativo@payments" label="Recipient" />
+                <CopyableText text="743547396" label="Binance ID" />
+                <CopyableText text="Hidden123" label="Name" />
+                <CopyableText text="USDT" label="Currency" />
                 <CopyableText text="TRC20" label="Network" />
                 <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                   <p className="text-green-300 text-sm">
                     <i className="fas fa-info-circle mr-2"></i>
-                    Memo: {email ?? 'Your Email'}
+                    Memo/Reference: {email ?? 'Your Email'}
+                  </p>
+                </div>
+                <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-yellow-300 text-sm">
+                    <i className="fas fa-exclamation-triangle mr-2"></i>
+                    Important: Make sure to use TRC20 network only. Other networks may result in loss of funds.
                   </p>
                 </div>
               </div>

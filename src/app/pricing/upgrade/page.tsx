@@ -70,23 +70,53 @@ function UpgradePageInner() {
   async function handleSubmit() {
     setSubmitting(true);
     setMessage(null);
-    // Optionally upload proof to storage in future; for now store without proof
+    
+    console.log('Starting payment submission...', { file, plan, notes });
+    
     const { data } = await supabase.auth.getUser();
     const uid = data.user?.id;
-    if (!uid) { setMessage("Please sign in first."); setSubmitting(false); return; }
-    const amount_cents = plan === "premium" ? 1900 : 900;
+    if (!uid) { 
+      setMessage("Please sign in first."); 
+      setSubmitting(false); 
+      return; 
+    }
+    
+    const amount_cents = plan === "premium" ? 1900 : plan === "special" ? 2900 : 900;
+    
     // Try upload proof if provided
     let proof_url: string | null = null;
     try {
       if (file) {
+        console.log('Uploading file:', file.name, file.size, file.type);
         const path = `${uid}/${Date.now()}_${file.name}`;
+        console.log('Upload path:', path);
+        
         const { data: up, error: upErr } = await supabase.storage.from("payments").upload(path, file, { upsert: false });
-        if (!upErr && up) {
+        
+        if (upErr) {
+          console.error('Upload error:', upErr);
+          setMessage(`File upload failed: ${upErr.message}`);
+          setSubmitting(false);
+          return;
+        }
+        
+        if (up) {
+          console.log('Upload successful:', up);
           const { data: pub } = supabase.storage.from("payments").getPublicUrl(up.path);
           proof_url = pub.publicUrl ?? null;
+          console.log('Public URL:', proof_url);
         }
+      } else {
+        console.log('No file provided for upload');
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      console.error('Upload exception:', error);
+      setMessage(`File upload failed: ${error}`);
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('Inserting payment record:', { uid, plan, proof_url, amount_cents });
 
     const { error } = await supabase.from("payments").insert({
       user_id: uid,
@@ -98,7 +128,12 @@ function UpgradePageInner() {
       status: "pending",
       admin_note: notes || null,
     });
-    if (error) setMessage(error.message); else {
+    
+    if (error) {
+      console.error('Database insert error:', error);
+      setMessage(error.message);
+    } else {
+      console.log('Payment record inserted successfully');
       // Redirect to pricing to reflect pending state and show banner
       router.push(`/pricing?submitted=1&plan=${plan}`);
       return;
@@ -108,7 +143,11 @@ function UpgradePageInner() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-white">
-      <h1 className="text-3xl font-bold mb-6">Upgrade - {plan === "premium" ? "Premium" : "Plus"}</h1>
+      <h1 className="text-3xl font-bold mb-6">Upgrade - {
+        plan === "premium" ? "Mastery" : 
+        plan === "special" ? "Innovation" : 
+        "Professional"
+      }</h1>
 
       <div className="card bg-white/5 backdrop-blur-xl border border-white/20">
         <div className="card-body space-y-4">
@@ -157,11 +196,26 @@ function UpgradePageInner() {
 
           <div className="space-y-3">
             <label className="text-white font-semibold mb-2 block">Upload Payment Proof (image/pdf)</label>
-            <input type="file" accept="image/*,.pdf" className="file-input file-input-bordered w-full bg-white/5 text-white" onChange={(e)=>setFile(e.target.files?.[0] ?? null)} />
+            <input 
+              type="file" 
+              accept="image/*,.pdf" 
+              className="file-input file-input-bordered w-full bg-white/5 text-white" 
+              onChange={(e)=>setFile(e.target.files?.[0] ?? null)} 
+            />
+            {file && (
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <p className="text-green-300 text-sm">
+                  <i className="fas fa-check-circle mr-2"></i>
+                  File selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              </div>
+            )}
             <label className="text-white font-semibold mb-2 block">Notes</label>
             <textarea className="textarea textarea-bordered w-full bg-white/5 text-white placeholder-gray-400" placeholder="Optional notes" value={notes} onChange={(e)=>setNotes(e.target.value)}></textarea>
             {message && <div className="alert bg-white/10 border border-white/20 text-white">{message}</div>}
-            <button type="button" className="cta-button w-full" onClick={handleSubmit} disabled={submitting}>{submitting ? 'Submitting…' : 'Submit for Verification'}</button>
+            <button type="button" className="cta-button w-full" onClick={handleSubmit} disabled={submitting}>
+              {submitting ? 'Submitting…' : 'Submit for Verification'}
+            </button>
           </div>
         </div>
       </div>

@@ -67,6 +67,106 @@ export default function AboutPage() {
 				</div>
 			</section>
 
+			{/* Founders Section */}
+			<section className="py-20 bg-gradient-to-b from-black/20 to-purple-900/20">
+				<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="text-center mb-16">
+						<div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border border-purple-500/30 mb-6">
+							<i className="fas fa-users mr-2"></i>
+							Meet the Founders
+						</div>
+						<h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 sm:mb-8">
+							The Visionaries Behind <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Neurativo</span>
+						</h2>
+						<p className="text-xl text-gray-300 leading-relaxed max-w-3xl mx-auto">
+							Two passionate students who believed that education could be transformed through the power of artificial intelligence.
+						</p>
+					</div>
+
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+						{/* Shazad Arshad */}
+						<div className="group relative">
+							<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 hover:bg-white/10 hover:border-purple-400/50 transition-all duration-500 hover:transform hover:scale-105 h-full">
+								<div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+								<div className="relative z-10">
+									<div className="flex items-center mb-6">
+										<div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mr-6">
+											<span className="text-white font-bold text-2xl">SA</span>
+										</div>
+										<div>
+											<h3 className="text-2xl font-bold text-white mb-2">Shazad Arshad</h3>
+											<p className="text-purple-300 font-medium">Co-Founder & CEO</p>
+										</div>
+									</div>
+									<p className="text-gray-300 leading-relaxed mb-6">
+										A visionary student with a passion for educational technology and artificial intelligence. Shazad brings innovative thinking and technical expertise to transform how students learn and interact with educational content.
+									</p>
+									<div className="flex items-center text-purple-300">
+										<i className="fas fa-graduation-cap mr-2"></i>
+										<span className="text-sm">Computer Science Student</span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						{/* Shariff Ahamed */}
+						<div className="group relative">
+							<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 hover:bg-white/10 hover:border-blue-400/50 transition-all duration-500 hover:transform hover:scale-105 h-full">
+								<div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+								<div className="relative z-10">
+									<div className="flex items-center mb-6">
+										<div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mr-6">
+											<span className="text-white font-bold text-2xl">SA</span>
+										</div>
+										<div>
+											<h3 className="text-2xl font-bold text-white mb-2">Shariff Ahamed</h3>
+											<p className="text-blue-300 font-medium">Co-Founder & CTO</p>
+										</div>
+									</div>
+									<p className="text-gray-300 leading-relaxed mb-6">
+										A dedicated student with expertise in software development and AI implementation. Shariff combines technical skills with a deep understanding of student needs to create intuitive and powerful learning tools.
+									</p>
+									<div className="flex items-center text-blue-300">
+										<i className="fas fa-code mr-2"></i>
+										<span className="text-sm">Software Engineering Student</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					{/* Story Section */}
+					<div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-3xl p-8 sm:p-12 border border-white/10">
+						<div className="text-center">
+							<div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+								<i className="fas fa-lightbulb text-2xl text-white"></i>
+							</div>
+							<h3 className="text-3xl font-bold text-white mb-6">The Story Behind Neurativo</h3>
+							<p className="text-xl text-gray-300 leading-relaxed max-w-4xl mx-auto">
+								As students themselves, Shazad and Shariff experienced firsthand the challenges of traditional learning methods. 
+								They noticed how difficult it was to create personalized study materials and how time-consuming it was to generate 
+								effective quizzes and notes. This frustration sparked an idea: what if AI could make learning more personalized, 
+								efficient, and engaging for every student?
+							</p>
+							<div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
+								<div className="flex items-center text-purple-300">
+									<i className="fas fa-heart mr-2"></i>
+									<span>Passionate about education</span>
+								</div>
+								<div className="flex items-center text-blue-300">
+									<i className="fas fa-rocket mr-2"></i>
+									<span>Driven by innovation</span>
+								</div>
+								<div className="flex items-center text-green-300">
+									<i className="fas fa-users mr-2"></i>
+									<span>Committed to students</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
 			{/* FAQ Section */}
 			<section className="py-20 bg-gradient-to-b from-black/20 to-black/40">
 				<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

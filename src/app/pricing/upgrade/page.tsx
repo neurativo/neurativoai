@@ -71,8 +71,6 @@ function UpgradePageInner() {
     setSubmitting(true);
     setMessage(null);
     
-    console.log('Starting payment submission...', { file, plan, notes });
-    
     const { data } = await supabase.auth.getUser();
     const uid = data.user?.id;
     if (!uid) { 
@@ -87,36 +85,26 @@ function UpgradePageInner() {
     let proof_url: string | null = null;
     try {
       if (file) {
-        console.log('Uploading file:', file.name, file.size, file.type);
         const path = `${uid}/${Date.now()}_${file.name}`;
-        console.log('Upload path:', path);
         
         const { data: up, error: upErr } = await supabase.storage.from("payments").upload(path, file, { upsert: false });
         
         if (upErr) {
-          console.error('Upload error:', upErr);
           setMessage(`File upload failed: ${upErr.message}`);
           setSubmitting(false);
           return;
         }
         
         if (up) {
-          console.log('Upload successful:', up);
           const { data: pub } = supabase.storage.from("payments").getPublicUrl(up.path);
           proof_url = pub.publicUrl ?? null;
-          console.log('Public URL:', proof_url);
         }
-      } else {
-        console.log('No file provided for upload');
       }
     } catch (error) {
-      console.error('Upload exception:', error);
       setMessage(`File upload failed: ${error}`);
       setSubmitting(false);
       return;
     }
-
-    console.log('Inserting payment record:', { uid, plan, proof_url, amount_cents });
 
     const { error } = await supabase.from("payments").insert({
       user_id: uid,
@@ -130,10 +118,8 @@ function UpgradePageInner() {
     });
     
     if (error) {
-      console.error('Database insert error:', error);
       setMessage(error.message);
     } else {
-      console.log('Payment record inserted successfully');
       // Redirect to pricing to reflect pending state and show banner
       router.push(`/pricing?submitted=1&plan=${plan}`);
       return;

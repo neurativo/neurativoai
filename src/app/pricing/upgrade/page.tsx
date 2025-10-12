@@ -19,27 +19,27 @@ function CopyableText({ text, label }: { text: string; label: string }) {
   };
 
   return (
-    <div className="flex items-center justify-between bg-white/5 rounded-lg p-3 border border-white/10 hover:bg-white/10 transition-colors">
-      <div>
+    <div 
+      onClick={handleCopy}
+      className="flex items-center justify-between bg-white/5 rounded-lg p-3 border border-white/10 hover:bg-white/10 hover:border-purple-400/50 transition-all cursor-pointer group"
+    >
+      <div className="flex-1">
         <span className="text-gray-400 text-sm">{label}:</span>
         <span className="text-white ml-2 font-mono">{text}</span>
       </div>
-      <button
-        onClick={handleCopy}
-        className="ml-4 px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-md transition-colors flex items-center gap-1"
-      >
+      <div className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
         {copied ? (
-          <>
+          <span className="text-green-400 text-sm flex items-center gap-1">
             <i className="fas fa-check text-xs"></i>
             Copied!
-          </>
+          </span>
         ) : (
-          <>
+          <span className="text-purple-400 text-sm flex items-center gap-1">
             <i className="fas fa-copy text-xs"></i>
-            Copy
-          </>
+            Click to copy
+          </span>
         )}
-      </button>
+      </div>
     </div>
   );
 }

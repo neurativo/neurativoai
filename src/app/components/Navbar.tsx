@@ -124,8 +124,9 @@ export default function Navbar() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="navbar h-16 px-0">
 					<div className="navbar-start">
-						<Link href="/" className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-blue-300">
-							<i className="fas fa-brain mr-2 text-white" />Neurativo
+						<Link href="/" className="flex items-center space-x-2 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 via-purple-300 to-blue-300">
+							<img src="/logo.png" alt="Neurativo Logo" className="w-8 h-8 rounded-full" />
+							<span>Neurativo</span>
 						</Link>
 					</div>
 					<div className="navbar-center hidden md:flex">

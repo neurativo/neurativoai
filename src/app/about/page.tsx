@@ -98,12 +98,11 @@ export default function AboutPage() {
 											<p className="text-purple-300 font-medium">Founder</p>
 										</div>
 									</div>
-									<p className="text-gray-300 leading-relaxed mb-6">
-										A visionary student with a passion for educational innovation and AI technology. Shazad brings creative thinking and technical expertise to transform how students interact with learning materials.
-									</p>
 									<div className="flex items-center text-purple-300">
-										<i className="fas fa-graduation-cap mr-2"></i>
-										<span className="text-sm">Computer Science Student</span>
+										<i className="fab fa-instagram mr-2"></i>
+										<a href="https://instagram.com/neurativo.official" target="_blank" rel="noopener noreferrer" className="hover:text-purple-200 transition-colors">
+											@neurativo.official
+										</a>
 									</div>
 								</div>
 							</div>
@@ -123,12 +122,11 @@ export default function AboutPage() {
 											<p className="text-blue-300 font-medium">Founder</p>
 										</div>
 									</div>
-									<p className="text-gray-300 leading-relaxed mb-6">
-										A dedicated student with expertise in software development and AI implementation. Shariff combines technical skills with a deep understanding of student needs to create intuitive and powerful learning tools.
-									</p>
 									<div className="flex items-center text-blue-300">
-										<i className="fas fa-code mr-2"></i>
-										<span className="text-sm">Software Engineering Student</span>
+										<i className="fab fa-instagram mr-2"></i>
+										<a href="https://instagram.com/neurativo.official" target="_blank" rel="noopener noreferrer" className="hover:text-blue-200 transition-colors">
+											@neurativo.official
+										</a>
 									</div>
 								</div>
 							</div>

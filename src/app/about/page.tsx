@@ -95,11 +95,11 @@ export default function AboutPage() {
 										</div>
 										<div>
 											<h3 className="text-2xl font-bold text-white mb-2">Shazad Arshad</h3>
-											<p className="text-purple-300 font-medium">Co-Founder & CEO</p>
+											<p className="text-purple-300 font-medium">Founder</p>
 										</div>
 									</div>
 									<p className="text-gray-300 leading-relaxed mb-6">
-										A visionary student with a passion for educational technology and artificial intelligence. Shazad brings innovative thinking and technical expertise to transform how students learn and interact with educational content.
+										A visionary student with a passion for educational technology and artificial intelligence.
 									</p>
 									<div className="flex items-center text-purple-300">
 										<i className="fas fa-graduation-cap mr-2"></i>
@@ -120,11 +120,11 @@ export default function AboutPage() {
 										</div>
 										<div>
 											<h3 className="text-2xl font-bold text-white mb-2">Shariff Ahamed</h3>
-											<p className="text-blue-300 font-medium">Co-Founder & CTO</p>
+											<p className="text-blue-300 font-medium">Founder</p>
 										</div>
 									</div>
 									<p className="text-gray-300 leading-relaxed mb-6">
-										A dedicated student with expertise in software development and AI implementation. Shariff combines technical skills with a deep understanding of student needs to create intuitive and powerful learning tools.
+										A dedicated student with expertise in software development and AI implementation.
 									</p>
 									<div className="flex items-center text-blue-300">
 										<i className="fas fa-code mr-2"></i>

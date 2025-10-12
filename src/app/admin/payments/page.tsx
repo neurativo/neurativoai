@@ -20,9 +20,12 @@ function FileViewer({ url, type }: { url: string; type: string }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Debug logging
-  console.log('FileViewer received:', { url, type });
+  console.log('FileViewer received:', { url, type, urlLength: url?.length, isEmpty: !url || url.trim() === '' });
 
-  if (!url || url.trim() === '') return <span className="text-gray-400">No proof uploaded</span>;
+  if (!url || url.trim() === '') {
+    console.log('No proof URL found, showing "No proof uploaded" message');
+    return <span className="text-gray-400">No proof uploaded</span>;
+  }
 
   // Better file type detection
   const fileExtension = url.split('.').pop()?.toLowerCase() || '';
@@ -134,6 +137,7 @@ export default function AdminPaymentsPage() {
         .select("id,user_id,plan,method,amount_cents,currency,proof_url,status,created_at,admin_note")
         .order("created_at", { ascending: false });
       if (error) setError(error.message);
+      console.log('Payment data from database:', payData);
       setRows(payData ?? []);
       setFilteredRows(payData ?? []);
       setLoading(false);
@@ -245,7 +249,12 @@ export default function AdminPaymentsPage() {
                 <td>{r.method}</td>
                 <td>{r.amount_cents/100} {r.currency}</td>
                 <td>
-                  <FileViewer url={r.proof_url || ""} type={r.proof_url?.split('.').pop() || ""} />
+                  <div className="space-y-1">
+                    <FileViewer url={r.proof_url || ""} type={r.proof_url?.split('.').pop() || ""} />
+                    <div className="text-xs text-gray-500 break-all max-w-32">
+                      URL: {r.proof_url || 'null'}
+                    </div>
+                  </div>
                 </td>
                 <td>
                   <span className={`badge badge-sm ${

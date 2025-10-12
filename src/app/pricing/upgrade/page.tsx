@@ -4,6 +4,46 @@ import { useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+// Copy to clipboard component
+function CopyableText({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between bg-white/5 rounded-lg p-3 border border-white/10 hover:bg-white/10 transition-colors">
+      <div>
+        <span className="text-gray-400 text-sm">{label}:</span>
+        <span className="text-white ml-2 font-mono">{text}</span>
+      </div>
+      <button
+        onClick={handleCopy}
+        className="ml-4 px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-md transition-colors flex items-center gap-1"
+      >
+        {copied ? (
+          <>
+            <i className="fas fa-check text-xs"></i>
+            Copied!
+          </>
+        ) : (
+          <>
+            <i className="fas fa-copy text-xs"></i>
+            Copy
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
 export default function UpgradePage() {
   return (
     <Suspense fallback={<div className="min-h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-white">Loading…</div>}>
@@ -76,22 +116,32 @@ function UpgradePageInner() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="feature-card text-left">
-              <h2 className="text-xl font-semibold mb-2">Bank Transfer (Sri Lanka)</h2>
-              <ul className="text-gray-300 space-y-1">
-                <li>• Account Name: Neurativo (Pvt) Ltd</li>
-                <li>• Bank: ABC Bank</li>
-                <li>• Branch: Colombo</li>
-                <li>• Account No: 123456789</li>
-                <li>• Reference: {email ?? 'Your Email'}</li>
-              </ul>
+              <h2 className="text-xl font-semibold mb-4">Bank Transfer (Sri Lanka)</h2>
+              <div className="space-y-3">
+                <CopyableText text="106257813546" label="Account No" />
+                <CopyableText text="H.A.S.S.K WICKRAMASINGHE" label="Account Name" />
+                <CopyableText text="Sampath Bank" label="Bank" />
+                <CopyableText text="Ampara" label="Branch" />
+                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="text-blue-300 text-sm">
+                    <i className="fas fa-info-circle mr-2"></i>
+                    Reference: {email ?? 'Your Email'}
+                  </p>
+                </div>
+              </div>
             </div>
             <div className="feature-card text-left">
-              <h2 className="text-xl font-semibold mb-2">Binance USDT (TRC20)</h2>
-              <ul className="text-gray-300 space-y-1">
-                <li>• Recipient: neurativo@payments</li>
-                <li>• Network: TRC20</li>
-                <li>• Memo: {email ?? 'Your Email'}</li>
-              </ul>
+              <h2 className="text-xl font-semibold mb-4">Binance USDT (TRC20)</h2>
+              <div className="space-y-3">
+                <CopyableText text="neurativo@payments" label="Recipient" />
+                <CopyableText text="TRC20" label="Network" />
+                <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <p className="text-green-300 text-sm">
+                    <i className="fas fa-info-circle mr-2"></i>
+                    Memo: {email ?? 'Your Email'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

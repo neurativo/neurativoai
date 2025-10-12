@@ -79,7 +79,7 @@ export default function AboutPage() {
 							The Visionaries Behind <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Neurativo</span>
 						</h2>
 						<p className="text-xl text-gray-300 leading-relaxed max-w-3xl mx-auto">
-							Two visionary students who founded Neurativo with a shared dream: to revolutionize education by implementing artificial intelligence that makes learning personalized, engaging, and accessible to every student worldwide.
+							Neurativo was founded by two forward-thinking innovators, united by a shared belief that the future of learning must evolve with intelligence, creativity, and purpose.
 						</p>
 					</div>
 
@@ -143,22 +143,15 @@ export default function AboutPage() {
 							</div>
 							<h3 className="text-3xl font-bold text-white mb-6">The Story Behind Neurativo</h3>
 							<p className="text-xl text-gray-300 leading-relaxed max-w-4xl mx-auto">
-								As students themselves, Shazad and Shariff experienced firsthand the challenges of traditional learning methods. 
-								They recognized the potential of artificial intelligence to revolutionize education and founded Neurativo to implement 
-								AI-powered solutions that make learning more personalized, efficient, and engaging for students everywhere.
+								Driven by curiosity and a passion for transformation, Shazad Arshad and Shariff Ahamed envisioned a world where technology empowers—not replaces—human potential. Together, they built Neurativo as a platform that redefines what learning can be when innovation meets empathy.
 							</p>
-							<div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
-								<div className="flex items-center text-purple-300">
-									<i className="fas fa-heart mr-2"></i>
-									<span>Passionate about education</span>
-								</div>
-								<div className="flex items-center text-blue-300">
-									<i className="fas fa-rocket mr-2"></i>
-									<span>Driven by innovation</span>
-								</div>
-								<div className="flex items-center text-green-300">
-									<i className="fas fa-users mr-2"></i>
-									<span>Committed to students</span>
+							<p className="text-lg text-gray-400 leading-relaxed max-w-4xl mx-auto mt-6">
+								Their mission goes beyond technology. It's about creating meaningful change, inspiring progress, and shaping an educational future that is smarter, more connected, and truly accessible to all.
+							</p>
+							<div className="mt-8 flex items-center justify-center">
+								<div className="inline-flex items-center px-6 py-3 rounded-full text-lg font-medium bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border border-purple-500/30">
+									<i className="fas fa-star mr-2"></i>
+									<span>A vision born from innovation, built for the next generation of learners.</span>
 								</div>
 							</div>
 						</div>

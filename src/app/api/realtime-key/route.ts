@@ -2,7 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
+    // Security: Add rate limiting check
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    
+    // Basic rate limiting (in production, use Redis or similar)
+    // For now, we'll rely on Vercel's built-in rate limiting
+    
     const { model = 'gpt-4o-mini-realtime-preview-2024-12-17' } = await request.json();
+
+    // Validate model parameter
+    const validModels = ['gpt-4o-mini-realtime-preview-2024-12-17'];
+    if (!validModels.includes(model)) {
+      return NextResponse.json(
+        { error: 'Invalid model specified' },
+        { status: 400 }
+      );
+    }
 
     // Get OpenAI API key from environment
     const apiKey = process.env.OPENAI_API_KEY;

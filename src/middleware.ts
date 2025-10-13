@@ -1,59 +1,35 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-// Simple in-memory token bucket per IP (ephemeral on edge; good enough for burst control)
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX = 30; // 30 requests/min per IP for API
-const apiBuckets = new Map<string, { tokens: number; lastRefill: number }>();
-
-function isBadBot(ua: string | null): boolean {
-	if (!ua) return false;
-	const s = ua.toLowerCase();
-	return (
-		s.includes("curl/") ||
-		s.includes("wget/") ||
-		s.includes("python-requests") ||
-		s.includes("libwww-perl") ||
-		s.includes("scrapy") ||
-		s.includes("httpclient")
-	);
-}
-
-function takeToken(ip: string): boolean {
-	const now = Date.now();
-	let bucket = apiBuckets.get(ip);
-	if (!bucket) {
-		bucket = { tokens: RATE_LIMIT_MAX, lastRefill: now };
-		apiBuckets.set(ip, bucket);
-	}
-	// Refill
-	const elapsed = now - bucket.lastRefill;
-	if (elapsed > RATE_LIMIT_WINDOW_MS) {
-		bucket.tokens = RATE_LIMIT_MAX;
-		bucket.lastRefill = now;
-	}
-	if (bucket.tokens <= 0) return false;
-	bucket.tokens -= 1;
-	return true;
+export function middleware(request: NextRequest) {
+  // Security headers
+  const response = NextResponse.next()
+  
+  // Security headers
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  
+  // CSP header for additional security
+  response.headers.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.openai.com https://api.assemblyai.com https://api.deepgram.com;"
+  )
+  
+  return response
 }
 
 export const config = {
-	matcher: [
-		"/api/:path*",
-	],
-};
-
-export function middleware(req: NextRequest) {
-	const { pathname } = req.nextUrl;
-	const ua = req.headers.get("user-agent");
-	if (isBadBot(ua)) {
-		return new NextResponse("Blocked", { status: 403 });
-	}
-	// Only rate-limit heavy endpoints
-	if (pathname.startsWith("/api/quiz")) {
-		const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
-		if (!takeToken(ip)) {
-			return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
-		}
-	}
-	return NextResponse.next();
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 }

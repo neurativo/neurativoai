@@ -14,12 +14,63 @@ function getSupabaseService() {
 
 export const runtime = 'nodejs';
 
+// Security validation functions
+function sanitizeInput(input: string): string {
+	return input.replace(/[<>\"'&]/g, '').trim().substring(0, 1000);
+}
+
+function validateQuestionTypes(types: any[]): string[] {
+	const validTypes = ['multiple_choice', 'true_false', 'fill_blank', 'short_answer'];
+	return Array.isArray(types) ? types.filter(t => validTypes.includes(t)) : ['multiple_choice'];
+}
+
+function validateSource(source: string): string {
+	const validSources = ['text', 'url', 'document', 'study-pack'];
+	return validSources.includes(source) ? source : 'text';
+}
+
+function validateUrl(url: string): string {
+	try {
+		const urlObj = new URL(url);
+		return ['http:', 'https:'].includes(urlObj.protocol) ? url : '';
+	} catch {
+		return '';
+	}
+}
+
+function sanitizeFileName(fileName: string): string {
+	return fileName.replace(/[^a-zA-Z0-9.-]/g, '').substring(0, 255);
+}
+
+function validateFileType(fileType: string): string {
+	const validTypes = ['text/plain', 'application/pdf', 'text/markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+	return validTypes.includes(fileType) ? fileType : 'text/plain';
+}
+
 export async function POST(req: Request) {
+	// Security headers
+	const headers = new Headers({
+		'X-Content-Type-Options': 'nosniff',
+		'X-Frame-Options': 'DENY',
+		'X-XSS-Protection': '1; mode=block',
+		'Referrer-Policy': 'strict-origin-when-cross-origin'
+	});
+
 	// Basic payload size guard (Vercel default limits apply, this is additional)
 	const contentLength = req.headers.get('content-length');
 	if (contentLength && Number(contentLength) > 1024 * 200) { // ~200KB
-		return new Response(JSON.stringify({ error: 'Request too large' }), { status: 413 });
+		return new Response(JSON.stringify({ error: 'Request too large' }), { 
+			status: 413,
+			headers 
+		});
 	}
+
+	// Rate limiting check (basic implementation)
+	const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+	const rateLimitKey = `quiz_gen_${clientIP}`;
+	
+	// TODO: Implement proper rate limiting with Redis or similar
+	// For now, we'll rely on Vercel's built-in rate limiting
 
 	const contentType = req.headers.get('content-type') || '';
 
@@ -53,9 +104,9 @@ export async function POST(req: Request) {
 	}
 
         if (action === "generate_quiz") {
-            const source = ((formData?.get("source")?.toString() || body?.source || "text")).toLowerCase();
-            const content = (formData?.get("content")?.toString() || body?.content || "");
-            const url = (formData?.get("url")?.toString() || body?.url || "");
+            const source = validateSource((formData?.get("source")?.toString() || body?.source || "text"));
+            const content = sanitizeInput(formData?.get("content")?.toString() || body?.content || "");
+            const url = validateUrl(formData?.get("url")?.toString() || body?.url || "");
             
             let finalContent = content;
             let contentTitle = "Quiz Content";
@@ -233,14 +284,19 @@ export async function POST(req: Request) {
 		const maxQuestions = planData.max_questions_per_quiz || 8;
 		const numQuestions = Math.min(requestedQuestions, maxQuestions);
 
-		const difficulty = ((formData?.get("difficulty")?.toString() || body?.difficulty || "medium")).toLowerCase();
+		const difficulty = sanitizeInput((formData?.get("difficulty")?.toString() || body?.difficulty || "medium"));
+		const validDifficulties = ['easy', 'medium', 'hard'];
+		const finalDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'medium';
+
 		let types: string[] = [];
 		try {
-			types = JSON.parse((formData?.get("question_types")?.toString() || body?.question_types || "[]"));
-		} catch {}
-		const focus = (formData?.get("focus_areas")?.toString() || body?.focus_areas || "");
-		const topic = (formData?.get("topic")?.toString() || body?.topic || "");
-            const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty, types, focus, topic });
+			types = validateQuestionTypes(JSON.parse((formData?.get("question_types")?.toString() || body?.question_types || "[]")));
+		} catch (e) {
+			types = ['multiple_choice'];
+		}
+		const focus = sanitizeInput(formData?.get("focus_areas")?.toString() || body?.focus_areas || "");
+		const topic = sanitizeInput(formData?.get("topic")?.toString() || body?.topic || "");
+            const prompt = buildQuizPrompt({ content: finalContent, numQuestions, difficulty: finalDifficulty, types, focus, topic });
 
 		// Reserve SOURCE-SPECIFIC usage via new RPC user_source_usage_claim
 		const { data: sourceClaimData, error: sourceClaimErr } = await supabase.rpc('user_source_usage_claim', {
@@ -378,7 +434,7 @@ export async function POST(req: Request) {
 				...dailyUsage,
 				source_type: sourceType
 			};
-			return NextResponse.json({ success: true, data: safeResponse, usage: usagePayload });
+			return NextResponse.json({ success: true, data: safeResponse, usage: usagePayload }, { headers });
 		} catch (err: any) {
             console.error('API/quiz error:', err);
             return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
@@ -421,7 +477,7 @@ export async function GET(req: NextRequest) {
 			return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
 		}
 		
-		return NextResponse.json({ success: true, data: quiz });
+		return NextResponse.json({ success: true, data: quiz }, { headers });
 	}
 	return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
 }

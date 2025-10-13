@@ -9,31 +9,12 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get('content-type');
     if (contentType?.includes('application/json')) {
       const body = await request.json();
-      if (body.action === 'get_api_key') {
-        const apiKey = process.env.ASSEMBLYAI_API_KEY;
-        console.log('API key request:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
-        if (!apiKey) {
-          return NextResponse.json({ error: 'AssemblyAI API key not found' }, { status: 500 });
-        }
-        return NextResponse.json({ apiKey });
-      }
       
-      if (body.action === 'get_deepgram_key') {
-        const apiKey = process.env.DEEPGRAM_API_KEY;
-        console.log('Deepgram API key request:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
-        if (!apiKey) {
-          return NextResponse.json({ error: 'Deepgram API key not found' }, { status: 500 });
-        }
-        return NextResponse.json({ apiKey });
-      }
-      
-      if (body.action === 'get_openai_key') {
-        const apiKey = process.env.OPENAI_API_KEY;
-        console.log('OpenAI API key request:', { hasApiKey: !!apiKey, keyLength: apiKey?.length });
-        if (!apiKey) {
-          return NextResponse.json({ error: 'OpenAI API key not found' }, { status: 500 });
-        }
-        return NextResponse.json({ apiKey });
+      // SECURITY: Never expose API keys to client
+      if (body.action === 'get_api_key' || body.action === 'get_deepgram_key' || body.action === 'get_openai_key') {
+        return NextResponse.json({ 
+          error: 'API keys are not exposed to client for security reasons. Use server-side transcription only.' 
+        }, { status: 403 });
       }
     }
     

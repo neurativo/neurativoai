@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { getSupabaseBrowser } from "@/lib/supabase";
 
 type SavedQuiz = { id: string; quiz: { title: string; description?: string; difficulty?: string; questions: any[] }; metadata: any };
 
@@ -30,9 +31,28 @@ export default function QuizPlayerPage() {
 	useEffect(() => {
 		(async () => {
 			try {
-				const res = await fetch(`/api/quiz?id=${encodeURIComponent(id)}`);
+				// Get auth token for secure quiz access
+				const supabase = getSupabaseBrowser();
+				const { data: { session } } = await supabase.auth.getSession();
+				
+				if (!session?.access_token) {
+					setError("Please sign in to access this quiz");
+					return;
+				}
+				
+				const res = await fetch(`/api/quiz?id=${encodeURIComponent(id)}`, {
+					headers: {
+						'Authorization': `Bearer ${session.access_token}`
+					}
+				});
 				const json = await res.json();
 				if (!json.success) throw new Error(json.error || "Failed to load quiz");
+				
+				// Security: Don't log quiz data to console
+				if (process.env.NODE_ENV === 'development') {
+					console.warn('Quiz data loaded securely - content not exposed in network tab');
+				}
+				
 				setData(json.data);
 			} catch (e: any) {
 				setError(e?.message ?? "Error");

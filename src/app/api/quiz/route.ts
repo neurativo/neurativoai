@@ -360,6 +360,17 @@ export async function POST(req: Request) {
 
 			// Save to database with unique id
 			const saved = await saveQuiz(parsed, user.id);
+			
+			// Return only essential data, not the full quiz content
+			const safeResponse = {
+				id: saved.id,
+				title: saved.title,
+				description: saved.description,
+				difficulty: saved.difficulty,
+				question_count: saved.questions?.length || 0,
+				created_at: saved.created_at
+			};
+			
 			// Return comprehensive usage data
 			let usagePayload: any = { 
 				...monthlyUsage, 
@@ -367,7 +378,7 @@ export async function POST(req: Request) {
 				...dailyUsage,
 				source_type: sourceType
 			};
-			return NextResponse.json({ success: true, data: saved, usage: usagePayload });
+			return NextResponse.json({ success: true, data: safeResponse, usage: usagePayload });
 		} catch (err: any) {
             console.error('API/quiz error:', err);
             return NextResponse.json({ success: false, error: err?.message || "Generation error" }, { status: 500 });
@@ -387,8 +398,29 @@ export async function GET(req: NextRequest) {
 	// Fetch quiz by id
 	const id = searchParams.get("id");
 	if (id) {
+		// Verify user authentication
+		const supabase = getSupabaseServer();
+		const authHeader = req.headers.get('authorization');
+		let user = null;
+		
+		if (authHeader) {
+			const token = authHeader.replace('Bearer ', '');
+			const { data: { user: authUser } } = await supabase.auth.getUser(token);
+			user = authUser;
+		}
+		
+		if (!user) {
+			return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 });
+		}
+		
 		const quiz = await getQuiz(id);
 		if (!quiz) return NextResponse.json({ success: false, error: "Quiz not found" }, { status: 404 });
+		
+		// Verify ownership
+		if (quiz.user_id !== user.id) {
+			return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+		}
+		
 		return NextResponse.json({ success: true, data: quiz });
 	}
 	return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });

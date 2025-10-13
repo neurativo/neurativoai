@@ -147,6 +147,6 @@ CREATE INDEX idx_admin_audit_logs_admin_id ON admin_audit_logs(admin_id);
 CREATE INDEX idx_admin_audit_logs_timestamp ON admin_audit_logs(timestamp);
 CREATE INDEX idx_site_analytics_date ON site_analytics(date);
 
--- Insert default super admin (replace with actual user ID)
+-- To create a super admin, run this SQL after the migration:
 -- INSERT INTO admin_users (user_id, role, created_by) 
--- VALUES ('your-super-admin-user-id', 'super_admin', 'your-super-admin-user-id');
+-- VALUES ('your-user-id-here', 'super_admin', 'your-user-id-here');

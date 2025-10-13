@@ -1,132 +1,339 @@
 "use client";
-import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 
-type BankSettings = {
-  account_name: string;
-  bank: string;
-  branch: string;
-  account_no: string;
-  note?: string;
-};
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabase';
+import { AdminUser, verifyAdminAccess, hasPermission } from '@/lib/admin-auth';
 
-type UsdtSettings = {
-  recipient: string;
-  network: string;
-  memo?: string;
-};
+interface SiteSettings {
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  allowedIPs: string[];
+  featureFlags: Record<string, boolean>;
+  siteTitle: string;
+  siteDescription: string;
+  maxFileSize: number;
+  maxQuestionsPerQuiz: number;
+}
 
-type PlanConfig = {
-  plus_price: number;
-  premium_price: number;
-  free_monthly: number;
-  free_daily_cap: number;
-  plus_monthly: number;
-  premium_monthly: number;
-  max_q_free: number;
-  max_q_plus: number;
-  max_q_premium: number;
-};
-
-export default function AdminSettingsPage() {
-  const supabase = getSupabaseBrowser();
-  const [isAdmin, setIsAdmin] = useState(false);
+export default function SiteSettings() {
+  const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [bank, setBank] = useState<BankSettings>({ account_name: "", bank: "", branch: "", account_no: "" });
-  const [usdt, setUsdt] = useState<UsdtSettings>({ recipient: "", network: "TRC20" });
-  const [plans, setPlans] = useState<PlanConfig>({
-    plus_price: 9,
-    premium_price: 19,
-    free_monthly: 30,
-    free_daily_cap: 5,
-    plus_monthly: 300,
-    premium_monthly: 1000,
-    max_q_free: 8,
-    max_q_plus: 15,
-    max_q_premium: 20,
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<SiteSettings>({
+    maintenanceMode: false,
+    maintenanceMessage: 'We are currently performing scheduled maintenance. Please check back soon.',
+    allowedIPs: [],
+    featureFlags: {},
+    siteTitle: 'Neurativo',
+    siteDescription: 'AI-Powered Learning Platform',
+    maxFileSize: 10,
+    maxQuestionsPerQuiz: 20,
   });
-  const [msg, setMsg] = useState<string | null>(null);
+  const [newIP, setNewIP] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
-    async function init() {
-      const { data } = await supabase.auth.getUser();
-      const uid = data.user?.id;
-      if (!uid) { setLoading(false); return; }
-      const { data: admin } = await supabase.from("admins").select("user_id").eq("user_id", uid).maybeSingle();
-      setIsAdmin(Boolean(admin));
+    checkAdminAccess();
+    loadSettings();
+  }, []);
 
-      const { data: bankRow } = await supabase.from("admin_settings").select("value").eq("key", "bank_settings").maybeSingle();
-      if (bankRow?.value) setBank(bankRow.value as BankSettings);
-      const { data: usdtRow } = await supabase.from("admin_settings").select("value").eq("key", "usdt_settings").maybeSingle();
-      if (usdtRow?.value) setUsdt(usdtRow.value as UsdtSettings);
-      const { data: plansRow } = await supabase.from("admin_settings").select("value").eq("key", "plan_config").maybeSingle();
-      if (plansRow?.value) setPlans(plansRow.value as PlanConfig);
+  const checkAdminAccess = async () => {
+    try {
+      const supabase = getSupabaseBrowser();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        router.push('/admin/login');
+        return;
+      }
 
+      const adminUser = await verifyAdminAccess(session.access_token);
+      if (!adminUser || !hasPermission(adminUser, 'site_customization')) {
+        router.push('/admin/dashboard');
+        return;
+      }
+
+      setAdmin(adminUser);
+    } catch (error) {
+      console.error('Admin access check failed:', error);
+      router.push('/admin/login');
+    } finally {
       setLoading(false);
     }
-    init();
-  }, [supabase]);
+  };
 
-  async function save() {
-    setMsg(null);
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth.user?.id;
-    if (!uid || !isAdmin) return;
-    const upserts = [
-      { key: "bank_settings", value: bank, updated_by: uid },
-      { key: "usdt_settings", value: usdt, updated_by: uid },
-      { key: "plan_config", value: plans, updated_by: uid },
-    ];
-    const { error } = await supabase.from("admin_settings").upsert(upserts);
-    if (error) setMsg(error.message); else setMsg("Saved.");
+  const loadSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/settings', {
+        headers: {
+          'Authorization': `Bearer ${admin?.id}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load settings');
+      }
+      
+      const data = await response.json();
+      setSettings(data.settings || settings);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${admin?.id}`
+        },
+        body: JSON.stringify({ settings })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      alert('Settings saved successfully!');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addIP = () => {
+    if (newIP.trim() && !settings.allowedIPs.includes(newIP.trim())) {
+      setSettings({
+        ...settings,
+        allowedIPs: [...settings.allowedIPs, newIP.trim()]
+      });
+      setNewIP('');
+    }
+  };
+
+  const removeIP = (ip: string) => {
+    setSettings({
+      ...settings,
+      allowedIPs: settings.allowedIPs.filter(i => i !== ip)
+    });
+  };
+
+  const toggleFeatureFlag = (flag: string) => {
+    setSettings({
+      ...settings,
+      featureFlags: {
+        ...settings.featureFlags,
+        [flag]: !settings.featureFlags[flag]
+      }
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading settings...</div>
+      </div>
+    );
   }
 
-  if (loading) return <div className="text-white">Loading...</div>;
-  if (!isAdmin) return <div className="text-red-300">Admins only.</div>;
+  if (!admin) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Access denied</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-1 gap-6">
-      <div className="feature-card text-left">
-        <h2 className="text-xl font-semibold mb-2">Bank Transfer (Sri Lanka)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input className="input input-bordered bg-white/5 text-white" placeholder="Account Name" value={bank.account_name} onChange={(e)=>setBank({...bank, account_name: e.target.value})} />
-          <input className="input input-bordered bg-white/5 text-white" placeholder="Bank" value={bank.bank} onChange={(e)=>setBank({...bank, bank: e.target.value})} />
-          <input className="input input-bordered bg-white/5 text-white" placeholder="Branch" value={bank.branch} onChange={(e)=>setBank({...bank, branch: e.target.value})} />
-          <input className="input input-bordered bg-white/5 text-white" placeholder="Account Number" value={bank.account_no} onChange={(e)=>setBank({...bank, account_no: e.target.value})} />
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header */}
+      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Site Settings</h1>
+            <p className="text-gray-400">Configure site-wide settings and maintenance mode</p>
+          </div>
+          <button
+            onClick={() => router.push('/admin/dashboard')}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            ← Back to Dashboard
+          </button>
         </div>
       </div>
 
-      <div className="feature-card text-left">
-        <h2 className="text-xl font-semibold mb-2">Binance USDT</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input className="input input-bordered bg-white/5 text-white" placeholder="Recipient" value={usdt.recipient} onChange={(e)=>setUsdt({...usdt, recipient: e.target.value})} />
-          <input className="input input-bordered bg-white/5 text-white" placeholder="Network" value={usdt.network} onChange={(e)=>setUsdt({...usdt, network: e.target.value})} />
-          <input className="input input-bordered bg-white/5 text-white md:col-span-2" placeholder="Memo (optional)" value={usdt.memo ?? ""} onChange={(e)=>setUsdt({...usdt, memo: e.target.value})} />
-        </div>
-      </div>
+      <div className="p-6 space-y-8">
+        {/* Maintenance Mode */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4">Maintenance Mode</h2>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-300">Enable Maintenance Mode</label>
+                <p className="text-xs text-gray-400">Show maintenance page to all users</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.maintenanceMode}
+                  onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
 
-      <div className="feature-card text-left">
-        <h2 className="text-xl font-semibold mb-2">Plan Configuration</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Plus Price ($)" value={plans.plus_price} onChange={(e)=>setPlans({...plans, plus_price: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Premium Price ($)" value={plans.premium_price} onChange={(e)=>setPlans({...plans, premium_price: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Free monthly" value={plans.free_monthly} onChange={(e)=>setPlans({...plans, free_monthly: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Free daily cap" value={plans.free_daily_cap} onChange={(e)=>setPlans({...plans, free_daily_cap: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Plus monthly" value={plans.plus_monthly} onChange={(e)=>setPlans({...plans, plus_monthly: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Premium monthly" value={plans.premium_monthly} onChange={(e)=>setPlans({...plans, premium_monthly: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Max Q Free" value={plans.max_q_free} onChange={(e)=>setPlans({...plans, max_q_free: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Max Q Plus" value={plans.max_q_plus} onChange={(e)=>setPlans({...plans, max_q_plus: Number(e.target.value)})} />
-          <input className="input input-bordered bg-white/5 text-white" type="number" placeholder="Max Q Premium" value={plans.max_q_premium} onChange={(e)=>setPlans({...plans, max_q_premium: Number(e.target.value)})} />
-        </div>
-      </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Maintenance Message
+              </label>
+              <textarea
+                value={settings.maintenanceMessage}
+                onChange={(e) => setSettings({ ...settings, maintenanceMessage: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Enter maintenance message..."
+              />
+            </div>
 
-      <div>
-        <button className="cta-button" onClick={save}>Save All</button>
-        {msg && <span className="ml-3 text-sm text-gray-300">{msg}</span>}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Allowed IP Addresses
+              </label>
+              <div className="flex space-x-2 mb-2">
+                <input
+                  type="text"
+                  value={newIP}
+                  onChange={(e) => setNewIP(e.target.value)}
+                  placeholder="Enter IP address (e.g., 192.168.1.1)"
+                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                />
+                <button
+                  onClick={addIP}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"
+                >
+                  Add IP
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {settings.allowedIPs.map((ip) => (
+                  <span
+                    key={ip}
+                    className="inline-flex items-center px-3 py-1 bg-gray-600 rounded-full text-sm"
+                  >
+                    {ip}
+                    <button
+                      onClick={() => removeIP(ip)}
+                      className="ml-2 text-gray-400 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature Flags */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4">Feature Flags</h2>
+          
+          <div className="space-y-4">
+            {Object.entries(settings.featureFlags).map(([flag, enabled]) => (
+              <div key={flag} className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 capitalize">
+                    {flag.replace(/_/g, ' ')}
+                  </label>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={() => toggleFeatureFlag(flag)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Site Configuration */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4">Site Configuration</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Site Title
+              </label>
+              <input
+                type="text"
+                value={settings.siteTitle}
+                onChange={(e) => setSettings({ ...settings, siteTitle: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Max File Size (MB)
+              </label>
+              <input
+                type="number"
+                value={settings.maxFileSize}
+                onChange={(e) => setSettings({ ...settings, maxFileSize: parseInt(e.target.value) || 10 })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Max Questions Per Quiz
+              </label>
+              <input
+                type="number"
+                value={settings.maxQuestionsPerQuiz}
+                onChange={(e) => setSettings({ ...settings, maxQuestionsPerQuiz: parseInt(e.target.value) || 20 })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Site Description
+              </label>
+              <textarea
+                value={settings.siteDescription}
+                onChange={(e) => setSettings({ ...settings, siteDescription: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={saveSettings}
+            disabled={saving}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
-

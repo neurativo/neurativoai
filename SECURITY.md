@@ -1,6 +1,7 @@
 # Security Guidelines
 
 ## Environment Variables
+
 Never commit API keys or secrets to version control. Use environment variables:
 
 ```bash
@@ -18,6 +19,7 @@ DEEPGRAM_API_KEY=your_deepgram_key
 ## Security Features Implemented
 
 ### 1. API Security
+
 - ✅ Input validation and sanitization
 - ✅ Rate limiting (basic)
 - ✅ Authentication required for sensitive endpoints
@@ -25,12 +27,14 @@ DEEPGRAM_API_KEY=your_deepgram_key
 - ✅ Security headers on all responses
 
 ### 2. Data Protection
+
 - ✅ Quiz content not exposed in network tab
 - ✅ API keys never returned to client
 - ✅ User data access controlled by authentication
 - ✅ File upload validation and sanitization
 
 ### 3. Headers Security
+
 - ✅ X-Content-Type-Options: nosniff
 - ✅ X-Frame-Options: DENY
 - ✅ X-XSS-Protection: 1; mode=block
@@ -38,6 +42,7 @@ DEEPGRAM_API_KEY=your_deepgram_key
 - ✅ Content-Security-Policy
 
 ### 4. Input Validation
+
 - ✅ Sanitize all user inputs
 - ✅ Validate file types and sizes
 - ✅ URL validation
@@ -45,6 +50,7 @@ DEEPGRAM_API_KEY=your_deepgram_key
 - ✅ Difficulty level validation
 
 ## Security Checklist
+
 - [ ] All API keys in environment variables
 - [ ] No hardcoded secrets in code
 - [ ] Input validation on all endpoints
@@ -57,4 +63,5 @@ DEEPGRAM_API_KEY=your_deepgram_key
 - [ ] CSRF protection (Next.js built-in)
 
 ## Reporting Security Issues
+
 If you find a security vulnerability, please report it privately to the development team.

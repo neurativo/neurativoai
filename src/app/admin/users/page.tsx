@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAdminSession, clearAdminSession, hasAdminPermission } from '@/lib/simple-admin-auth';
+
+interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+}
 
 interface User {
   id: string;
@@ -17,56 +22,45 @@ interface User {
 }
 
 export default function UserManagement() {
-  const [admin, setAdmin] = useState<any>(null);
+  const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlan, setFilterPlan] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const router = useRouter();
 
   useEffect(() => {
-    checkAdminAccess();
-    loadUsers();
-  }, []);
-
-  const checkAdminAccess = () => {
-    const adminSession = getAdminSession();
-    
-    if (!adminSession) {
+    // Check if admin is logged in
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
       router.push('/admin/login');
       return;
     }
 
-    if (!hasAdminPermission(adminSession, 'can_manage_users')) {
-      router.push('/admin/dashboard');
-      return;
-    }
-
-    setAdmin(adminSession);
-    setLoading(false);
-  };
+    setAdmin(JSON.parse(adminData));
+    loadUsers();
+  }, [router]);
 
   const loadUsers = async () => {
-    if (!admin) return;
-    
     try {
-      const response = await fetch('/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${admin.id}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to load users');
-      }
-      
+      const response = await fetch('/api/admin/users');
       const data = await response.json();
-      setUsers(data.users || []);
+      
+      if (response.ok) {
+        setUsers(data.users || []);
+      } else {
+        console.error('Failed to load users:', data.error);
+      }
     } catch (error) {
-      console.error('Failed to load users:', error);
+      console.error('Error loading users:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin');
+    router.push('/admin/login');
   };
 
   const filteredUsers = users.filter(user => {
@@ -76,73 +70,19 @@ export default function UserManagement() {
     return matchesSearch && matchesPlan;
   });
 
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    const aValue = a[sortBy as keyof User];
-    const bValue = b[sortBy as keyof User];
-    
-    if (sortOrder === 'asc') {
-      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-    } else {
-      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-    }
-  });
-
-  const toggleUserStatus = async (userId: string, isActive: boolean) => {
-    if (!admin) return;
-    
-    try {
-      const response = await fetch('/api/admin/users/toggle-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${admin.id}`
-        },
-        body: JSON.stringify({ userId, isActive })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update user status');
-      }
-
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, is_active: isActive } : user
-      ));
-    } catch (error) {
-      console.error('Failed to update user status:', error);
-    }
-  };
-
-  const handleLogout = () => {
-    clearAdminSession();
-    router.push('/admin/login');
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <div className="text-white text-xl">Loading user management...</div>
+          <div className="text-white text-xl">Loading users...</div>
         </div>
       </div>
     );
   }
 
   if (!admin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">Access denied</div>
-          <button
-            onClick={() => router.push('/admin/login')}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
+    return null; // Will redirect to login
   }
 
   return (
@@ -157,12 +97,12 @@ export default function UserManagement() {
             <p className="text-gray-300 mt-1">Manage user accounts and permissions</p>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => router.push('/admin/dashboard')}
+            <a
+              href="/admin/dashboard"
               className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all duration-200 hover:border-purple-400/50"
             >
               ← Back to Dashboard
-            </button>
+            </a>
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-all duration-200 hover:border-red-400/50"
@@ -175,7 +115,7 @@ export default function UserManagement() {
 
       {/* Filters */}
       <div className="p-6 bg-black/10 backdrop-blur-sm border-b border-purple-500/20">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-purple-300 mb-2">
               Search Users
@@ -206,34 +146,13 @@ export default function UserManagement() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-purple-300 mb-2">
-              Sort by
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-200"
+          <div className="flex items-end">
+            <button
+              onClick={loadUsers}
+              className="w-full px-4 py-3 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all duration-200 hover:border-purple-400/50"
             >
-              <option value="created_at">Created Date</option>
-              <option value="last_sign_in_at">Last Sign In</option>
-              <option value="email">Email</option>
-              <option value="plan">Plan</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-purple-300 mb-2">
-              Order
-            </label>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-              className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-200"
-            >
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
+              Refresh Users
+            </button>
           </div>
         </div>
       </div>
@@ -263,18 +182,15 @@ export default function UserManagement() {
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
                     Last Sign In
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-black/10 divide-y divide-purple-500/10">
-                {sortedUsers.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-purple-500/10 transition-all duration-200 group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">
-                          {user.full_name || 'No name'}
+                          {user.full_name}
                         </div>
                         <div className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{user.email}</div>
                       </div>
@@ -286,7 +202,7 @@ export default function UserManagement() {
                         user.plan === 'professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg' :
                         'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
                       }`}>
-                        {user.plan || 'free'}
+                        {user.plan}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 group-hover:text-white transition-colors">
@@ -310,18 +226,6 @@ export default function UserManagement() {
                         : 'Never'
                       }
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => toggleUserStatus(user.id, !user.is_active)}
-                        className={`px-4 py-2 text-xs rounded-lg transition-all duration-200 ${
-                          user.is_active
-                            ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-red-500/25'
-                            : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-green-500/25'
-                        }`}
-                      >
-                        {user.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -329,7 +233,7 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {sortedUsers.length === 0 && (
+        {filteredUsers.length === 0 && (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">👥</div>
             <div className="text-xl text-gray-300 mb-2">No users found</div>

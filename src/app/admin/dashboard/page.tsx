@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAdminSession, clearAdminSession, hasAdminPermission, SimpleAdminUser } from '@/lib/simple-admin-auth';
 
-interface DashboardStats {
+interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+}
+
+interface Stats {
   totalUsers: number;
   activeUsers: number;
   totalQuizzes: number;
@@ -14,47 +19,42 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const [admin, setAdmin] = useState<SimpleAdminUser | null>(null);
+  const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    checkAdminAccess();
-    loadDashboardStats();
-  }, []);
-
-  const checkAdminAccess = () => {
-    const adminSession = getAdminSession();
-    
-    if (!adminSession) {
+    // Check if admin is logged in
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
       router.push('/admin/login');
       return;
     }
-    
-    setAdmin(adminSession);
-    setLoading(false);
-  };
 
-  const loadDashboardStats = async () => {
+    setAdmin(JSON.parse(adminData));
+    loadStats();
+  }, [router]);
+
+  const loadStats = async () => {
     try {
-      const response = await fetch('/api/admin/dashboard-stats');
+      const response = await fetch('/api/admin/stats');
       const data = await response.json();
       
       if (response.ok) {
         setStats(data);
       } else {
-        setError(data.error || 'Failed to load dashboard stats');
+        console.error('Failed to load stats:', data.error);
       }
     } catch (error) {
-      console.error('Error loading dashboard stats:', error);
-      setError('Failed to load dashboard stats');
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = () => {
-    clearAdminSession();
+    localStorage.removeItem('admin');
     router.push('/admin/login');
   };
 
@@ -102,12 +102,6 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {error && (
-          <div className="mb-6 bg-red-900/50 border border-red-500 rounded-md p-4">
-            <p className="text-red-200">{error}</p>
-          </div>
-        )}
-
         {/* Stats Grid */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -170,7 +164,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-yellow-300">Total Revenue</p>
-                  <p className="text-3xl font-bold text-white">${(stats.totalRevenue / 100).toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-white">${stats.totalRevenue.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -179,82 +173,74 @@ export default function AdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {hasAdminPermission(admin, 'can_manage_users') && (
-            <a
-              href="/admin/users"
-              className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-blue-500/20 hover:border-blue-400/50 transition-all duration-200 group"
-            >
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-white group-hover:text-blue-300 transition-colors">Manage Users</h3>
-                  <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">View and manage user accounts</p>
-                </div>
+          <a
+            href="/admin/users"
+            className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-blue-500/20 hover:border-blue-400/50 transition-all duration-200 group"
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
               </div>
-            </a>
-          )}
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-blue-300 transition-colors">Manage Users</h3>
+                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">View and manage user accounts</p>
+              </div>
+            </div>
+          </a>
 
-          {hasAdminPermission(admin, 'can_manage_payments') && (
-            <a
-              href="/admin/payments"
-              className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-green-500/20 hover:border-green-400/50 transition-all duration-200 group"
-            >
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-white group-hover:text-green-300 transition-colors">Payment Verification</h3>
-                  <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">Review and approve payments</p>
-                </div>
+          <a
+            href="/admin/payments"
+            className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-green-500/20 hover:border-green-400/50 transition-all duration-200 group"
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
               </div>
-            </a>
-          )}
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-green-300 transition-colors">Payment Verification</h3>
+                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">Review and approve payments</p>
+              </div>
+            </div>
+          </a>
 
-          {hasAdminPermission(admin, 'can_manage_settings') && (
-            <a
-              href="/admin/settings"
-              className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-purple-500/20 hover:border-purple-400/50 transition-all duration-200 group"
-            >
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-white group-hover:text-purple-300 transition-colors">Site Settings</h3>
-                  <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">Configure site settings and maintenance</p>
-                </div>
+          <a
+            href="/admin/settings"
+            className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-purple-500/20 hover:border-purple-400/50 transition-all duration-200 group"
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
               </div>
-            </a>
-          )}
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-purple-300 transition-colors">Site Settings</h3>
+                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">Configure site settings</p>
+              </div>
+            </div>
+          </a>
 
-          {hasAdminPermission(admin, 'can_view_analytics') && (
-            <a
-              href="/admin/analytics"
-              className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-yellow-500/20 hover:border-yellow-400/50 transition-all duration-200 group"
-            >
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-white group-hover:text-yellow-300 transition-colors">Analytics</h3>
-                  <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">View site analytics and reports</p>
-                </div>
+          <a
+            href="/admin/analytics"
+            className="bg-black/20 backdrop-blur-sm hover:bg-black/30 rounded-xl p-6 border border-yellow-500/20 hover:border-yellow-400/50 transition-all duration-200 group"
+          >
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-200">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
               </div>
-            </a>
-          )}
+              <div>
+                <h3 className="text-lg font-medium text-white group-hover:text-yellow-300 transition-colors">Analytics</h3>
+                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors">View site analytics</p>
+              </div>
+            </div>
+          </a>
         </div>
       </main>
     </div>

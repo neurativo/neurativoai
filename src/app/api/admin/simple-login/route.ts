@@ -46,8 +46,29 @@ export async function POST(req: NextRequest) {
       .eq('is_active', true)
       .single();
 
+    console.log('Admin user lookup:', {
+      userId: authData.user.id,
+      adminUser,
+      adminError: adminError?.message,
+      adminErrorCode: adminError?.code
+    });
+
     if (adminError || !adminUser) {
-      return NextResponse.json({ error: 'Access denied. Admin privileges required.' }, { status: 403 });
+      // Let's also check if there are any admin users at all
+      const { data: allAdmins, error: allAdminsError } = await supabase
+        .from('admin_users')
+        .select('*');
+      
+      console.log('All admin users:', { allAdmins, allAdminsError });
+      
+      return NextResponse.json({ 
+        error: 'Access denied. Admin privileges required.',
+        debug: {
+          userId: authData.user.id,
+          adminError: adminError?.message,
+          allAdmins: allAdmins?.length || 0
+        }
+      }, { status: 403 });
     }
 
     // Return admin info without complex token handling

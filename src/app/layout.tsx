@@ -120,14 +120,14 @@ export const metadata: Metadata = {
 	},
 	icons: {
 		icon: [
-			{ url: "/favicon.ico?v=7", sizes: "any" },
-			{ url: "/favicon-16x16.png?v=7", sizes: "16x16", type: "image/png" },
-			{ url: "/favicon-32x32.png?v=7", sizes: "32x32", type: "image/png" },
-			{ url: "/logo.png?v=7", sizes: "192x192", type: "image/png" },
+			{ url: "/favicon.ico?v=8", sizes: "any" },
+			{ url: "/favicon-16x16.png?v=8", sizes: "16x16", type: "image/png" },
+			{ url: "/favicon-32x32.png?v=8", sizes: "32x32", type: "image/png" },
+			{ url: "/logo.png?v=8", sizes: "192x192", type: "image/png" },
 		],
-		shortcut: "/favicon.ico?v=7",
+		shortcut: "/favicon.ico?v=8",
 		apple: [
-			{ url: "/apple-touch-icon.png?v=6", sizes: "180x180", type: "image/png" },
+			{ url: "/apple-touch-icon.png?v=8", sizes: "180x180", type: "image/png" },
 		],
 		other: [
 			{
@@ -159,16 +159,24 @@ export default function RootLayout({
 		<html lang="en">
 			<head>
 				<meta name="permissions-policy" content="microphone=(self)" />
-				<link rel="icon" type="image/x-icon" href="/favicon.ico?v=7" />
-				<link rel="shortcut icon" href="/favicon.ico?v=7" />
-				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=7" />
+				
+				{/* AGGRESSIVE FAVICON OVERRIDE - Multiple formats and sizes */}
+				<link rel="icon" type="image/x-icon" href="/favicon.ico?v=8" />
+				<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=8" />
+				<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=8" />
+				<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=8" />
+				<link rel="icon" type="image/png" sizes="192x192" href="/logo.png?v=8" />
+				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=8" />
+				
+				{/* Force favicon for all browsers */}
+				<link rel="icon" href="/favicon.ico?v=8" sizes="any" />
+				<link rel="shortcut icon" href="/favicon.ico?v=8" />
+				<link rel="bookmark" href="/favicon.ico?v=8" />
+				
 				<link
 					rel="stylesheet"
 					href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
 				/>
-				{/* Direct favicon link for better browser compatibility - FORCE REFRESH */}
-				<link rel="icon" href="/favicon.ico?v=7" />
-				<link rel="shortcut icon" href="/favicon.ico?v=7" />
 				
 				<script
 					type="application/ld+json"

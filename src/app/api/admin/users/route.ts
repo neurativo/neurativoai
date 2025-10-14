@@ -13,11 +13,10 @@ export async function GET(req: NextRequest) {
       .select(`
         id,
         email,
-        full_name,
+        display_name,
         created_at,
-        last_sign_in_at,
-        plan,
-        is_active
+        updated_at,
+        is_admin
       `)
       .order('created_at', { ascending: false });
 
@@ -36,11 +35,12 @@ export async function GET(req: NextRequest) {
     const transformedUsers = users?.map(user => ({
       id: user.id,
       email: user.email,
-      full_name: user.full_name || 'No name',
+      full_name: user.display_name || 'No name',
       created_at: user.created_at,
-      last_sign_in_at: user.last_sign_in_at,
-      plan: user.plan || 'free',
-      is_active: user.is_active !== false,
+      last_sign_in_at: user.updated_at, // Use updated_at as last activity
+      plan: 'free', // Default plan since profiles table doesn't have plan column
+      is_active: true, // All users are active
+      is_admin: user.is_admin || false, // Include admin status
       total_quizzes: 0, // Placeholder
       total_payments: 0, // Placeholder
     })) || [];

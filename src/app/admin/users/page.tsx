@@ -17,6 +17,7 @@ interface User {
   last_sign_in_at: string;
   plan: string;
   is_active: boolean;
+  is_admin?: boolean;
   total_quizzes: number;
   total_payments: number;
 }
@@ -196,14 +197,21 @@ export default function UserManagement() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        user.plan === 'innovation' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' :
-                        user.plan === 'mastery' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg' :
-                        user.plan === 'professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg' :
-                        'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
-                      }`}>
-                        {user.plan}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                          user.plan === 'innovation' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' :
+                          user.plan === 'mastery' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg' :
+                          user.plan === 'professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg' :
+                          'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
+                        }`}>
+                          {user.plan}
+                        </span>
+                        {user.is_admin && (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg">
+                            Admin
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 group-hover:text-white transition-colors">
                       {user.total_quizzes}

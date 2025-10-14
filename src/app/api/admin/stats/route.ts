@@ -10,14 +10,14 @@ export async function GET(req: NextRequest) {
       .from('profiles')
       .select('*', { count: 'exact', head: true });
 
-    // Get active users (last 30 days)
+    // Get active users (last 30 days) - using updated_at as last activity
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const { count: activeUsers } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
-      .gte('last_sign_in_at', thirtyDaysAgo.toISOString());
+      .gte('updated_at', thirtyDaysAgo.toISOString());
 
     // Get total quizzes
     const { count: totalQuizzes } = await supabase

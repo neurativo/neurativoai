@@ -47,7 +47,16 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    // Check if user is an admin using the profile ID
+    // Check if user is an admin - try to bypass RLS by using service role
+    // First, let's try a simple query to see if we can access the table at all
+    const { data: allAdmins, error: allAdminsError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .limit(1);
+    
+    console.log('All admins test:', { allAdmins, allAdminsError });
+    
+    // Now try to find the specific admin user
     const { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
       .select(`

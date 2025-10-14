@@ -31,6 +31,38 @@ export interface AdminRole {
   permissions: Record<string, boolean>
 }
 
+function getRolePermissions(role: string): Record<string, boolean> {
+  const permissions: Record<string, boolean> = {
+    can_manage_users: false,
+    can_manage_payments: false,
+    can_manage_settings: false,
+    can_view_analytics: false
+  }
+
+  switch (role) {
+    case 'super_admin':
+      permissions.can_manage_users = true
+      permissions.can_manage_payments = true
+      permissions.can_manage_settings = true
+      permissions.can_view_analytics = true
+      break
+    case 'admin':
+      permissions.can_manage_users = true
+      permissions.can_manage_payments = true
+      permissions.can_manage_settings = false
+      permissions.can_view_analytics = true
+      break
+    case 'moderator':
+      permissions.can_manage_users = false
+      permissions.can_manage_payments = false
+      permissions.can_manage_settings = false
+      permissions.can_view_analytics = true
+      break
+  }
+
+  return permissions
+}
+
 export interface AdminAction {
   id: string
   admin_id: string
@@ -70,18 +102,13 @@ export async function verifyAdminAccess(token?: string): Promise<{
       .from('admin_users')
       .select(`
         id,
+        user_id,
         role,
-        email,
         is_active,
         created_at,
-        last_login_at,
-        admin_roles (
-          id,
-          name,
-          permissions
-        )
+        last_login
       `)
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .single()
 
@@ -92,14 +119,18 @@ export async function verifyAdminAccess(token?: string): Promise<{
     return {
       isAdmin: true,
       user: {
-        id: adminUser.id,
+        id: adminUser.user_id,
         role: adminUser.role,
-        email: adminUser.email,
+        email: user.email || '',
         is_active: adminUser.is_active,
         created_at: adminUser.created_at,
-        last_login_at: adminUser.last_login_at
+        last_login_at: adminUser.last_login
       },
-      role: adminUser.admin_roles?.[0] || null
+      role: {
+        id: adminUser.id,
+        name: adminUser.role,
+        permissions: getRolePermissions(adminUser.role)
+      }
     }
   } catch (error) {
     console.error('Error verifying admin access:', error)

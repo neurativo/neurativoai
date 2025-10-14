@@ -30,5 +30,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		{ url: `${baseUrl}/study-pack`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
 		{ url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
 		{ url: `${baseUrl}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+		// Favicon and icon files for search engine indexing
+		{ url: `${baseUrl}/favicon1.ico`, lastModified: now, changeFrequency: "yearly", priority: 0.1 },
+		{ url: `${baseUrl}/favicon-16x16.png`, lastModified: now, changeFrequency: "yearly", priority: 0.1 },
+		{ url: `${baseUrl}/favicon-32x32.png`, lastModified: now, changeFrequency: "yearly", priority: 0.1 },
+		{ url: `${baseUrl}/apple-touch-icon.png`, lastModified: now, changeFrequency: "yearly", priority: 0.1 },
+		{ url: `${baseUrl}/logo.png`, lastModified: now, changeFrequency: "yearly", priority: 0.1 },
 	];
 }

@@ -173,6 +173,11 @@ export default function RootLayout({
 				<link rel="shortcut icon" href="/favicon1.ico" />
 				<link rel="bookmark" href="/favicon1.ico" />
 				
+				{/* Additional SEO meta tags for favicon */}
+				<meta name="msapplication-TileImage" content="/logo.png" />
+				<meta name="msapplication-TileColor" content="#8b5cf6" />
+				<meta name="theme-color" content="#8b5cf6" />
+				
 				<link
 					rel="stylesheet"
 					href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"

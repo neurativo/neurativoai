@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Allow favicon indexing for better search engine visibility
+Allow: /favicon.ico
+Allow: /favicon1.ico
+Allow: /favicon-16x16.png
+Allow: /favicon-32x32.png
+Allow: /apple-touch-icon.png
+Allow: /logo.png
+
+# Sitemap location
+Sitemap: https://www.neurativo.com/sitemap.xml

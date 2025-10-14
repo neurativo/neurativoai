@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
 
     console.log('Fetching users from profiles table...');
 
-    // Get users from profiles
+    // Get users from profiles with related data
     const { data: users, error } = await supabase
       .from('profiles')
       .select(`
@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
         display_name,
         created_at,
         updated_at,
-        is_admin
+        is_admin,
+        plan
       `)
       .order('created_at', { ascending: false });
 
@@ -31,19 +32,44 @@ export async function GET(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Transform the data
-    const transformedUsers = users?.map(user => ({
-      id: user.id,
-      email: user.email,
-      full_name: user.display_name || 'No name',
-      created_at: user.created_at,
-      last_sign_in_at: user.updated_at, // Use updated_at as last activity
-      plan: 'free', // Default plan since profiles table doesn't have plan column
-      is_active: true, // All users are active
-      is_admin: user.is_admin || false, // Include admin status
-      total_quizzes: 0, // Placeholder
-      total_payments: 0, // Placeholder
-    })) || [];
+    // Get real data for each user
+    const transformedUsers = await Promise.all(
+      (users || []).map(async (user) => {
+        // Get quiz count for this user
+        const { count: quizCount } = await supabase
+          .from('quizzes')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        // Get payment count for this user
+        const { count: paymentCount } = await supabase
+          .from('payments')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        // Get last activity from quiz attempts or user activity
+        const { data: lastActivity } = await supabase
+          .from('quiz_attempts')
+          .select('created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        return {
+          id: user.id,
+          email: user.email,
+          full_name: user.display_name || 'No name',
+          created_at: user.created_at,
+          last_sign_in_at: lastActivity?.created_at || user.updated_at,
+          plan: user.plan || 'free',
+          is_active: true,
+          is_admin: user.is_admin || false,
+          total_quizzes: quizCount || 0,
+          total_payments: paymentCount || 0,
+        };
+      })
+    );
 
     console.log('Transformed users:', transformedUsers.length);
 

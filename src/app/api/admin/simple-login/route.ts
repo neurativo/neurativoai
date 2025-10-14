@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase';
 
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
@@ -40,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Return admin info without complex token handling
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       admin: {
         id: adminUser.user_id,
@@ -49,6 +60,13 @@ export async function POST(req: NextRequest) {
         is_active: adminUser.is_active
       }
     });
+
+    // Add CORS headers
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    return response;
 
   } catch (error) {
     console.error('Admin login error:', error);

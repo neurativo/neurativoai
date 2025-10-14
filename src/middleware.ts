@@ -118,18 +118,13 @@ export async function middleware(request: NextRequest) {
 }
 
 function addSecurityHeaders(response: NextResponse) {
-  // Security headers
+  // Basic security headers only - CSP disabled for now
   response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   
-  // CSP header for additional security
-  response.headers.set(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.openai.com https://api.assemblyai.com https://api.deepgram.com;"
-  )
+  // CSP disabled temporarily to fix CSS loading issues
+  // response.headers.set('Content-Security-Policy', '...')
   
   return response
 }

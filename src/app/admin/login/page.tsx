@@ -19,6 +19,9 @@ export default function AdminLogin() {
     try {
       const supabase = getSupabaseBrowser();
       
+      // Clear any existing session first
+      await supabase.auth.signOut();
+      
       // Sign in with email and password
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -26,11 +29,16 @@ export default function AdminLogin() {
       });
 
       if (signInError) {
-        throw signInError;
+        console.error('Supabase auth error:', signInError);
+        throw new Error(signInError.message || 'Authentication failed');
       }
 
       if (!data.user) {
         throw new Error('No user data returned');
+      }
+
+      if (!data.session?.access_token) {
+        throw new Error('No access token received');
       }
 
       // Verify admin access
@@ -38,12 +46,13 @@ export default function AdminLogin() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.session?.access_token}`
+          'Authorization': `Bearer ${data.session.access_token}`
         }
       });
 
       if (!response.ok) {
-        throw new Error('Access denied. Admin privileges required.');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Access denied. Admin privileges required.');
       }
 
       // Redirect to admin dashboard

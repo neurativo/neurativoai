@@ -32,7 +32,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Check if user is an admin
+    // First, get the user's profile to get the profile ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.log('Profile lookup failed:', { profileError: profileError?.message, userId: authData.user.id });
+      return NextResponse.json({ 
+        error: 'User profile not found. Please complete your profile setup.',
+        debug: { profileError: profileError?.message, userId: authData.user.id }
+      }, { status: 403 });
+    }
+
+    // Check if user is an admin using the profile ID
     const { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
       .select(`
@@ -42,7 +57,7 @@ export async function POST(req: NextRequest) {
         is_active,
         created_at
       `)
-      .eq('user_id', authData.user.id)
+      .eq('user_id', profile.id)
       .eq('is_active', true)
       .single();
 

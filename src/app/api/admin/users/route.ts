@@ -22,14 +22,19 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseServer();
 
-    // Get users from auth.users
+    // Get users from profiles
     const { data: users, error } = await supabase
-      .from('auth.users')
+      .from('profiles')
       .select(`
         id,
         email,
+        full_name,
         created_at,
-        last_sign_in_at
+        last_sign_in_at,
+        plan,
+        is_active,
+        quizzes:quizzes(count),
+        payments:payments(count)
       `)
       .order('created_at', { ascending: false });
 
@@ -41,13 +46,13 @@ export async function GET(req: NextRequest) {
     const transformedUsers = users?.map(user => ({
       id: user.id,
       email: user.email,
-      full_name: user.email.split('@')[0], // Use email prefix as name
+      full_name: user.full_name,
       created_at: user.created_at,
       last_sign_in_at: user.last_sign_in_at,
-      plan: 'free', // Default plan
-      is_active: true, // All auth users are active
-      total_quizzes: 0, // Will be calculated separately if needed
-      total_payments: 0, // Will be calculated separately if needed
+      plan: user.plan || 'free',
+      is_active: user.is_active !== false,
+      total_quizzes: user.quizzes?.[0]?.count || 0,
+      total_payments: user.payments?.[0]?.count || 0,
     })) || [];
 
     // Log admin action

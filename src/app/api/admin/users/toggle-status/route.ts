@@ -28,9 +28,15 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseServer();
 
-    // Note: User status toggle is not available without profiles table
-    // For now, we'll just return success since auth.users doesn't have is_active field
-    // In a real implementation, you might want to create a profiles table or use a different approach
+    // Update user status in profiles table
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: isActive })
+      .eq('id', userId);
+
+    if (error) {
+      throw error;
+    }
 
     // Log admin action
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';

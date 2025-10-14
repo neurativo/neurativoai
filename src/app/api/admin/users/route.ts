@@ -5,6 +5,8 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseServer();
 
+    console.log('Fetching users from profiles table...');
+
     // Get users from profiles
     const { data: users, error } = await supabase
       .from('profiles')
@@ -19,9 +21,15 @@ export async function GET(req: NextRequest) {
       `)
       .order('created_at', { ascending: false });
 
+    console.log('Users query result:', { users, error, count: users?.length });
+
     if (error) {
       console.error('Users query error:', error);
-      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Failed to fetch users', 
+        details: error.message,
+        debug: { error }
+      }, { status: 500 });
     }
 
     // Transform the data
@@ -37,9 +45,20 @@ export async function GET(req: NextRequest) {
       total_payments: 0, // Placeholder
     })) || [];
 
-    return NextResponse.json({ users: transformedUsers });
+    console.log('Transformed users:', transformedUsers.length);
+
+    return NextResponse.json({ 
+      users: transformedUsers,
+      debug: {
+        originalCount: users?.length || 0,
+        transformedCount: transformedUsers.length
+      }
+    });
   } catch (error) {
     console.error('Users fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

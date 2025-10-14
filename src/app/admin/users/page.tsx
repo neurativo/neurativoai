@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import UserDetailsModal from '@/app/components/admin/UserDetailsModal';
 
 interface AdminUser {
   id: string;
@@ -28,6 +29,8 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlan, setFilterPlan] = useState('all');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,6 +67,59 @@ export default function UserManagement() {
     router.push('/admin/login');
   };
 
+  const handleViewUser = (user: User) => {
+    setSelectedUser(user);
+    setShowUserModal(true);
+  };
+
+  const handleUpgradePlan = async (userId: string, newPlan: string) => {
+    try {
+      const response = await fetch('/api/admin/users/upgrade-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, newPlan }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upgrade plan');
+      }
+
+      // Update the user in the local state
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, plan: newPlan } : user
+      ));
+
+      alert(`User plan upgraded to ${newPlan}!`);
+    } catch (error) {
+      console.error('Error upgrading plan:', error);
+      alert('Failed to upgrade plan. Please try again.');
+    }
+  };
+
+  const handleExportUsers = async () => {
+    try {
+      const response = await fetch('/api/admin/users/export');
+      if (!response.ok) {
+        throw new Error('Failed to export users');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'users-export.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error exporting users:', error);
+      alert('Failed to export users. Please try again.');
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -97,20 +153,26 @@ export default function UserManagement() {
             </h1>
             <p className="text-gray-300 mt-1">Manage user accounts and permissions</p>
           </div>
-          <div className="flex gap-3">
-            <a
-              href="/admin/dashboard"
-              className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all duration-200 hover:border-purple-400/50"
-            >
-              ← Back to Dashboard
-            </a>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-all duration-200 hover:border-red-400/50"
-            >
-              Logout
-            </button>
-          </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleExportUsers}
+                      className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg transition-all duration-200 hover:border-green-400/50"
+                    >
+                      📊 Export Users
+                    </button>
+                    <a
+                      href="/admin/dashboard"
+                      className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all duration-200 hover:border-purple-400/50"
+                    >
+                      ← Back to Dashboard
+                    </a>
+                    <button
+                      onClick={handleLogout}
+                      className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-all duration-200 hover:border-red-400/50"
+                    >
+                      Logout
+                    </button>
+                  </div>
         </div>
       </div>
 
@@ -180,10 +242,13 @@ export default function UserManagement() {
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
-                    Last Sign In
-                  </th>
-                </tr>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
+                            Last Sign In
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
               </thead>
               <tbody className="bg-black/10 divide-y divide-purple-500/10">
                 {filteredUsers.map((user) => (
@@ -234,6 +299,22 @@ export default function UserManagement() {
                         : 'Never'
                       }
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleViewUser(user)}
+                          className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded text-purple-300 hover:text-purple-200 transition-all"
+                        >
+                          View Details
+                        </button>
+                        <button 
+                          onClick={() => handleViewUser(user)}
+                          className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded text-blue-300 hover:text-blue-200 transition-all"
+                        >
+                          Upgrade Plan
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -249,6 +330,17 @@ export default function UserManagement() {
           </div>
         )}
       </div>
+
+      {/* User Details Modal */}
+      <UserDetailsModal
+        user={selectedUser}
+        isOpen={showUserModal}
+        onClose={() => {
+          setShowUserModal(false);
+          setSelectedUser(null);
+        }}
+        onUpgradePlan={handleUpgradePlan}
+      />
     </div>
   );
 }

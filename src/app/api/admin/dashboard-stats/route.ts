@@ -5,17 +5,17 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseServer();
 
-    // Get total users
+    // Get total users from auth.users
     const { count: totalUsers } = await supabase
-      .from('profiles')
+      .from('auth.users')
       .select('*', { count: 'exact', head: true });
 
-    // Get active users (last 30 days)
+    // Get active users (last 30 days) from auth.users
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const { count: activeUsers } = await supabase
-      .from('profiles')
+      .from('auth.users')
       .select('*', { count: 'exact', head: true })
       .gte('last_sign_in_at', thirtyDaysAgo.toISOString());
 

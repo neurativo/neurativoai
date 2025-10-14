@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseBrowser } from '@/lib/supabase';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -17,46 +16,34 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      const supabase = getSupabaseBrowser();
-      
-      // Clear any existing session first
-      await supabase.auth.signOut();
-      
-      // Sign in with email and password
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        console.error('Supabase auth error:', signInError);
-        throw new Error(signInError.message || 'Authentication failed');
-      }
-
-      if (!data.user) {
-        throw new Error('No user data returned');
-      }
-
-      if (!data.session?.access_token) {
-        throw new Error('No access token received');
-      }
-
-      // Verify admin access
-      const response = await fetch('/api/admin/verify-access', {
+      // Simple admin login without complex Supabase auth
+      const response = await fetch('/api/admin/simple-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.session.access_token}`
-        }
+        },
+        body: JSON.stringify({ email, password }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Access denied. Admin privileges required.');
+        throw new Error(data.error || 'Login failed');
       }
 
-      // Redirect to admin dashboard
-      router.push('/admin/dashboard');
+      if (data.success) {
+        // Store admin session in localStorage
+        localStorage.setItem('admin_session', JSON.stringify({
+          email: data.admin.email,
+          role: data.admin.role,
+          timestamp: Date.now()
+        }));
+        
+        // Redirect to admin dashboard
+        router.push('/admin/dashboard');
+      } else {
+        throw new Error('Invalid credentials');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       setError(error.message || 'Login failed');
@@ -115,8 +102,8 @@ export default function AdminLogin() {
           </div>
 
           {error && (
-            <div className="bg-red-600 border border-red-500 text-white px-4 py-3 rounded-md">
-              {error}
+            <div className="rounded-md bg-red-900/50 border border-red-500 p-3">
+              <p className="text-red-200 text-sm">{error}</p>
             </div>
           )}
 
@@ -127,46 +114,19 @@ export default function AdminLogin() {
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                   Signing in...
-                </div>
+                </span>
               ) : (
                 'Sign in'
               )}
             </button>
           </div>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="text-sm text-gray-400 hover:text-white"
-            >
-              ← Back to main site
-            </button>
-          </div>
         </form>
-
-        {/* Security Notice */}
-        <div className="mt-8 p-4 bg-yellow-900 border border-yellow-600 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <i className="fas fa-shield-alt text-yellow-400"></i>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-200">
-                Security Notice
-              </h3>
-              <div className="mt-2 text-sm text-yellow-300">
-                <p>
-                  This is a secure admin area. All login attempts are logged and monitored.
-                  Unauthorized access attempts will be reported.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

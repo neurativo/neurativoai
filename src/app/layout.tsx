@@ -120,12 +120,12 @@ export const metadata: Metadata = {
 	},
 	icons: {
 		icon: [
-			{ url: "/favicon.ico?v=6", sizes: "any" },
-			{ url: "/favicon-16x16.png?v=6", sizes: "16x16", type: "image/png" },
-			{ url: "/favicon-32x32.png?v=6", sizes: "32x32", type: "image/png" },
-			{ url: "/logo.png?v=6", sizes: "192x192", type: "image/png" },
+			{ url: "/favicon.ico?v=7", sizes: "any" },
+			{ url: "/favicon-16x16.png?v=7", sizes: "16x16", type: "image/png" },
+			{ url: "/favicon-32x32.png?v=7", sizes: "32x32", type: "image/png" },
+			{ url: "/logo.png?v=7", sizes: "192x192", type: "image/png" },
 		],
-		shortcut: "/favicon.ico?v=6",
+		shortcut: "/favicon.ico?v=7",
 		apple: [
 			{ url: "/apple-touch-icon.png?v=6", sizes: "180x180", type: "image/png" },
 		],
@@ -159,16 +159,16 @@ export default function RootLayout({
 		<html lang="en">
 			<head>
 				<meta name="permissions-policy" content="microphone=(self)" />
-				<link rel="icon" type="image/x-icon" href="/favicon.ico?v=6" />
-				<link rel="shortcut icon" href="/favicon.ico?v=6" />
-				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=6" />
+				<link rel="icon" type="image/x-icon" href="/favicon.ico?v=7" />
+				<link rel="shortcut icon" href="/favicon.ico?v=7" />
+				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=7" />
 				<link
 					rel="stylesheet"
 					href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
 				/>
-				{/* Direct favicon link for better browser compatibility */}
-				<link rel="icon" href="/favicon.ico?v=6" />
-				<link rel="shortcut icon" href="/favicon.ico?v=6" />
+				{/* Direct favicon link for better browser compatibility - FORCE REFRESH */}
+				<link rel="icon" href="/favicon.ico?v=7" />
+				<link rel="shortcut icon" href="/favicon.ico?v=7" />
 				
 				<script
 					type="application/ld+json"

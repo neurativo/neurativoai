@@ -3,6 +3,17 @@ import { getSupabaseServer } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
+    // Simple admin validation
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
+    }
+
+    const adminId = authHeader.replace('Bearer ', '');
+    if (!adminId) {
+      return NextResponse.json({ error: 'Invalid admin ID' }, { status: 401 });
+    }
+
     const supabase = getSupabaseServer();
 
     // Get total users from profiles

@@ -3,8 +3,8 @@ export default function ForceFavicon() {
     <html>
       <head>
         <title>Force Favicon Test</title>
-        <link rel="icon" href="/favicon.ico?v=8" />
-        <link rel="shortcut icon" href="/favicon.ico?v=8" />
+        <link rel="icon" href="/favicon1.ico" />
+        <link rel="shortcut icon" href="/favicon1.ico" />
         <meta httpEquiv="refresh" content="3;url=/" />
       </head>
       <body style={{ 

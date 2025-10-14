@@ -120,14 +120,14 @@ export const metadata: Metadata = {
 	},
 	icons: {
 		icon: [
-			{ url: "/favicon.ico?v=8", sizes: "any" },
-			{ url: "/favicon-16x16.png?v=8", sizes: "16x16", type: "image/png" },
-			{ url: "/favicon-32x32.png?v=8", sizes: "32x32", type: "image/png" },
-			{ url: "/logo.png?v=8", sizes: "192x192", type: "image/png" },
+			{ url: "/favicon1.ico", sizes: "any" },
+			{ url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+			{ url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+			{ url: "/logo.png", sizes: "192x192", type: "image/png" },
 		],
-		shortcut: "/favicon.ico?v=8",
+		shortcut: "/favicon1.ico",
 		apple: [
-			{ url: "/apple-touch-icon.png?v=8", sizes: "180x180", type: "image/png" },
+			{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
 		],
 		other: [
 			{
@@ -160,18 +160,18 @@ export default function RootLayout({
 			<head>
 				<meta name="permissions-policy" content="microphone=(self)" />
 				
-				{/* AGGRESSIVE FAVICON OVERRIDE - Multiple formats and sizes */}
-				<link rel="icon" type="image/x-icon" href="/favicon.ico?v=8" />
-				<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=8" />
-				<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=8" />
-				<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=8" />
-				<link rel="icon" type="image/png" sizes="192x192" href="/logo.png?v=8" />
-				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=8" />
+				{/* AGGRESSIVE FAVICON OVERRIDE - Using favicon1.ico to bypass Vercel cache */}
+				<link rel="icon" type="image/x-icon" href="/favicon1.ico" />
+				<link rel="shortcut icon" type="image/x-icon" href="/favicon1.ico" />
+				<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+				<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+				<link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
+				<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 				
-				{/* Force favicon for all browsers */}
-				<link rel="icon" href="/favicon.ico?v=8" sizes="any" />
-				<link rel="shortcut icon" href="/favicon.ico?v=8" />
-				<link rel="bookmark" href="/favicon.ico?v=8" />
+				{/* Force favicon for all browsers - using favicon1.ico */}
+				<link rel="icon" href="/favicon1.ico" sizes="any" />
+				<link rel="shortcut icon" href="/favicon1.ico" />
+				<link rel="bookmark" href="/favicon1.ico" />
 				
 				<link
 					rel="stylesheet"

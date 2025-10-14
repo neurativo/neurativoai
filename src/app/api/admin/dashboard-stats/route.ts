@@ -10,13 +10,13 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAccess(token);
+    const adminAccess = await verifyAdminAccess(token);
 
-    if (!admin) {
+    if (!adminAccess.isAdmin || !adminAccess.user) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    if (!hasPermission(admin, 'analytics_access')) {
+    if (!hasPermission(adminAccess.user.id, 'analytics_access')) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Log admin action
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    await logAdminAction(admin.id, 'view_dashboard_stats', {}, clientIP);
+    await logAdminAction(adminAccess.user.id, 'view_dashboard_stats', undefined, undefined, {}, clientIP);
 
     return NextResponse.json({
       totalUsers: totalUsers || 0,

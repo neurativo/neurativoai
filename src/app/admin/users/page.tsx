@@ -42,13 +42,13 @@ export default function UserManagement() {
         return;
       }
 
-      const adminUser = await verifyAdminAccess(session.access_token);
-      if (!adminUser || !hasPermission(adminUser, 'user_management')) {
+      const adminAccess = await verifyAdminAccess(session.access_token);
+      if (!adminAccess.isAdmin || !adminAccess.user || !hasPermission(adminAccess.user.id, 'user_management')) {
         router.push('/admin/dashboard');
         return;
       }
 
-      setAdmin(adminUser);
+      setAdmin(adminAccess.user);
     } catch (error) {
       console.error('Admin access check failed:', error);
       router.push('/admin/login');

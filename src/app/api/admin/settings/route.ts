@@ -10,13 +10,13 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAccess(token);
+    const adminAccess = await verifyAdminAccess(token);
 
-    if (!admin) {
+    if (!adminAccess.isAdmin || !adminAccess.user) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    if (!hasPermission(admin, 'site_customization')) {
+    if (!hasPermission(adminAccess.user.id, 'site_customization')) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -78,13 +78,13 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAccess(token);
+    const adminAccess = await verifyAdminAccess(token);
 
-    if (!admin) {
+    if (!adminAccess.isAdmin || !adminAccess.user) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    if (!hasPermission(admin, 'site_customization')) {
+    if (!hasPermission(adminAccess.user.id, 'site_customization')) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         is_enabled: settings.maintenanceMode,
         message: settings.maintenanceMessage,
         allowed_ips: settings.allowedIPs,
-        updated_by: admin.id,
+        updated_by: adminAccess.user.id,
         updated_at: new Date().toISOString(),
       });
 
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         .upsert({
           name: flagName,
           is_enabled: isEnabled,
-          updated_by: admin.id,
+          updated_by: adminAccess.user.id,
           updated_at: new Date().toISOString(),
         });
     }
@@ -128,14 +128,14 @@ export async function POST(req: NextRequest) {
         .upsert({
           key: setting.key,
           value: setting.value,
-          updated_by: admin.id,
+          updated_by: adminAccess.user.id,
           updated_at: new Date().toISOString(),
         });
     }
 
     // Log admin action
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    await logAdminAction(admin.id, 'update_site_settings', { settings }, clientIP);
+    await logAdminAction(adminAccess.user.id, 'update_site_settings', 'settings', undefined, { settings }, clientIP);
 
     return NextResponse.json({ success: true });
   } catch (error) {

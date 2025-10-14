@@ -9,23 +9,23 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAccess(token);
+    const adminAccess = await verifyAdminAccess(token);
 
-    if (!admin) {
+    if (!adminAccess.isAdmin || !adminAccess.user) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     // Log successful admin access
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    await logAdminAction(admin.id, 'admin_login', { email: admin.email }, clientIP);
+    await logAdminAction(adminAccess.user.id, 'admin_login', 'admin', adminAccess.user.id, { email: adminAccess.user.email }, clientIP);
 
     return NextResponse.json({ 
       success: true, 
       admin: {
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
-        permissions: admin.permissions
+        id: adminAccess.user.id,
+        email: adminAccess.user.email,
+        role: adminAccess.user.role,
+        permissions: adminAccess.role?.permissions || {}
       }
     });
   } catch (error) {

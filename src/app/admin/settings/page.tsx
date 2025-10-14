@@ -48,13 +48,13 @@ export default function SiteSettings() {
         return;
       }
 
-      const adminUser = await verifyAdminAccess(session.access_token);
-      if (!adminUser || !hasPermission(adminUser, 'site_customization')) {
+      const adminAccess = await verifyAdminAccess(session.access_token);
+      if (!adminAccess.isAdmin || !adminAccess.user || !hasPermission(adminAccess.user.id, 'site_customization')) {
         router.push('/admin/dashboard');
         return;
       }
 
-      setAdmin(adminUser);
+      setAdmin(adminAccess.user);
     } catch (error) {
       console.error('Admin access check failed:', error);
       router.push('/admin/login');

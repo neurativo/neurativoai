@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabase';
-import { AdminUser, verifyAdminAccess, hasPermission } from '@/lib/admin-auth';
+import { AdminUser, AdminRole, verifyAdminAccess, hasPermission, hasPermissionSync } from '@/lib/admin-auth';
 
 interface DashboardStats {
   totalUsers: number;
@@ -16,6 +16,7 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +37,14 @@ export default function AdminDashboard() {
         return;
       }
 
-      const adminUser = await verifyAdminAccess(session.access_token);
-      if (!adminUser) {
+      const adminAccess = await verifyAdminAccess(session.access_token);
+      if (!adminAccess.isAdmin || !adminAccess.user) {
         router.push('/admin/login');
         return;
       }
 
-      setAdmin(adminUser);
+      setAdmin(adminAccess.user);
+      setAdminRole(adminAccess.role || null);
     } catch (error) {
       console.error('Admin access check failed:', error);
       router.push('/admin/login');
@@ -173,7 +175,7 @@ export default function AdminDashboard() {
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-4">
-              {hasPermission(admin, 'user_management') && (
+              {hasPermissionSync(admin, adminRole, 'user_management') && (
                 <button
                   onClick={() => router.push('/admin/users')}
                   className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left"
@@ -184,7 +186,7 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {hasPermission(admin, 'payment_management') && (
+              {hasPermissionSync(admin, adminRole, 'payment_management') && (
                 <button
                   onClick={() => router.push('/admin/payments')}
                   className="p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left"
@@ -195,7 +197,7 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {hasPermission(admin, 'site_customization') && (
+              {hasPermissionSync(admin, adminRole, 'site_customization') && (
                 <button
                   onClick={() => router.push('/admin/settings')}
                   className="p-4 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-left"
@@ -206,7 +208,7 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {hasPermission(admin, 'analytics_access') && (
+              {hasPermissionSync(admin, adminRole, 'analytics_access') && (
                 <button
                   onClick={() => router.push('/admin/analytics')}
                   className="p-4 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors text-left"

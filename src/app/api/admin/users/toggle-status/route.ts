@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const admin = await verifyAdminAccess(token);
+    const adminAccess = await verifyAdminAccess(token);
 
-    if (!admin) {
+    if (!adminAccess.isAdmin || !adminAccess.user) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    if (!hasPermission(admin, 'user_management')) {
+    if (!hasPermission(adminAccess.user.id, 'user_management')) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -40,8 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Log admin action
     const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    await logAdminAction(admin.id, 'toggle_user_status', { 
-      userId, 
+    await logAdminAction(adminAccess.user.id, 'toggle_user_status', 'user', userId, { 
       isActive,
       action: isActive ? 'activated' : 'deactivated'
     }, clientIP);

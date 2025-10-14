@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { URLContentExtractor } from "@/app/lib/urlContentExtractor";
+import { getSupabaseServer } from "@/lib/supabase";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -420,11 +421,11 @@ export async function POST(req: Request) {
 			// Return only essential data, not the full quiz content
 			const safeResponse = {
 				id: saved.id,
-				title: saved.title,
-				description: saved.description,
-				difficulty: saved.difficulty,
-				question_count: saved.questions?.length || 0,
-				created_at: saved.created_at
+				title: saved.quiz?.title || 'Untitled Quiz',
+				description: saved.quiz?.description || '',
+				difficulty: saved.quiz?.difficulty || 'medium',
+				question_count: saved.quiz?.questions?.length || 0,
+				created_at: saved.metadata?.created_at || new Date().toISOString()
 			};
 			
 			// Return comprehensive usage data
@@ -445,6 +446,14 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: NextRequest) {
+	// Security headers
+	const headers = new Headers({
+		'X-Content-Type-Options': 'nosniff',
+		'X-Frame-Options': 'DENY',
+		'X-XSS-Protection': '1; mode=block',
+		'Referrer-Policy': 'strict-origin-when-cross-origin'
+	});
+
 	const { searchParams } = new URL(req.url);
 	const action = searchParams.get("action");
 	if (action === "debug_api") {
@@ -457,7 +466,7 @@ export async function GET(req: NextRequest) {
 		// Verify user authentication
 		const supabase = getSupabaseServer();
 		const authHeader = req.headers.get('authorization');
-		let user = null;
+		let user: any = null;
 		
 		if (authHeader) {
 			const token = authHeader.replace('Bearer ', '');
@@ -623,7 +632,7 @@ async function requestOpenAIWithRetry({ url, apiKey, payload, attempts, initialD
 }
 
 // Database storage for quizzes
-type SavedQuiz = { id: string; quiz: any; metadata: any };
+type SavedQuiz = { id: string; user_id: string; quiz: any; metadata: any };
 
 // Fallback in-memory store for when database is not available
 const memoryStore = new Map<string, SavedQuiz>();
@@ -632,6 +641,7 @@ async function saveQuiz(parsed: any, userId: string): Promise<SavedQuiz> {
 	const id = `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 	const saved = {
 		id,
+		user_id: userId,
 		quiz: parsed.quiz,
 		metadata: { ...(parsed.metadata || {}), id, generated_at: new Date().toISOString() },
 	};
@@ -694,6 +704,7 @@ async function getQuiz(id: string): Promise<SavedQuiz | undefined> {
 	
 	return {
 		id: data.id,
+		user_id: data.user_id,
 		quiz: {
 			title: data.title,
 			description: data.description,

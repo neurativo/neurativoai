@@ -1,4 +1,6 @@
 // Multi-currency support with real-time conversion rates
+import { PRICING_CONFIG } from './usage-limits';
+
 export interface Currency {
   code: string;
   name: string;
@@ -277,21 +279,20 @@ export async function getPricingInCurrency(plan: string, currency: string): Prom
   const config = PRICING_CONFIG[plan];
   if (!config) throw new Error(`Plan ${plan} not found`);
 
-  const converter = new CurrencyConverter();
-  const monthlyPrice = await converter.convert(config.monthlyPrice, 'USD', currency);
-  const yearlyPrice = await converter.convert(config.yearlyPrice, 'USD', currency);
+  const monthlyPrice = await CurrencyConverter.convert(config.monthlyPrice, 'USD', currency);
+  const yearlyPrice = await CurrencyConverter.convert(config.yearlyPrice, 'USD', currency);
   
   const savings = (config.monthlyPrice * 12) - config.yearlyPrice;
-  const savingsInCurrency = await converter.convert(savings, 'USD', currency);
+  const savingsInCurrency = await CurrencyConverter.convert(savings, 'USD', currency);
 
   return {
     plan,
     monthlyPrice,
     yearlyPrice,
     currency,
-    monthlyPriceFormatted: converter.formatPrice(monthlyPrice, currency),
-    yearlyPriceFormatted: converter.formatPrice(yearlyPrice, currency),
+    monthlyPriceFormatted: CurrencyConverter.formatPrice(monthlyPrice, currency),
+    yearlyPriceFormatted: CurrencyConverter.formatPrice(yearlyPrice, currency),
     savings: savingsInCurrency,
-    savingsFormatted: converter.formatPrice(savingsInCurrency, currency)
+    savingsFormatted: CurrencyConverter.formatPrice(savingsInCurrency, currency)
   };
 }

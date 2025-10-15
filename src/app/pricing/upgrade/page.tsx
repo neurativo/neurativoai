@@ -86,13 +86,14 @@ function UpgradePageInner() {
         // Fallback to basic pricing without currency conversion
         const planConfig = PRICING_CONFIG[plan];
         if (planConfig) {
+          const fallbackCurrency = paymentMethod === 'bank' ? 'LKR' : 'USD';
           const fallbackPricing = {
             plan: planConfig.plan,
             monthlyPrice: paymentMethod === 'bank' ? planConfig.monthlyPrice * 320 : planConfig.monthlyPrice, // Rough LKR conversion
             yearlyPrice: paymentMethod === 'bank' ? planConfig.yearlyPrice * 320 : planConfig.yearlyPrice,
             monthlyPriceUSD: planConfig.monthlyPrice,
             yearlyPriceUSD: planConfig.yearlyPrice,
-            currency: currency,
+            currency: fallbackCurrency,
             monthlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.monthlyPrice * 320).toFixed(0)}` : `$${planConfig.monthlyPrice.toFixed(2)}`,
             yearlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.yearlyPrice * 320).toFixed(0)}` : `$${planConfig.yearlyPrice.toFixed(2)}`,
             savings: planConfig.yearlyPrice - (planConfig.monthlyPrice * 12),

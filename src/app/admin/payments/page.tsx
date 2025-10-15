@@ -62,31 +62,33 @@ export default function PaymentVerification() {
     try {
       console.log('Loading payments from database...');
       
-      const { data, error } = await supabase
+      // Simple query without foreign key relationship
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select(`
-          *,
-          user:user_id (
-            email,
-            user_metadata
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Payments query result:', { data, error });
+      console.log('Payments query result:', { data: paymentsData, error: paymentsError });
 
-      if (error) {
-        console.error('Error loading payments:', error);
+      if (paymentsError) {
+        console.error('Error loading payments:', paymentsError);
         setPayments([]);
         return;
       }
 
-      const formattedPayments = data?.map(payment => ({
+      if (!paymentsData || paymentsData.length === 0) {
+        console.log('No payments found');
+        setPayments([]);
+        return;
+      }
+
+      // Format payments without user details for now
+      const formattedPayments = paymentsData.map(payment => ({
         ...payment,
-        user_email: payment.user?.email || 'Unknown',
-        user_name: payment.user?.user_metadata?.full_name || 'Unknown',
+        user_email: `User ${payment.user_id.slice(0, 8)}`, // Show partial user ID
+        user_name: 'Unknown',
         amount: payment.amount_cents / 100
-      })) || [];
+      }));
 
       console.log('Formatted payments:', formattedPayments);
       setPayments(formattedPayments);

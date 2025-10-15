@@ -105,7 +105,7 @@ export default function PricingDisplay({
             </h3>
             
             <div className="mb-2">
-            <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-gray-400">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-gray-400 leading-tight">
               {pricing.plan === 'free' ? 'Free' : priceFormatted}
             </div>
             {pricing.plan !== 'free' && (
@@ -159,17 +159,19 @@ export default function PricingDisplay({
                 Pending Approval
               </div>
             ) : pricing.plan !== 'free' ? (
-              <button
-                onClick={() => onUpgrade?.(pricing.plan)}
-                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105"
+              <a
+                href={`/pricing/upgrade?plan=${pricing.plan}&billing=${isYearly ? 'yearly' : 'monthly'}`}
+                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 text-center block"
               >
-                Upgrade to {pricing.plan.charAt(0).toUpperCase() + pricing.plan.slice(1)}
-              </button>
+                Upgrade
+              </a>
             ) : (
-              <div className="px-6 py-3 bg-gray-500/20 text-gray-300 rounded-lg border border-gray-500/30">
-                <i className="fas fa-check mr-2"></i>
-                Active
-              </div>
+              <a
+                href="/signup"
+                className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 text-center block"
+              >
+                Get Started
+              </a>
             )}
           </div>
         </div>

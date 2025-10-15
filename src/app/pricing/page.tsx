@@ -36,9 +36,13 @@ function PricingPageInner() {
             setUserId(uid);
             if (!uid) return;
 
-            // Fetch current subscription
+            // Fetch current subscription from both subscriptions and profiles tables
             const { data: subRow } = await supabase.from("subscriptions").select("plan").eq("user_id", uid).maybeSingle();
-            setCurrentPlan(subRow?.plan ?? null);
+            const { data: profileRow } = await supabase.from("profiles").select("plan").eq("id", uid).maybeSingle();
+            
+            // Use subscription plan if available, otherwise fall back to profile plan
+            const userPlan = subRow?.plan || profileRow?.plan || 'free';
+            setCurrentPlan(userPlan);
 
             // Fetch usage stats
             try {

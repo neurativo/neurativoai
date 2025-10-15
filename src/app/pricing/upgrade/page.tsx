@@ -157,7 +157,7 @@ function UpgradePageInner() {
   }
 
   const planConfig = PRICING_CONFIG[plan];
-  const planName = planConfig?.label || plan.charAt(0).toUpperCase() + plan.slice(1);
+  const planName = planConfig?.plan || plan.charAt(0).toUpperCase() + plan.slice(1);
 
   if (isLoading) {
     return (

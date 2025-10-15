@@ -151,20 +151,18 @@ function UpgradePageInner() {
         const { data: up, error: upErr } = await supabase.storage.from("payments").upload(path, file, { upsert: false });
         
         if (upErr) {
-          setMessage(`File upload failed: ${upErr.message}`);
-          setSubmitting(false);
-          return;
-        }
-        
-        if (up) {
+          console.warn('File upload failed, continuing without proof:', upErr.message);
+          // Continue without file upload - not critical for payment submission
+          proof_url = null;
+        } else if (up) {
           const { data: pub } = supabase.storage.from("payments").getPublicUrl(up.path);
           proof_url = pub.publicUrl ?? null;
         }
       }
     } catch (error) {
-      setMessage(`File upload failed: ${error}`);
-      setSubmitting(false);
-      return;
+      console.warn('File upload failed, continuing without proof:', error);
+      // Continue without file upload - not critical for payment submission
+      proof_url = null;
     }
 
     const { error } = await supabase.from("payments").insert({
@@ -342,7 +340,10 @@ function UpgradePageInner() {
         <h3 className="text-xl font-semibold mb-4">Upload Payment Proof</h3>
         <div className="space-y-4">
           <div>
-            <label className="text-white font-medium mb-2 block">Payment Proof (image/pdf)</label>
+            <label className="text-white font-medium mb-2 block">
+              Payment Proof (Optional)
+              <span className="text-gray-400 text-sm ml-2">- Upload a screenshot or receipt of your payment</span>
+            </label>
             <input 
               type="file" 
               accept="image/*,.pdf" 
@@ -357,6 +358,12 @@ function UpgradePageInner() {
                 </p>
               </div>
             )}
+            <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-300 text-sm">
+                <i className="fas fa-info-circle mr-2"></i>
+                <strong>Note:</strong> File upload is optional. You can submit your payment details without uploading a proof, and our team will verify your payment manually.
+              </p>
+            </div>
           </div>
           
           <div>

@@ -116,13 +116,6 @@ function PricingPageInner() {
                         Start free and upgrade as you grow. All plans include our core AI features with no hidden fees.
                     </p>
                     
-                    {/* Currency Selector */}
-                    <div className="flex justify-center mb-8">
-                        <CurrencySelector
-                            selectedCurrency={selectedCurrency}
-                            onCurrencyChange={setSelectedCurrency}
-                        />
-                    </div>
                     
                     {/* Current Usage Display */}
                     {usageStats && (
@@ -225,6 +218,19 @@ function PricingPageInner() {
                             <p className="text-gray-300">We'll notify you when you're approaching your limits. You can upgrade your plan or wait for your usage to reset the next day/month.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+            
+            {/* Floating Currency Selector */}
+            <div className="fixed top-20 right-4 z-50">
+                <div className="bg-black/20 backdrop-blur-sm rounded-xl p-3 border border-white/10 shadow-2xl">
+                    <div className="text-xs text-gray-300 mb-2 text-center font-medium">
+                        Currency
+                    </div>
+                    <CurrencySelector
+                        selectedCurrency={selectedCurrency}
+                        onCurrencyChange={setSelectedCurrency}
+                    />
                 </div>
             </div>
         </section>

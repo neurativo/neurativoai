@@ -50,7 +50,7 @@ export default function CurrencySelector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading}
-        className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-200 text-white text-sm font-medium min-w-[140px] justify-between backdrop-blur-sm shadow-lg hover:shadow-xl"
+        className="flex items-center gap-3 px-5 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-200 text-white text-sm font-medium min-w-[180px] justify-between backdrop-blur-sm shadow-lg hover:shadow-xl"
       >
         <div className="flex items-center gap-2">
           <span className="text-lg">{selectedCurrencyInfo.flag}</span>
@@ -69,24 +69,24 @@ export default function CurrencySelector({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-3 bg-black/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto">
-          <div className="p-3">
-            <div className="text-xs text-gray-300 px-3 py-2 border-b border-white/10 mb-3 font-medium">
+        <div className="absolute top-full left-0 right-0 mt-3 bg-black/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto min-w-[200px]">
+          <div className="p-4">
+            <div className="text-sm text-gray-300 px-3 py-3 border-b border-white/10 mb-4 font-medium text-center">
               Select Currency
             </div>
             {Object.entries(CURRENCIES).map(([code, currency]) => (
               <button
                 key={code}
                 onClick={() => handleCurrencyChange(code)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-200 text-left ${
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors duration-200 text-left ${
                   code === selectedCurrency
                     ? 'bg-purple-500/20 text-purple-300'
                     : 'hover:bg-white/10 text-white'
                 }`}
               >
-                <span className="text-lg">{currency.flag}</span>
+                <span className="text-xl">{currency.flag}</span>
                 <div className="flex-1">
-                  <div className="font-medium">{currency.code}</div>
+                  <div className="font-medium text-sm">{currency.code}</div>
                   <div className="text-xs text-gray-400">{currency.name}</div>
                 </div>
                 {code === selectedCurrency && (

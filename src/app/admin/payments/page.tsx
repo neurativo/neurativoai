@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseBrowser } from '@/app/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 
 interface AdminUser {
   id: string;
@@ -33,7 +33,18 @@ export default function PaymentVerification() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = getSupabaseBrowser();
+  
+  // Use service role client to bypass RLS
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
 
   useEffect(() => {
     // Check if admin is logged in

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import UserDetailsModal from '@/app/components/admin/UserDetailsModal';
 
 interface AdminUser {

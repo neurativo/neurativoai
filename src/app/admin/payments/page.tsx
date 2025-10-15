@@ -24,7 +24,7 @@ interface Payment {
   updated_at: string;
   user_email: string;
   user_name: string;
-  amount: number; // Added this property
+  amount: number;
 }
 
 export default function PaymentVerification() {
@@ -49,6 +49,8 @@ export default function PaymentVerification() {
 
   const loadPayments = async () => {
     try {
+      console.log('Loading payments from database...');
+      
       const { data, error } = await supabase
         .from('payments')
         .select(`
@@ -59,6 +61,8 @@ export default function PaymentVerification() {
           )
         `)
         .order('created_at', { ascending: false });
+
+      console.log('Payments query result:', { data, error });
 
       if (error) {
         console.error('Error loading payments:', error);
@@ -73,6 +77,7 @@ export default function PaymentVerification() {
         amount: payment.amount_cents / 100
       })) || [];
 
+      console.log('Formatted payments:', formattedPayments);
       setPayments(formattedPayments);
     } catch (error) {
       console.error('Error loading payments:', error);

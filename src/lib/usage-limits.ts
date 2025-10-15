@@ -180,11 +180,27 @@ export const PRICING_CONFIG: Record<string, PricingConfig> = {
 
 // Helper functions
 export function getUserLimits(plan: string): UsageLimits {
-  return USAGE_LIMITS[plan] || USAGE_LIMITS.free;
+  // Map old plan names to new plan structure
+  const planMapping: Record<string, string> = {
+    'special': 'innovation', // Map special plan to innovation plan
+    'premium': 'professional', // Map premium to professional if it exists
+    'basic': 'free', // Map basic to free if it exists
+  };
+  
+  const mappedPlan = planMapping[plan] || plan;
+  return USAGE_LIMITS[mappedPlan] || USAGE_LIMITS.free;
 }
 
 export function getPricing(plan: string): PricingConfig {
-  return PRICING_CONFIG[plan] || PRICING_CONFIG.free;
+  // Map old plan names to new plan structure
+  const planMapping: Record<string, string> = {
+    'special': 'innovation', // Map special plan to innovation plan
+    'premium': 'professional', // Map premium to professional if it exists
+    'basic': 'free', // Map basic to free if it exists
+  };
+  
+  const mappedPlan = planMapping[plan] || plan;
+  return PRICING_CONFIG[mappedPlan] || PRICING_CONFIG.free;
 }
 
 export function canUserAccessFeature(userPlan: string, feature: keyof UsageLimits): boolean {

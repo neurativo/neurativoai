@@ -41,7 +41,16 @@ function PricingPageInner() {
             const { data: profileRow } = await supabase.from("profiles").select("plan").eq("id", uid).maybeSingle();
             
             // Use subscription plan if available, otherwise fall back to profile plan
-            const userPlan = subRow?.plan || profileRow?.plan || 'free';
+            let userPlan = subRow?.plan || profileRow?.plan || 'free';
+            
+            // Map old plan names to new plan structure
+            const planMapping: Record<string, string> = {
+                'special': 'innovation', // Map special plan to innovation plan
+                'premium': 'professional', // Map premium to professional if it exists
+                'basic': 'free', // Map basic to free if it exists
+            };
+            
+            userPlan = planMapping[userPlan] || userPlan;
             setCurrentPlan(userPlan);
 
             // Fetch usage stats

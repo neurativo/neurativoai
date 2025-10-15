@@ -1,6 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
+import { UsageTracker } from "@/lib/usage-tracker";
+import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
 
 type PreviewQuestion = { id?: string | number; question?: string; type?: string };
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
@@ -10,6 +12,13 @@ type LimitState = {
     reason?: string;
     monthlyUsed?: number;
     monthlyLimit?: number;
+    dailyUsed?: number;
+    dailyLimit?: number;
+    plan?: string;
+    remainingQuizzes?: {
+        daily: number;
+        monthly: number;
+    };
 };
 
 export default function QuizPage() {
@@ -34,8 +43,44 @@ export default function QuizPage() {
     type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: Array<{ id?: string | number; question?: string; type?: string }>; } };
     const [previewData, setPreviewData] = useState<PreviewQuiz | null>(null);
 	const [limits, setLimits] = useState<LimitState | null>(null);
+	const [userPlan, setUserPlan] = useState<string>('free');
+	const [usageStats, setUsageStats] = useState<any>(null);
 
 	const characters = useMemo(() => aiContent.length, [aiContent]);
+
+	// Load user plan and usage stats
+	useEffect(() => {
+		const loadUserData = async () => {
+			try {
+				const supabase = getSupabaseBrowser();
+				const { data: { user } } = await supabase.auth.getUser();
+				
+				if (user) {
+					// Get user's plan
+					const { data: profile } = await supabase
+						.from('profiles')
+						.select('plan')
+						.eq('id', user.id)
+						.single();
+						
+					if (profile) {
+						setUserPlan(profile.plan || 'free');
+					}
+					
+					// Get usage stats
+					const response = await fetch(`/api/user/usage-limits?userId=${user.id}`);
+					if (response.ok) {
+						const data = await response.json();
+						setUsageStats(data);
+					}
+				}
+			} catch (error) {
+				console.error('Error loading user data:', error);
+			}
+		};
+		
+		loadUserData();
+	}, []);
 
 	function toggleType(type: string) {
 		setAiTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
@@ -195,20 +240,40 @@ export default function QuizPage() {
         if (!user || !session?.access_token) {
             return { blocked: true, reason: "Please sign in to generate quizzes" };
         }
+        
         try {
-            const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } });
-            const json = await res.json();
-            if (!json?.success) return { blocked: false };
-            const monthlyUsed = json.data.monthly_used as number;
-            const monthlyLimit = json.data.monthly_limit as number;
-            const blocked = typeof monthlyUsed === 'number' && typeof monthlyLimit === 'number' && monthlyUsed >= monthlyLimit;
+            // Use the new usage tracking system
+            const quizCheck = await UsageTracker.canUserCreateQuiz(user.id);
+            if (!quizCheck.allowed) {
+                return {
+                    blocked: true,
+                    reason: quizCheck.reason,
+                    dailyUsed: usageStats?.usage?.dailyQuizzes || 0,
+                    dailyLimit: usageStats?.limits?.dailyQuizzes || 0,
+                    monthlyUsed: usageStats?.usage?.monthlyQuizzes || 0,
+                    monthlyLimit: usageStats?.limits?.monthlyQuizzes || 0,
+                    plan: userPlan,
+                    remainingQuizzes: {
+                        daily: quizCheck.dailyRemaining,
+                        monthly: quizCheck.monthlyRemaining
+                    }
+                };
+            }
+            
             return {
-                blocked,
-                reason: blocked ? `Monthly limit reached (${monthlyUsed}/${monthlyLimit}). Upgrade your plan to continue.` : undefined,
-                monthlyUsed,
-                monthlyLimit,
+                blocked: false,
+                dailyUsed: usageStats?.usage?.dailyQuizzes || 0,
+                dailyLimit: usageStats?.limits?.dailyQuizzes || 0,
+                monthlyUsed: usageStats?.usage?.monthlyQuizzes || 0,
+                monthlyLimit: usageStats?.limits?.monthlyQuizzes || 0,
+                plan: userPlan,
+                remainingQuizzes: {
+                    daily: quizCheck.dailyRemaining,
+                    monthly: quizCheck.monthlyRemaining
+                }
             };
-        } catch {
+        } catch (error) {
+            console.error('Error checking limits:', error);
             return { blocked: false };
         }
     }
@@ -239,6 +304,21 @@ export default function QuizPage() {
 		}
 		if (sourceTab === "study-pack" && !studyPack) {
 			setError("Please generate a study pack first");
+			return;
+		}
+
+		// Check quiz type restrictions for free users
+		const userLimits = getUserLimits(userPlan);
+		const invalidTypes = aiTypes.filter(type => !isQuizTypeAllowed(userPlan, type));
+		if (invalidTypes.length > 0) {
+			setError(`${invalidTypes.join(', ')} quiz types are not available in your ${userPlan} plan. Upgrade to Professional or higher to access all quiz types.`);
+			return;
+		}
+
+		// Check question limit
+		const maxQuestions = getMaxQuestionsForPlan(userPlan);
+		if (aiCount > maxQuestions) {
+			setError(`Maximum ${maxQuestions} questions allowed in your ${userPlan} plan. Upgrade to Professional or higher for more questions.`);
 			return;
 		}
 
@@ -800,46 +880,76 @@ export default function QuizPage() {
 
 									<div>
 										<label className="text-white font-semibold mb-2 block">Number of Questions</label>
-										<select value={aiCount} onChange={(e) => setAiCount(Number(e.target.value))} className="select select-bordered w-full bg-white/5 text-white">
-											<option value={5}>5 Questions</option>
-											<option value={10}>10 Questions</option>
-											<option value={15}>15 Questions</option>
-											<option value={20}>20 Questions</option>
+										<select 
+											value={aiCount} 
+											onChange={(e) => setAiCount(Number(e.target.value))} 
+											className="select select-bordered w-full bg-white/5 text-white"
+										>
+											{Array.from({ length: getMaxQuestionsForPlan(userPlan) }, (_, i) => i + 1).map(num => (
+												<option key={num} value={num}>
+													{num} Question{num !== 1 ? 's' : ''}
+													{num > 10 && userPlan === 'free' && ' (Upgrade for more)'}
+												</option>
+											))}
 										</select>
+										{userPlan === 'free' && (
+											<p className="text-yellow-300 text-xs mt-1">
+												Free plan limited to {getMaxQuestionsForPlan(userPlan)} questions. 
+												<a href="/pricing" className="underline ml-1">Upgrade for more</a>
+											</p>
+										)}
 									</div>
 
 									<div className="md:col-span-2">
 										<label className="text-white font-semibold mb-2 block">Question Types</label>
 										<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-											<label className="flex items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
-												<input type="checkbox" className="checkbox checkbox-sm mr-3" checked={aiTypes.includes("multiple_choice")} onChange={() => toggleType("multiple_choice")} />
-												<div>
-													<span className="text-white font-medium">Multiple Choice</span>
-													<p className="text-gray-400 text-sm">Traditional 4-option questions</p>
-												</div>
-											</label>
-											<label className="flex items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
-												<input type="checkbox" className="checkbox checkbox-sm mr-3" checked={aiTypes.includes("true_false")} onChange={() => toggleType("true_false")} />
-												<div>
-													<span className="text-white font-medium">True/False</span>
-													<p className="text-gray-400 text-sm">Simple true or false statements</p>
-												</div>
-											</label>
-											<label className="flex items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
-												<input type="checkbox" className="checkbox checkbox-sm mr-3" checked={aiTypes.includes("short_answer")} onChange={() => toggleType("short_answer")} />
-												<div>
-													<span className="text-white font-medium">Short Answer</span>
-													<p className="text-gray-400 text-sm">Open-ended questions</p>
-												</div>
-											</label>
-											<label className="flex items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
-												<input type="checkbox" className="checkbox checkbox-sm mr-3" checked={aiTypes.includes("fill_blank")} onChange={() => toggleType("fill_blank")} />
-												<div>
-													<span className="text-white font-medium">Fill in the Blank</span>
-													<p className="text-gray-400 text-sm">Complete the sentence</p>
-												</div>
-											</label>
+											{[
+												{ type: "multiple_choice", label: "Multiple Choice", description: "Traditional 4-option questions", available: true },
+												{ type: "true_false", label: "True/False", description: "Simple true or false statements", available: true },
+												{ type: "short_answer", label: "Short Answer", description: "Open-ended questions", available: userPlan !== 'free' },
+												{ type: "fill_blank", label: "Fill in the Blank", description: "Complete the sentence", available: userPlan !== 'free' }
+											].map(({ type, label, description, available }) => (
+												<label 
+													key={type}
+													className={`flex items-center p-3 rounded-lg border transition-colors ${
+														available 
+															? 'bg-white/5 border-white/10 hover:bg-white/10' 
+															: 'bg-gray-500/10 border-gray-500/20 opacity-60 cursor-not-allowed'
+													}`}
+												>
+													<input 
+														type="checkbox" 
+														className="checkbox checkbox-sm mr-3" 
+														checked={aiTypes.includes(type)} 
+														onChange={() => available && toggleType(type)}
+														disabled={!available}
+													/>
+													<div>
+														<div className="flex items-center gap-2">
+															<span className={`font-medium ${available ? 'text-white' : 'text-gray-400'}`}>
+																{label}
+															</span>
+															{!available && (
+																<span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">
+																	Pro
+																</span>
+															)}
+														</div>
+														<p className={`text-sm ${available ? 'text-gray-400' : 'text-gray-500'}`}>
+															{description}
+														</p>
+													</div>
+												</label>
+											))}
 										</div>
+										{userPlan === 'free' && (
+											<div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+												<p className="text-yellow-300 text-sm">
+													💡 Free users can only use Multiple Choice and True/False questions. 
+													<a href="/pricing" className="underline ml-1">Upgrade to Professional</a> for all question types.
+												</p>
+											</div>
+										)}
 									</div>
 
 								</div>
@@ -865,9 +975,31 @@ export default function QuizPage() {
 										)}
 									</button>
                                     {limits && (
-										<div className="text-gray-300 text-sm mt-2 text-center">
+										<div className="text-gray-300 text-sm mt-2 text-center space-y-1">
+                                            {limits.plan && (
+                                                <div className="text-purple-300 font-medium">
+                                                    {limits.plan.charAt(0).toUpperCase() + limits.plan.slice(1)} Plan
+                                                </div>
+                                            )}
+                                            {typeof limits.dailyUsed === 'number' && typeof limits.dailyLimit === 'number' && (
+                                                <div>
+                                                    Today: {limits.dailyUsed}/{limits.dailyLimit === -1 ? '∞' : limits.dailyLimit}
+                                                    {limits.remainingQuizzes && limits.remainingQuizzes.daily !== -1 && (
+                                                        <span className="text-green-400 ml-2">
+                                                            ({limits.remainingQuizzes.daily} remaining)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                             {typeof limits.monthlyUsed === 'number' && typeof limits.monthlyLimit === 'number' && (
-                                                <div>Month: {limits.monthlyUsed}/{limits.monthlyLimit}</div>
+                                                <div>
+                                                    Month: {limits.monthlyUsed}/{limits.monthlyLimit === -1 ? '∞' : limits.monthlyLimit}
+                                                    {limits.remainingQuizzes && limits.remainingQuizzes.monthly !== -1 && (
+                                                        <span className="text-green-400 ml-2">
+                                                            ({limits.remainingQuizzes.monthly} remaining)
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
 										</div>
 									)}

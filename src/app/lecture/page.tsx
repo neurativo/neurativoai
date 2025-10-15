@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabase';
 
 interface Note {
   id: string;
@@ -43,13 +44,18 @@ interface Section {
 export default function LiveLecturePage() {
   const router = useRouter();
   
+  // Admin access states
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  
   // Core states
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [sections, setSections] = useState<Section[]>([]);
   const [currentSection, setCurrentSection] = useState<Section | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'reconnecting'>('disconnected');
@@ -260,6 +266,43 @@ export default function LiveLecturePage() {
       console.log('Transcript buffer flushed to prevent memory leak');
     }
   };
+
+  // Admin access check
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      try {
+        const supabase = getSupabaseBrowser();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setAccessDenied(true);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check if user is admin
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+          
+        if (profile?.is_admin) {
+          setIsAdmin(true);
+        } else {
+          setAccessDenied(true);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error checking admin access:', error);
+        setAccessDenied(true);
+        setIsLoading(false);
+      }
+    };
+    
+    checkAdminAccess();
+  }, []);
 
   // Timer for session duration
   useEffect(() => {
@@ -1353,6 +1396,62 @@ export default function LiveLecturePage() {
     };
     return colors[difficulty as keyof typeof colors] || 'text-gray-400 bg-gray-500/20 border-gray-500/30';
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="text-white text-xl">Checking access...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Access denied state
+  if (accessDenied || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-4">
+          <div className="text-6xl mb-6">🔒</div>
+          <h1 className="text-4xl font-bold text-white mb-4">Admin Access Required</h1>
+          <p className="text-xl text-gray-300 mb-8">
+            The Live Lecture Assistant is currently in development and only available to administrators.
+          </p>
+          
+          <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-6 mb-8">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">Coming Soon for All Users</h2>
+            <p className="text-yellow-200 mb-4">
+              This feature will be available to Professional plan users and above when it launches.
+            </p>
+            <div className="space-y-2 text-yellow-200">
+              <p>• Real-time lecture transcription</p>
+              <p>• AI-powered smart notes generation</p>
+              <p>• Automatic flashcard creation</p>
+              <p>• Keyword extraction and organization</p>
+              <p>• Export capabilities for study materials</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => router.push('/quiz')}
+              className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              Try AI Quizzes
+            </button>
+            <button
+              onClick={() => router.push('/pricing')}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              View Pricing Plans
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">

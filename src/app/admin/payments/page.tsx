@@ -24,6 +24,7 @@ interface Payment {
   updated_at: string;
   user_email: string;
   user_name: string;
+  amount: number; // Added this property
 }
 
 export default function PaymentVerification() {

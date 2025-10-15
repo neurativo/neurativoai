@@ -12,7 +12,7 @@ export interface UsageStats {
 }
 
 export class UsageTracker {
-  private static async getUserUsage(userId: string): Promise<UsageStats | null> {
+  public static async getUserUsage(userId: string): Promise<UsageStats | null> {
     const supabase = getSupabaseServer();
     
     try {

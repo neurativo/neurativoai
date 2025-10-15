@@ -288,13 +288,13 @@ export async function getPricingInCurrency(plan: string, currency: string): Prom
 
     return {
       plan,
-      monthlyPrice,
-      yearlyPrice,
+      monthlyPrice: monthlyPrice || config.monthlyPrice,
+      yearlyPrice: yearlyPrice || config.yearlyPrice,
       currency,
-      monthlyPriceFormatted: CurrencyConverter.formatPrice(monthlyPrice, currency),
-      yearlyPriceFormatted: CurrencyConverter.formatPrice(yearlyPrice, currency),
-      savings: savingsInCurrency,
-      savingsFormatted: CurrencyConverter.formatPrice(savingsInCurrency, currency)
+      monthlyPriceFormatted: CurrencyConverter.formatPrice(monthlyPrice || config.monthlyPrice, currency),
+      yearlyPriceFormatted: CurrencyConverter.formatPrice(yearlyPrice || config.yearlyPrice, currency),
+      savings: savingsInCurrency || savings,
+      savingsFormatted: CurrencyConverter.formatPrice(savingsInCurrency || savings, currency)
     };
   } catch (error) {
     console.warn('Currency conversion failed, using fallback rates:', error);

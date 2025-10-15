@@ -126,7 +126,7 @@ function UpgradePageInner() {
       return;
     }
     
-    const amount_cents = Math.round((paymentMethod === 'bank' ? pricing.monthlyPrice : pricing.monthlyPriceUSD) * 100);
+    const amount_cents = Math.round((paymentMethod === 'bank' ? (pricing.monthlyPrice || 0) : (pricing.monthlyPriceUSD || 0)) * 100);
     
     // Try upload proof if provided
     let proof_url: string | null = null;
@@ -208,8 +208,8 @@ function UpgradePageInner() {
             <div className="text-3xl font-bold text-purple-400">
               {pricing ? (
                 paymentMethod === 'bank' 
-                  ? `Rs ${pricing.monthlyPrice.toFixed(0)}`
-                  : `$${pricing.monthlyPriceUSD.toFixed(2)}`
+                  ? `Rs ${(pricing.monthlyPrice || 0).toFixed(0)}`
+                  : `$${(pricing.monthlyPriceUSD || 0).toFixed(2)}`
               ) : 'Loading...'}
             </div>
             <div className="text-sm text-gray-400">
@@ -306,8 +306,8 @@ function UpgradePageInner() {
               <div className="text-4xl font-bold text-white mb-2">
                 {pricing ? (
                   paymentMethod === 'bank' 
-                    ? `Rs ${pricing.monthlyPrice.toFixed(0)}`
-                    : `$${pricing.monthlyPriceUSD.toFixed(2)}`
+                    ? `Rs ${(pricing.monthlyPrice || 0).toFixed(0)}`
+                    : `$${(pricing.monthlyPriceUSD || 0).toFixed(2)}`
                 ) : 'Loading...'}
               </div>
               <div className="text-sm text-gray-300">

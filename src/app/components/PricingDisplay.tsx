@@ -1,6 +1,7 @@
 "use client";
 
 import { PricingWithCurrency } from '@/lib/currency';
+import { USAGE_LIMITS } from '@/lib/usage-limits';
 
 interface PricingDisplayProps {
   pricing: PricingWithCurrency;
@@ -22,10 +23,62 @@ export default function PricingDisplay({
   const price = isYearly ? pricing.yearlyPrice : pricing.monthlyPrice;
   const priceFormatted = isYearly ? pricing.yearlyPriceFormatted : pricing.monthlyPriceFormatted;
   const monthlyEquivalent = isYearly ? pricing.yearlyPrice / 12 : pricing.monthlyPrice;
+  const limits = USAGE_LIMITS[pricing.plan] || USAGE_LIMITS.free;
+
+  const getPlanFeatures = (plan: string) => {
+    switch (plan) {
+      case 'free':
+        return [
+          `${limits.dailyQuizzes} quizzes per day`,
+          `${limits.monthlyQuizzes} quizzes per month`,
+          'MCQ & True/False only',
+          'Basic AI features',
+          'Community support'
+        ];
+      case 'professional':
+        return [
+          `${limits.dailyQuizzes} quizzes per day`,
+          `${limits.monthlyQuizzes} quizzes per month`,
+          'All quiz types',
+          'Live lectures access',
+          'Study pack generator',
+          'Data export',
+          'Advanced analytics',
+          'Email support'
+        ];
+      case 'mastery':
+        return [
+          `${limits.dailyQuizzes} quizzes per day`,
+          `${limits.monthlyQuizzes} quizzes per month`,
+          'All quiz types + coding',
+          'Unlimited lectures',
+          'Advanced study packs',
+          'Full analytics suite',
+          'Custom quiz creation',
+          'Priority support',
+          'API access'
+        ];
+      case 'innovation':
+        return [
+          'Unlimited quizzes',
+          'All quiz types + VR',
+          'Unlimited everything',
+          'White-label options',
+          'Custom integrations',
+          'Dedicated support',
+          'Advanced AI features',
+          'Enterprise features'
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const features = getPlanFeatures(pricing.plan);
 
   return (
-    <div className={`relative ${isPopular ? 'ring-2 ring-purple-500/50' : ''}`}>
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 hover:bg-white/10 hover:border-gray-400/50 transition-colors duration-200 h-full">
+    <div className={`relative ${isPopular ? 'ring-2 ring-purple-500/50 scale-105' : ''} transition-transform duration-200`}>
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 hover:bg-white/10 hover:border-gray-400/50 transition-all duration-200 h-full shadow-xl hover:shadow-2xl">
         {isPopular && (
           <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
             <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
@@ -52,29 +105,48 @@ export default function PricingDisplay({
             </h3>
             
             <div className="mb-2">
-              <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-gray-400">
-                {pricing.plan === 'free' ? 'Free' : priceFormatted}
+            <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-gray-400">
+              {pricing.plan === 'free' ? 'Free' : priceFormatted}
+            </div>
+            {pricing.plan !== 'free' && (
+              <div className="text-sm text-gray-400 mt-1">
+                {isYearly ? 'per year' : 'per month'}
+                {isYearly && (
+                  <span className="ml-2 text-green-400">
+                    ({pricing.currency} {monthlyEquivalent.toFixed(2)}/mo)
+                  </span>
+                )}
               </div>
-              {pricing.plan !== 'free' && (
-                <div className="text-sm text-gray-400 mt-1">
-                  {isYearly ? 'per year' : 'per month'}
-                  {isYearly && (
-                    <span className="ml-2 text-green-400">
-                      (${monthlyEquivalent.toFixed(2)}/mo)
-                    </span>
-                  )}
-                </div>
-              )}
+            )}
             </div>
             
-            <p className="text-base sm:text-lg text-gray-300 mb-4 sm:mb-6">
+            <p className="text-base sm:text-lg text-gray-300 mb-6">
               {pricing.plan === 'free' ? 'Perfect for getting started' :
                pricing.plan === 'professional' ? 'Great for students and professionals' :
                pricing.plan === 'mastery' ? 'Perfect for power users' : 'For teams and enterprises'}
             </p>
           </div>
           
-          {/* Features list would go here - keeping it simple for now */}
+          {/* Features List */}
+          <div className="mb-8">
+            <ul className="space-y-3 text-left">
+              {features.map((feature, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    isPopular 
+                      ? 'bg-gradient-to-r from-purple-500 to-blue-500' 
+                      : 'bg-gradient-to-r from-gray-500 to-gray-600'
+                  }`}>
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-300 text-sm">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          
           <div className="text-center">
             {isCurrentPlan ? (
               <div className="px-6 py-3 bg-green-500/20 text-green-300 rounded-lg border border-green-500/30">

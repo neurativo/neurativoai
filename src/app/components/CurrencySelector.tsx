@@ -50,7 +50,7 @@ export default function CurrencySelector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading}
-        className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all duration-200 text-white text-sm font-medium min-w-[120px] justify-between"
+        className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-200 text-white text-sm font-medium min-w-[140px] justify-between backdrop-blur-sm shadow-lg hover:shadow-xl"
       >
         <div className="flex items-center gap-2">
           <span className="text-lg">{selectedCurrencyInfo.flag}</span>
@@ -69,9 +69,9 @@ export default function CurrencySelector({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-sm border border-white/20 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-          <div className="p-2">
-            <div className="text-xs text-gray-400 px-3 py-2 border-b border-white/10 mb-2">
+        <div className="absolute top-full left-0 right-0 mt-3 bg-black/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto">
+          <div className="p-3">
+            <div className="text-xs text-gray-300 px-3 py-2 border-b border-white/10 mb-3 font-medium">
               Select Currency
             </div>
             {Object.entries(CURRENCIES).map(([code, currency]) => (

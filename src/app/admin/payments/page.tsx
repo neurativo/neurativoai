@@ -271,7 +271,7 @@ export default function PaymentVerification() {
                             <button 
                               onClick={() => {
                                 const note = prompt('Rejection reason (optional):');
-                                updatePaymentStatus(payment.id, 'rejected', note);
+                                updatePaymentStatus(payment.id, 'rejected', note || undefined);
                               }}
                               disabled={updating === payment.id}
                               className="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded text-red-300 hover:text-red-200 transition-all disabled:opacity-50"

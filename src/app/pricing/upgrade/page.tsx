@@ -83,6 +83,23 @@ function UpgradePageInner() {
         setIsLoading(false);
       } catch (error) {
         console.error('Error loading pricing:', error);
+        // Fallback to basic pricing without currency conversion
+        const planConfig = PRICING_CONFIG[plan];
+        if (planConfig) {
+          const fallbackPricing = {
+            plan: planConfig.plan,
+            monthlyPrice: paymentMethod === 'bank' ? planConfig.monthlyPrice * 320 : planConfig.monthlyPrice, // Rough LKR conversion
+            yearlyPrice: paymentMethod === 'bank' ? planConfig.yearlyPrice * 320 : planConfig.yearlyPrice,
+            monthlyPriceUSD: planConfig.monthlyPrice,
+            yearlyPriceUSD: planConfig.yearlyPrice,
+            currency: currency,
+            monthlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.monthlyPrice * 320).toFixed(0)}` : `$${planConfig.monthlyPrice.toFixed(2)}`,
+            yearlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.yearlyPrice * 320).toFixed(0)}` : `$${planConfig.yearlyPrice.toFixed(2)}`,
+            savings: planConfig.yearlyPrice - (planConfig.monthlyPrice * 12),
+            savingsFormatted: paymentMethod === 'bank' ? `Rs ${((planConfig.yearlyPrice - (planConfig.monthlyPrice * 12)) * 320).toFixed(0)}` : `$${(planConfig.yearlyPrice - (planConfig.monthlyPrice * 12)).toFixed(2)}`
+          };
+          setPricing(fallbackPricing);
+        }
         setIsLoading(false);
       }
     };

@@ -279,20 +279,50 @@ export async function getPricingInCurrency(plan: string, currency: string): Prom
   const config = PRICING_CONFIG[plan];
   if (!config) throw new Error(`Plan ${plan} not found`);
 
-  const monthlyPrice = await CurrencyConverter.convert(config.monthlyPrice, 'USD', currency);
-  const yearlyPrice = await CurrencyConverter.convert(config.yearlyPrice, 'USD', currency);
-  
-  const savings = (config.monthlyPrice * 12) - config.yearlyPrice;
-  const savingsInCurrency = await CurrencyConverter.convert(savings, 'USD', currency);
+  try {
+    const monthlyPrice = await CurrencyConverter.convert(config.monthlyPrice, 'USD', currency);
+    const yearlyPrice = await CurrencyConverter.convert(config.yearlyPrice, 'USD', currency);
+    
+    const savings = (config.monthlyPrice * 12) - config.yearlyPrice;
+    const savingsInCurrency = await CurrencyConverter.convert(savings, 'USD', currency);
 
-  return {
-    plan,
-    monthlyPrice,
-    yearlyPrice,
-    currency,
-    monthlyPriceFormatted: CurrencyConverter.formatPrice(monthlyPrice, currency),
-    yearlyPriceFormatted: CurrencyConverter.formatPrice(yearlyPrice, currency),
-    savings: savingsInCurrency,
-    savingsFormatted: CurrencyConverter.formatPrice(savingsInCurrency, currency)
-  };
+    return {
+      plan,
+      monthlyPrice,
+      yearlyPrice,
+      currency,
+      monthlyPriceFormatted: CurrencyConverter.formatPrice(monthlyPrice, currency),
+      yearlyPriceFormatted: CurrencyConverter.formatPrice(yearlyPrice, currency),
+      savings: savingsInCurrency,
+      savingsFormatted: CurrencyConverter.formatPrice(savingsInCurrency, currency)
+    };
+  } catch (error) {
+    console.warn('Currency conversion failed, using fallback rates:', error);
+    
+    // Fallback to basic conversion rates
+    const fallbackRates: Record<string, number> = {
+      'USD': 1,
+      'LKR': 320,
+      'EUR': 0.92,
+      'GBP': 0.79,
+      'INR': 83.3,
+    };
+    
+    const rate = fallbackRates[currency] || 1;
+    const monthlyPrice = config.monthlyPrice * rate;
+    const yearlyPrice = config.yearlyPrice * rate;
+    const savings = (config.monthlyPrice * 12) - config.yearlyPrice;
+    const savingsInCurrency = savings * rate;
+
+    return {
+      plan,
+      monthlyPrice,
+      yearlyPrice,
+      currency,
+      monthlyPriceFormatted: CurrencyConverter.formatPrice(monthlyPrice, currency),
+      yearlyPriceFormatted: CurrencyConverter.formatPrice(yearlyPrice, currency),
+      savings: savingsInCurrency,
+      savingsFormatted: CurrencyConverter.formatPrice(savingsInCurrency, currency)
+    };
+  }
 }

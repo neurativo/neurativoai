@@ -38,7 +38,16 @@ function PricingPageInner() {
 
             // Fetch current subscription from both subscriptions and profiles tables
             const { data: subRow } = await supabase.from("subscriptions").select("plan").eq("user_id", uid).maybeSingle();
-            const { data: profileRow } = await supabase.from("profiles").select("plan").eq("id", uid).maybeSingle();
+            
+            // Try to fetch from profiles table, but handle RLS errors gracefully
+            let profileRow = null;
+            try {
+                const { data: profileData } = await supabase.from("profiles").select("plan").eq("id", uid).maybeSingle();
+                profileRow = profileData;
+            } catch (error) {
+                console.warn('Could not fetch profile data:', error);
+                // Continue without profile data
+            }
             
             // Use subscription plan if available, otherwise fall back to profile plan
             let userPlan = subRow?.plan || profileRow?.plan || 'free';
@@ -59,9 +68,27 @@ function PricingPageInner() {
                 if (response.ok) {
                     const data = await response.json();
                     setUsageStats(data);
+                } else {
+                    console.warn('Usage stats API returned:', response.status, response.statusText);
+                    // Set default usage stats if API fails
+                    setUsageStats({
+                        user: { id: uid, plan: userPlan, pricing: {} },
+                        usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
+                        limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
+                        remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
+                        features: { canAccessLectures: false, canAccessStudyPacks: false, canExportData: false, canUseAdvancedFeatures: false, canCreateCustomQuizzes: false, canAccessAnalytics: false, canUseAIFeatures: true, canAccessPrioritySupport: false }
+                    });
                 }
             } catch (error) {
                 console.error('Error fetching usage stats:', error);
+                // Set default usage stats if API fails
+                setUsageStats({
+                    user: { id: uid, plan: userPlan, pricing: {} },
+                    usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
+                    limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
+                    remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
+                    features: { canAccessLectures: false, canAccessStudyPacks: false, canExportData: false, canUseAdvancedFeatures: false, canCreateCustomQuizzes: false, canAccessAnalytics: false, canUseAIFeatures: true, canAccessPrioritySupport: false }
+                });
             }
 
             // Auto-detect user currency

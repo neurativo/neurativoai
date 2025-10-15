@@ -1,9 +1,18 @@
 -- Simple admin bypass for RLS policies
 -- Run this in your Supabase SQL Editor
 
--- 1. Create a simple admin bypass for payments table
+-- 1. Drop ALL existing policies first
+DROP POLICY IF EXISTS "Users can view their own payments" ON public.payments;
+DROP POLICY IF EXISTS "Users can insert their own payments" ON public.payments;
 DROP POLICY IF EXISTS "Admins can view all payments" ON public.payments;
 DROP POLICY IF EXISTS "Admins can update payments" ON public.payments;
+DROP POLICY IF EXISTS "Service role can access all payments" ON public.payments;
+
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can update all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Service role can access all profiles" ON public.profiles;
 
 -- Allow service role to access all payments (for admin panel)
 CREATE POLICY "Service role can access all payments" ON public.payments

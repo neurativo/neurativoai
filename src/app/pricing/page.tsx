@@ -40,7 +40,7 @@ function PricingPageInner() {
             const { data: subRow } = await supabase.from("subscriptions").select("plan").eq("user_id", uid).maybeSingle();
             
             // Try to fetch from profiles table, but handle RLS errors gracefully
-            let profileRow = null;
+            let profileRow: { plan: string } | null = null;
             try {
                 const { data: profileData } = await supabase.from("profiles").select("plan").eq("id", uid).maybeSingle();
                 profileRow = profileData;

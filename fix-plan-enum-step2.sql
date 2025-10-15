@@ -1,14 +1,6 @@
--- Fix plan_t enum to include new plan types
--- Run this in your Supabase SQL Editor
+-- STEP 2: Insert the new plans into the plans table
+-- Run this AFTER step 1 completes successfully
 
--- STEP 1: Add new plan values to the plan_t enum (run this first)
--- You must run this step and wait for it to complete before running step 2
-ALTER TYPE plan_t ADD VALUE IF NOT EXISTS 'professional';
-ALTER TYPE plan_t ADD VALUE IF NOT EXISTS 'mastery';
-ALTER TYPE plan_t ADD VALUE IF NOT EXISTS 'innovation';
-
--- STEP 2: After the above commands complete, run this step
--- Insert the new plans into the plans table
 INSERT INTO public.plans (
     key,
     name,
@@ -40,7 +32,7 @@ ON CONFLICT (key) DO UPDATE SET
     priority_generation = EXCLUDED.priority_generation,
     updated_at = now();
 
--- STEP 3: Verify the plans were added
+-- Verify the plans were added
 SELECT key, name, monthly_quiz_generations, daily_quiz_generations 
 FROM public.plans 
 WHERE key IN ('professional', 'mastery', 'innovation')

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/app/lib/supabaseClient';
 
 interface AdminUser {
   id: string;
@@ -9,11 +10,29 @@ interface AdminUser {
   role: string;
 }
 
+interface Payment {
+  id: string;
+  user_id: string;
+  plan: string;
+  method: string;
+  amount_cents: number;
+  currency: string;
+  proof_url: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+  user_email: string;
+  user_name: string;
+}
+
 export default function PaymentVerification() {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
   const router = useRouter();
+  const supabase = getSupabaseBrowser();
 
   useEffect(() => {
     // Check if admin is logged in
@@ -29,29 +48,34 @@ export default function PaymentVerification() {
 
   const loadPayments = async () => {
     try {
-      // For now, show placeholder data
-      setPayments([
-        {
-          id: '1',
-          user_email: 'user1@example.com',
-          amount: 29.99,
-          plan: 'Professional',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          proof_url: null
-        },
-        {
-          id: '2',
-          user_email: 'user2@example.com',
-          amount: 49.99,
-          plan: 'Mastery',
-          status: 'approved',
-          created_at: new Date().toISOString(),
-          proof_url: 'https://example.com/proof1.jpg'
-        }
-      ]);
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          user:user_id (
+            email,
+            user_metadata
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading payments:', error);
+        setPayments([]);
+        return;
+      }
+
+      const formattedPayments = data?.map(payment => ({
+        ...payment,
+        user_email: payment.user?.email || 'Unknown',
+        user_name: payment.user?.user_metadata?.full_name || 'Unknown',
+        amount: payment.amount_cents / 100
+      })) || [];
+
+      setPayments(formattedPayments);
     } catch (error) {
       console.error('Error loading payments:', error);
+      setPayments([]);
     } finally {
       setLoading(false);
     }
@@ -60,6 +84,50 @@ export default function PaymentVerification() {
   const handleLogout = () => {
     localStorage.removeItem('admin');
     router.push('/admin/login');
+  };
+
+  const updatePaymentStatus = async (paymentId: string, status: 'approved' | 'rejected', note?: string) => {
+    setUpdating(paymentId);
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .update({ 
+          status, 
+          admin_note: note || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', paymentId);
+
+      if (error) {
+        console.error('Error updating payment:', error);
+        alert('Failed to update payment status');
+        return;
+      }
+
+      // If approved, update user's plan
+      if (status === 'approved') {
+        const payment = payments.find(p => p.id === paymentId);
+        if (payment) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ plan: payment.plan })
+            .eq('id', payment.user_id);
+
+          if (profileError) {
+            console.error('Error updating user plan:', profileError);
+            alert('Payment approved but failed to update user plan');
+          }
+        }
+      }
+
+      // Reload payments
+      await loadPayments();
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      alert('Failed to update payment status');
+    } finally {
+      setUpdating(null);
+    }
   };
 
   if (loading) {
@@ -122,6 +190,9 @@ export default function PaymentVerification() {
                     Amount
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
+                    Method
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
@@ -150,7 +221,16 @@ export default function PaymentVerification() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 group-hover:text-white transition-colors">
-                      ${payment.amount}
+                      {payment.currency} {payment.amount.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        payment.method === 'proof_upload' 
+                          ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg' 
+                          : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
+                      }`}>
+                        {payment.method === 'proof_upload' ? 'Proof Upload' : 'Manual'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
@@ -168,12 +248,42 @@ export default function PaymentVerification() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
-                        <button className="px-3 py-1 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded text-green-300 hover:text-green-200 transition-all">
-                          Approve
-                        </button>
-                        <button className="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded text-red-300 hover:text-red-200 transition-all">
-                          Reject
-                        </button>
+                        {payment.proof_url && (
+                          <a
+                            href={payment.proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded text-blue-300 hover:text-blue-200 transition-all"
+                          >
+                            View Proof
+                          </a>
+                        )}
+                        {payment.status === 'pending' && (
+                          <>
+                            <button 
+                              onClick={() => updatePaymentStatus(payment.id, 'approved')}
+                              disabled={updating === payment.id}
+                              className="px-3 py-1 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded text-green-300 hover:text-green-200 transition-all disabled:opacity-50"
+                            >
+                              {updating === payment.id ? 'Processing...' : 'Approve'}
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const note = prompt('Rejection reason (optional):');
+                                updatePaymentStatus(payment.id, 'rejected', note);
+                              }}
+                              disabled={updating === payment.id}
+                              className="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded text-red-300 hover:text-red-200 transition-all disabled:opacity-50"
+                            >
+                              {updating === payment.id ? 'Processing...' : 'Reject'}
+                            </button>
+                          </>
+                        )}
+                        {payment.status !== 'pending' && (
+                          <span className="text-gray-400 text-sm">
+                            {payment.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>

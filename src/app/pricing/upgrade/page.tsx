@@ -75,34 +75,48 @@ function UpgradePageInner() {
 
   useEffect(() => {
     const loadPricing = async () => {
-      try {
-        // Determine currency based on payment method
+      // First, try to get the plan config directly
+      const planConfig = PRICING_CONFIG[plan];
+      console.log('Plan config for', plan, ':', planConfig);
+      
+      if (planConfig) {
+        // Use direct pricing without currency conversion for now
         const currency = paymentMethod === 'bank' ? 'LKR' : 'USD';
-        const pricingData = await getPricingInCurrency(plan, currency);
-        setPricing(pricingData);
+        const directPricing = {
+          plan: planConfig.plan,
+          monthlyPrice: paymentMethod === 'bank' ? planConfig.monthlyPrice * 320 : planConfig.monthlyPrice,
+          yearlyPrice: paymentMethod === 'bank' ? planConfig.yearlyPrice * 320 : planConfig.yearlyPrice,
+          monthlyPriceUSD: planConfig.monthlyPrice,
+          yearlyPriceUSD: planConfig.yearlyPrice,
+          currency: currency,
+          monthlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.monthlyPrice * 320).toFixed(0)}` : `$${planConfig.monthlyPrice.toFixed(2)}`,
+          yearlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.yearlyPrice * 320).toFixed(0)}` : `$${planConfig.yearlyPrice.toFixed(2)}`,
+          savings: planConfig.yearlyPrice - (planConfig.monthlyPrice * 12),
+          savingsFormatted: paymentMethod === 'bank' ? `Rs ${((planConfig.yearlyPrice - (planConfig.monthlyPrice * 12)) * 320).toFixed(0)}` : `$${(planConfig.yearlyPrice - (planConfig.monthlyPrice * 12)).toFixed(2)}`
+        };
+        console.log('Direct pricing set:', directPricing);
+        setPricing(directPricing);
         setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading pricing:', error);
-        // Fallback to basic pricing without currency conversion
-        const planConfig = PRICING_CONFIG[plan];
-        if (planConfig) {
-          const fallbackCurrency = paymentMethod === 'bank' ? 'LKR' : 'USD';
-          const fallbackPricing = {
-            plan: planConfig.plan,
-            monthlyPrice: paymentMethod === 'bank' ? planConfig.monthlyPrice * 320 : planConfig.monthlyPrice, // Rough LKR conversion
-            yearlyPrice: paymentMethod === 'bank' ? planConfig.yearlyPrice * 320 : planConfig.yearlyPrice,
-            monthlyPriceUSD: planConfig.monthlyPrice,
-            yearlyPriceUSD: planConfig.yearlyPrice,
-            currency: fallbackCurrency,
-            monthlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.monthlyPrice * 320).toFixed(0)}` : `$${planConfig.monthlyPrice.toFixed(2)}`,
-            yearlyPriceFormatted: paymentMethod === 'bank' ? `Rs ${(planConfig.yearlyPrice * 320).toFixed(0)}` : `$${planConfig.yearlyPrice.toFixed(2)}`,
-            savings: planConfig.yearlyPrice - (planConfig.monthlyPrice * 12),
-            savingsFormatted: paymentMethod === 'bank' ? `Rs ${((planConfig.yearlyPrice - (planConfig.monthlyPrice * 12)) * 320).toFixed(0)}` : `$${(planConfig.yearlyPrice - (planConfig.monthlyPrice * 12)).toFixed(2)}`
-          };
-          setPricing(fallbackPricing);
-        }
-        setIsLoading(false);
+        return;
       }
+      
+      // Fallback if plan not found
+      console.error('No plan config found for:', plan);
+      const defaultPricing = {
+        plan: plan,
+        monthlyPrice: paymentMethod === 'bank' ? 12.99 * 320 : 12.99,
+        yearlyPrice: paymentMethod === 'bank' ? 129.99 * 320 : 129.99,
+        monthlyPriceUSD: 12.99,
+        yearlyPriceUSD: 129.99,
+        currency: paymentMethod === 'bank' ? 'LKR' : 'USD',
+        monthlyPriceFormatted: paymentMethod === 'bank' ? 'Rs 4,157' : '$12.99',
+        yearlyPriceFormatted: paymentMethod === 'bank' ? 'Rs 41,597' : '$129.99',
+        savings: 25.89,
+        savingsFormatted: paymentMethod === 'bank' ? 'Rs 8,285' : '$25.89'
+      };
+      console.log('Default pricing set:', defaultPricing);
+      setPricing(defaultPricing);
+      setIsLoading(false);
     };
 
     loadPricing();

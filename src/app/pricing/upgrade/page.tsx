@@ -123,21 +123,27 @@ function UpgradePageInner() {
             // Upload proof file if provided
             let proofUrl: string | null = null;
             if (proofFile) {
-                const supabase = getSupabaseBrowser();
-                const fileExt = proofFile.name.split('.').pop();
-                const fileName = `${userId}/${Date.now()}.${fileExt}`;
-                
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('payments')
-                    .upload(fileName, proofFile);
-
-                if (uploadError) {
-                    // Continue without proof
-                } else {
-                    const { data: { publicUrl } } = supabase.storage
+                try {
+                    const supabase = getSupabaseBrowser();
+                    const fileExt = proofFile.name.split('.').pop();
+                    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+                    
+                    const { data: uploadData, error: uploadError } = await supabase.storage
                         .from('payments')
-                        .getPublicUrl(fileName);
-                    proofUrl = publicUrl;
+                        .upload(fileName, proofFile);
+
+                    if (uploadError) {
+                        console.warn('File upload failed:', uploadError);
+                        // Continue without proof - don't fail the entire payment
+                    } else {
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('payments')
+                            .getPublicUrl(fileName);
+                        proofUrl = publicUrl;
+                    }
+                } catch (uploadErr) {
+                    console.warn('File upload error:', uploadErr);
+                    // Continue without proof
                 }
             }
 
@@ -148,11 +154,20 @@ function UpgradePageInner() {
             const price = Math.round(rawPrice * 100) / 100; // Round to 2 decimal places
             const currency = selectedMethod === 'bank' ? 'LKR' : 'USD';
 
+            // Get auth token
+            const supabase = getSupabaseBrowser();
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (!session?.access_token) {
+                throw new Error('Authentication required. Please sign in again.');
+            }
+
             // Submit payment
             const response = await fetch('/api/payments/submit', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
                 },
                 body: JSON.stringify({
                     plan,

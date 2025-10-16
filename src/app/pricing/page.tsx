@@ -106,18 +106,7 @@ function PricingPageInner() {
             const { data: pays } = await supabase.from("payments").select("plan,status").eq("user_id", uid).eq("status", "pending");
             setPendingPlans(new Set((pays ?? []).map(p => p.plan)));
 
-            // Realtime on subscriptions -> show congrats when plan changes
-            sub = supabase
-              .channel("pricing_subscriptions")
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions', filter: `user_id=eq.${uid}` }, (payload: any) => {
-                const newPlan = (payload.new?.plan || payload.record?.plan) as string | undefined;
-                if (newPlan && newPlan !== currentPlan) {
-                    setCurrentPlan(newPlan);
-                    setPendingPlans(new Set());
-                    setShowCongrats(newPlan);
-                }
-              })
-              .subscribe();
+            // Note: Realtime updates are now handled by RealtimePlanUpdater component
         })();
         // Banner on redirect
         const submitted = sp.get('submitted');
@@ -167,7 +156,10 @@ function PricingPageInner() {
     };
 
     const handlePlanUpdate = (newPlan: string) => {
+        console.log('Plan updated via RealtimePlanUpdater:', newPlan);
         setCurrentPlan(newPlan);
+        setPendingPlans(new Set());
+        setShowCongrats(newPlan);
     };
 
     if (showPaymentForm) {
@@ -185,6 +177,27 @@ function PricingPageInner() {
         <RealtimePlanUpdater userId={userId || ''} onPlanUpdate={handlePlanUpdate}>
             <section className="py-24 bg-gradient-to-b from-black/20 to-black/40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Congrats Message */}
+                {showCongrats && (
+                    <div className="max-w-4xl mx-auto mb-8">
+                        <div className="bg-green-900/20 backdrop-blur-sm rounded-xl p-6 border border-green-500/30 shadow-2xl">
+                            <div className="text-center">
+                                <div className="text-4xl mb-4">🎉</div>
+                                <h2 className="text-2xl font-bold text-green-300 mb-2">Congratulations!</h2>
+                                <p className="text-green-200">
+                                    Your <span className="font-semibold">{showCongrats}</span> plan has been activated!
+                                </p>
+                                <button
+                                    onClick={() => setShowCongrats(null)}
+                                    className="mt-4 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Header Section */}
                 <div className="text-center mb-16 sm:mb-20">
                     <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-lg font-medium bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border border-purple-500/30 mb-6 sm:mb-8">

@@ -69,7 +69,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            if (newPlan && newPlan !== currentPlan) {
+            if (newPlan) {
               console.log('Plan updated via subscription:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
@@ -90,7 +90,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            if (newPlan && newPlan !== currentPlan) {
+            if (newPlan) {
               console.log('Plan updated via profile:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
@@ -107,7 +107,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
     return () => {
       subscriptionChannel.unsubscribe();
     };
-  }, [userId, currentPlan, onPlanUpdate]);
+  }, [userId, onPlanUpdate]);
 
   // Show connection status in development
   if (process.env.NODE_ENV === 'development') {

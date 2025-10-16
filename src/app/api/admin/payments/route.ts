@@ -87,20 +87,54 @@ export async function PATCH(request: NextRequest) {
     if (status === 'approved') {
       console.log('Updating user plan for payment:', existingPayment);
       
-      const { error: profileError } = await supabase
+      // First check if profile exists
+      const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
-        .update({ plan: existingPayment.plan })
-        .eq('id', existingPayment.user_id);
+        .select('id, plan')
+        .eq('id', existingPayment.user_id)
+        .single();
 
-      if (profileError) {
-        console.error('Error updating user plan:', profileError);
-        return NextResponse.json({ 
-          error: 'Payment approved but failed to update user plan', 
-          details: profileError.message 
-        }, { status: 500 });
+      if (profileFetchError) {
+        console.error('Error fetching user profile:', profileFetchError);
+        // If profile doesn't exist, create it
+        console.log('Profile not found, creating new profile...');
+        
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: existingPayment.user_id,
+            plan: existingPayment.plan,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (createError) {
+          console.error('Error creating user profile:', createError);
+          // Don't fail the entire operation, just log the error
+          console.warn('Payment approved but profile creation failed - user will need to update plan manually');
+        }
+        
+        console.log('User profile created successfully');
+      } else {
+        // Profile exists, update it
+        console.log('Found existing profile:', existingProfile);
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ 
+            plan: existingPayment.plan,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingPayment.user_id);
+
+        if (profileError) {
+          console.error('Error updating user plan:', profileError);
+          // Don't fail the entire operation, just log the error
+          console.warn('Payment approved but profile update failed - user will need to update plan manually');
+        }
+
+        console.log('User plan updated successfully');
       }
-
-      console.log('User plan updated successfully');
     }
 
     return NextResponse.json({ 

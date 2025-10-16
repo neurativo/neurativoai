@@ -22,6 +22,7 @@ function UpgradePageInner() {
     const [plan, setPlan] = useState<string>('');
     const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
     const [pricing, setPricing] = useState<any>(null);
+    const [lkrPricing, setLkrPricing] = useState<any>(null);
     const [selectedMethod, setSelectedMethod] = useState<'bank' | 'binance'>('bank');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,8 +70,10 @@ function UpgradePageInner() {
         // Fetch pricing data
         const fetchPricing = async () => {
             try {
-                const pricingData = await getPricingInCurrency(planParam, 'USD');
-                setPricing(pricingData);
+                const pricingDataUSD = await getPricingInCurrency(planParam, 'USD');
+                const pricingDataLKR = await getPricingInCurrency(planParam, 'LKR');
+                setPricing(pricingDataUSD);
+                setLkrPricing(pricingDataLKR);
             } catch (error) {
                 console.error('Error fetching pricing:', error);
             }
@@ -127,7 +130,9 @@ function UpgradePageInner() {
 
             // Prepare payment data
             const paymentData = selectedMethod === 'bank' ? bankData : binanceData;
-            const price = billing === 'yearly' ? pricing.yearlyPrice : pricing.monthlyPrice;
+            const currentPricing = selectedMethod === 'bank' ? lkrPricing : pricing;
+            const price = billing === 'yearly' ? currentPricing.yearlyPrice : currentPricing.monthlyPrice;
+            const currency = selectedMethod === 'bank' ? 'LKR' : 'USD';
 
             // Submit payment
             const response = await fetch('/api/payments/submit', {
@@ -139,7 +144,7 @@ function UpgradePageInner() {
                     plan,
                     billing,
                     amount: price,
-                    currency: 'USD',
+                    currency: currency,
                     paymentMethod: selectedMethod,
                     transactionId: paymentData.transactionId,
                     notes: paymentData.notes,
@@ -196,7 +201,7 @@ function UpgradePageInner() {
         );
     }
 
-    if (!plan || !billing || !pricing) {
+    if (!plan || !billing || !pricing || !lkrPricing) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
                 <div className="text-center">
@@ -213,7 +218,9 @@ function UpgradePageInner() {
         );
     }
 
-    const price = billing === 'yearly' ? pricing.yearlyPrice : pricing.monthlyPrice;
+    const currentPricing = selectedMethod === 'bank' ? lkrPricing : pricing;
+    const price = billing === 'yearly' ? currentPricing.yearlyPrice : currentPricing.monthlyPrice;
+    const currency = selectedMethod === 'bank' ? 'LKR' : 'USD';
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
@@ -244,7 +251,7 @@ function UpgradePageInner() {
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Amount:</span>
                                 <span className="text-white font-semibold text-lg">
-                                    USD {price}
+                                    {currency} {price}
                                 </span>
                             </div>
                         </div>
@@ -330,7 +337,7 @@ function UpgradePageInner() {
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Amount:</span>
-                                                    <span className="text-green-400 font-semibold">USD {price}</span>
+                                                    <span className="text-green-400 font-semibold">{currency} {price}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -366,7 +373,7 @@ function UpgradePageInner() {
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Amount:</span>
-                                                    <span className="text-green-400 font-semibold">USD {price}</span>
+                                                    <span className="text-green-400 font-semibold">{currency} {price}</span>
                                                 </div>
                                                 <div className="text-xs text-gray-400 mt-2">
                                                     Send USDT or USDC to the above Binance ID

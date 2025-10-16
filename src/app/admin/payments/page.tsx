@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 
 interface AdminUser {
   id: string;
@@ -34,17 +33,7 @@ export default function PaymentVerification() {
   const [updating, setUpdating] = useState<string | null>(null);
   const router = useRouter();
   
-  // Use service role client to bypass RLS
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
+  // We'll use API routes instead of direct Supabase calls
 
   useEffect(() => {
     // Check if admin is logged in
@@ -60,38 +49,18 @@ export default function PaymentVerification() {
 
   const loadPayments = async () => {
     try {
-      console.log('Loading payments from database...');
+      console.log('Loading payments from API...');
       
-      // Simple query without foreign key relationship
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      console.log('Payments query result:', { data: paymentsData, error: paymentsError });
-
-      if (paymentsError) {
-        console.error('Error loading payments:', paymentsError);
+      const response = await fetch('/api/admin/payments');
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('Payments loaded successfully:', data.payments);
+        setPayments(data.payments || []);
+      } else {
+        console.error('Error loading payments:', data.error);
         setPayments([]);
-        return;
       }
-
-      if (!paymentsData || paymentsData.length === 0) {
-        console.log('No payments found');
-        setPayments([]);
-        return;
-      }
-
-      // Format payments without user details for now
-      const formattedPayments = paymentsData.map(payment => ({
-        ...payment,
-        user_email: `User ${payment.user_id.slice(0, 8)}`, // Show partial user ID
-        user_name: 'Unknown',
-        amount: payment.amount_cents / 100
-      }));
-
-      console.log('Formatted payments:', formattedPayments);
-      setPayments(formattedPayments);
     } catch (error) {
       console.error('Error loading payments:', error);
       setPayments([]);
@@ -108,35 +77,24 @@ export default function PaymentVerification() {
   const updatePaymentStatus = async (paymentId: string, status: 'approved' | 'rejected', note?: string) => {
     setUpdating(paymentId);
     try {
-      const { error } = await supabase
-        .from('payments')
-        .update({ 
-          status, 
-          admin_note: note || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', paymentId);
+      const response = await fetch('/api/admin/payments', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentId,
+          status,
+          adminNote: note
+        }),
+      });
 
-      if (error) {
-        console.error('Error updating payment:', error);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Error updating payment:', data.error);
         alert('Failed to update payment status');
         return;
-      }
-
-      // If approved, update user's plan
-      if (status === 'approved') {
-        const payment = payments.find(p => p.id === paymentId);
-        if (payment) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ plan: payment.plan })
-            .eq('id', payment.user_id);
-
-          if (profileError) {
-            console.error('Error updating user plan:', profileError);
-            alert('Payment approved but failed to update user plan');
-          }
-        }
       }
 
       // Reload payments

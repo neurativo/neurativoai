@@ -28,15 +28,11 @@ function UpgradePageInner() {
 
     // Form data
     const [bankData, setBankData] = useState({
-        accountName: '',
-        accountNumber: '',
-        bankName: '',
         transactionId: '',
         notes: ''
     });
 
     const [binanceData, setBinanceData] = useState({
-        binanceId: '',
         transactionId: '',
         notes: ''
     });
@@ -147,15 +143,7 @@ function UpgradePageInner() {
                     paymentMethod: selectedMethod,
                     transactionId: paymentData.transactionId,
                     notes: paymentData.notes,
-                    proofUrl,
-                    // Include method-specific data
-                    ...(selectedMethod === 'bank' ? {
-                        accountName: bankData.accountName,
-                        accountNumber: bankData.accountNumber,
-                        bankName: bankData.bankName
-                    } : {
-                        binanceId: binanceData.binanceId
-                    })
+                    proofUrl
                 }),
             });
 
@@ -322,59 +310,40 @@ function UpgradePageInner() {
                                 {/* Bank Details Form */}
                                 {selectedMethod === 'bank' && (
                                     <div className="space-y-4">
-                                        <h4 className="text-lg font-semibold text-white">Bank Transfer Details</h4>
+                                        <h4 className="text-lg font-semibold text-white">Bank Transfer Payment</h4>
                                         
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Account Name *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={bankData.accountName}
-                                                onChange={(e) => setBankData({...bankData, accountName: e.target.value})}
-                                                placeholder="Enter account holder name"
-                                                required
-                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
-                                            />
+                                        {/* Your Bank Details */}
+                                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                                            <h5 className="text-blue-300 font-semibold mb-3">Send Payment To:</h5>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Account Name:</span>
+                                                    <span className="text-white font-mono">Neurativo AI Learning</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Account Number:</span>
+                                                    <span className="text-white font-mono">1234567890</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Bank Name:</span>
+                                                    <span className="text-white font-mono">Chase Bank</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Amount:</span>
+                                                    <span className="text-green-400 font-semibold">USD {price}</span>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Account Number *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={bankData.accountNumber}
-                                                onChange={(e) => setBankData({...bankData, accountNumber: e.target.value})}
-                                                placeholder="Enter account number"
-                                                required
-                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Bank Name *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={bankData.bankName}
-                                                onChange={(e) => setBankData({...bankData, bankName: e.target.value})}
-                                                placeholder="Enter bank name"
-                                                required
-                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Transaction ID *
+                                                Your Transaction Reference *
                                             </label>
                                             <input
                                                 type="text"
                                                 value={bankData.transactionId}
                                                 onChange={(e) => setBankData({...bankData, transactionId: e.target.value})}
-                                                placeholder="Enter transaction reference"
+                                                placeholder="Enter your bank transaction reference"
                                                 required
                                                 className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
                                             />
@@ -385,31 +354,35 @@ function UpgradePageInner() {
                                 {/* Binance Details Form */}
                                 {selectedMethod === 'binance' && (
                                     <div className="space-y-4">
-                                        <h4 className="text-lg font-semibold text-white">Binance Payment Details</h4>
+                                        <h4 className="text-lg font-semibold text-white">Binance Payment</h4>
                                         
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Binance ID *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={binanceData.binanceId}
-                                                onChange={(e) => setBinanceData({...binanceData, binanceId: e.target.value})}
-                                                placeholder="Enter your Binance ID"
-                                                required
-                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
-                                            />
+                                        {/* Your Binance Details */}
+                                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                                            <h5 className="text-yellow-300 font-semibold mb-3">Send Payment To:</h5>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Binance ID:</span>
+                                                    <span className="text-white font-mono">neurativo_ai_learning</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Amount:</span>
+                                                    <span className="text-green-400 font-semibold">USD {price}</span>
+                                                </div>
+                                                <div className="text-xs text-gray-400 mt-2">
+                                                    Send USDT or USDC to the above Binance ID
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                Transaction ID *
+                                                Your Transaction Hash *
                                             </label>
                                             <input
                                                 type="text"
                                                 value={binanceData.transactionId}
                                                 onChange={(e) => setBinanceData({...binanceData, transactionId: e.target.value})}
-                                                placeholder="Enter transaction hash/ID"
+                                                placeholder="Enter your Binance transaction hash"
                                                 required
                                                 className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
                                             />
@@ -420,16 +393,17 @@ function UpgradePageInner() {
                                 {/* Common Fields */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                                        Payment Proof (Optional)
+                                        Payment Receipt *
                                     </label>
                                     <input
                                         type="file"
                                         onChange={handleFileChange}
                                         accept="image/*,.pdf"
+                                        required
                                         className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"
                                     />
                                     <p className="text-xs text-gray-400 mt-1">
-                                        Upload receipt, screenshot, or proof of payment (max 10MB)
+                                        Upload receipt, screenshot, or proof of payment (max 10MB) - Required for verification
                                     </p>
                                 </div>
 

@@ -11,13 +11,7 @@ export async function POST(request: NextRequest) {
       paymentMethod, 
       transactionId, 
       notes, 
-      proofUrl,
-      // Bank transfer specific fields
-      accountName,
-      accountNumber,
-      bankName,
-      // Binance specific fields
-      binanceId
+      proofUrl
     } = await request.json();
     
     // Validate required fields
@@ -42,19 +36,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate payment method specific fields
-    if (paymentMethod === 'bank') {
-      if (!accountName || !accountNumber || !bankName) {
-        return NextResponse.json({ 
-          error: 'Bank transfer requires account name, account number, and bank name' 
-        }, { status: 400 });
-      }
-    } else if (paymentMethod === 'binance') {
-      if (!binanceId) {
-        return NextResponse.json({ 
-          error: 'Binance payment requires Binance ID' 
-        }, { status: 400 });
-      }
+    // Validate payment method
+    if (!['bank', 'binance'].includes(paymentMethod)) {
+      return NextResponse.json({ 
+        error: 'Invalid payment method. Must be "bank" or "binance"' 
+      }, { status: 400 });
     }
 
     // Get user from auth header
@@ -78,8 +64,8 @@ export async function POST(request: NextRequest) {
     // Calculate amount in cents
     const amountCents = Math.round(amount * 100);
 
-    // Prepare payment data with method-specific fields
-    const paymentData: any = {
+    // Prepare payment data
+    const paymentData = {
       user_id: user.id,
       plan,
       method: paymentMethod,
@@ -91,15 +77,6 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-
-    // Add method-specific data
-    if (paymentMethod === 'bank') {
-      paymentData.account_name = accountName;
-      paymentData.account_number = accountNumber;
-      paymentData.bank_name = bankName;
-    } else if (paymentMethod === 'binance') {
-      paymentData.binance_id = binanceId;
-    }
 
     // Create payment record
     const { data: payment, error: paymentError } = await supabase

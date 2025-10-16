@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import Link from "next/link";
+import EnhancedUsageTracker from "@/app/components/EnhancedUsageTracker";
 
 type Usage = {
   plan: string;
@@ -72,24 +73,7 @@ export default function DashboardPage() {
         });
       }
 
-      // Realtime updates for usage counters
-      chan = supabase
-        .channel("dashboard_usage")
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'usage_counters', filter: `user_id=eq.${user.id}` }, (payload: any) => {
-          const row = (payload.new || payload.record) as { counter_type?: string; count?: number; date?: string };
-          if (!row?.counter_type) return;
-          setUsage(prev => {
-            if (!prev) return prev;
-            if (row.counter_type === 'daily_quiz_generations') {
-              return { ...prev, daily_used: row.count ?? prev.daily_used };
-            }
-            if (row.counter_type === 'monthly_quiz_generations') {
-              return { ...prev, used: row.count ?? prev.used };
-            }
-            return prev;
-          });
-        })
-        .subscribe();
+      // Note: Real-time updates are now handled by EnhancedUsageTracker component
 
       setLoading(false);
     }
@@ -99,44 +83,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Polling fallback to keep usage fresh even if realtime misses an event
-  useEffect(() => {
-    if (!userId) return;
-    const supabase = getSupabaseBrowser();
-
-    let timer: NodeJS.Timeout | null = null;
-
-    async function refreshUsage() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
-        const json = await res.json();
-        if (json?.success && json?.data) {
-          setUsage(prev => ({
-            plan: json.data.plan,
-            monthly_quiz_generations: json.data.monthly_quiz_generations,
-            used: json.data.monthly_used,
-            daily_used: json.data.daily_used,
-            daily_limit: json.data.daily_limit,
-            max_questions_per_quiz: json.data.max_questions_per_quiz,
-          }));
-        }
-      } catch { /* ignore */ }
-    }
-
-    // Initial refresh, then interval
-    refreshUsage();
-    timer = setInterval(refreshUsage, 5000);
-
-    // Refresh when tab becomes visible
-    const onVis = () => { if (document.visibilityState === 'visible') refreshUsage(); };
-    document.addEventListener('visibilitychange', onVis);
-
-    return () => {
-      if (timer) clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, [userId]);
+  // Note: Polling and real-time updates are now handled by EnhancedUsageTracker component
 
   const nearingDaily = usage ? usage.daily_used >= Math.max(1, Math.floor(usage.daily_limit * 0.8)) : false;
   const nearingMonthly = usage ? usage.used >= Math.max(1, Math.floor(usage.monthly_quiz_generations * 0.8)) : false;
@@ -183,90 +130,26 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="stat-card">
-          <div className="stat-number">{usage?.plan?.toUpperCase()}</div>
-          <div className="stat-label">Current Plan</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number">{usage?.used}/{usage?.monthly_quiz_generations}</div>
-          <div className="stat-label">Quizzes this month</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number">{usage?.daily_used}/{usage?.daily_limit}</div>
-          <div className="stat-label">Quizzes today</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-number">{usage?.max_questions_per_quiz}</div>
-          <div className="stat-label">Max questions/quiz</div>
-        </div>
-      </div>
-
-      {/* Source-specific usage */}
-      {usage?.source_usage && usage?.source_limits && (
+      {/* Enhanced Usage Tracker */}
+      {userId && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Source-Specific Usage</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* URL Quizzes */}
-            <div className="feature-card">
-              <div className="flex items-center gap-2 mb-2">
-                <i className="fas fa-link text-blue-400"></i>
-                <span className="font-semibold">URL Quizzes</span>
-              </div>
-              <div className="text-2xl font-bold mb-1">
-                {usage.source_usage.url}/{usage.source_limits.url}
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-blue-400 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${Math.min(100, (usage.source_usage.url / usage.source_limits.url) * 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-sm text-gray-400 mt-1">
-                {usage.daily_source_usage?.url || 0}/{usage.daily_source_limits?.url || 5} today
-              </div>
-            </div>
-
-            {/* Text Quizzes */}
-            <div className="feature-card">
-              <div className="flex items-center gap-2 mb-2">
-                <i className="fas fa-file-text text-green-400"></i>
-                <span className="font-semibold">Text Quizzes</span>
-              </div>
-              <div className="text-2xl font-bold mb-1">
-                {usage.source_usage.text}/{usage.source_limits.text}
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-green-400 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${Math.min(100, (usage.source_usage.text / usage.source_limits.text) * 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-sm text-gray-400 mt-1">
-                {usage.daily_source_usage?.text || 0}/{usage.daily_source_limits?.text || 5} today
-              </div>
-            </div>
-
-            {/* Document Quizzes */}
-            <div className="feature-card">
-              <div className="flex items-center gap-2 mb-2">
-                <i className="fas fa-file-pdf text-purple-400"></i>
-                <span className="font-semibold">Document Quizzes</span>
-              </div>
-              <div className="text-2xl font-bold mb-1">
-                {usage.source_usage.document}/{usage.source_limits.document}
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-purple-400 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${Math.min(100, (usage.source_usage.document / usage.source_limits.document) * 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-sm text-gray-400 mt-1">
-                {usage.daily_source_usage?.document || 0}/{usage.daily_source_limits?.document || 5} today
-              </div>
-            </div>
-          </div>
+          <EnhancedUsageTracker 
+            userId={userId} 
+            onUsageUpdate={(updatedUsage) => {
+              setUsage({
+                plan: updatedUsage.plan,
+                monthly_quiz_generations: updatedUsage.monthly_quiz_generations,
+                used: updatedUsage.used,
+                daily_used: updatedUsage.daily_used,
+                daily_limit: updatedUsage.daily_limit,
+                max_questions_per_quiz: updatedUsage.max_questions_per_quiz,
+                source_usage: updatedUsage.source_usage,
+                source_limits: updatedUsage.source_limits,
+                daily_source_usage: updatedUsage.daily_source_usage,
+                daily_source_limits: updatedUsage.daily_source_limits,
+              });
+            }}
+          />
         </div>
       )}
 

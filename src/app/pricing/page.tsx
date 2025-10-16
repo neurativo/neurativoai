@@ -10,7 +10,6 @@ import PricingDisplay from "@/app/components/PricingDisplay";
 import PlanUpgrade from "@/app/components/PlanUpgrade";
 import PaymentSubmission from "@/app/components/PaymentSubmission";
 import RealtimePlanUpdater from "@/app/components/RealtimePlanUpdater";
-import UsageTracker from "@/app/components/UsageTracker";
 
 export default function PricingPage() {
     return (
@@ -480,20 +479,6 @@ function PricingPageInner() {
                     </div>
                 </div>
 
-                {/* Usage Tracker for logged in users */}
-                {userId && (
-                    <div className="mt-16">
-                        <div className="bg-black/20 backdrop-blur-sm rounded-xl p-8 border border-purple-500/20 shadow-2xl">
-                            <h2 className="text-2xl font-bold text-white mb-6 text-center">Your Usage</h2>
-                            <UsageTracker
-                                userId={userId}
-                                onUsageUpdate={(usage) => {
-                                    console.log('Usage updated:', usage);
-                                }}
-                            />
-                        </div>
-                    </div>
-                )}
             </div>
             
             {/* Floating Currency Selector */}

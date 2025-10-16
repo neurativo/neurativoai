@@ -89,7 +89,7 @@ export default function PaymentSubmission({ plan, billing, onSuccess, onCancel }
 
     try {
       // Upload proof file if provided
-      let proofUrl = null;
+      let proofUrl: string | null = null;
       if (proofFile) {
         const supabase = getSupabaseBrowser();
         const fileExt = proofFile.name.split('.').pop();

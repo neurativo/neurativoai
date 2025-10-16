@@ -98,7 +98,8 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            if (newPlan && newPlan !== currentPlan) {
+            console.log('RealtimePlanUpdater: New plan from subscription:', newPlan, 'Current plan:', currentPlan);
+            if (newPlan) {
               console.log('RealtimePlanUpdater: Plan updated via subscription:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
@@ -119,7 +120,8 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            if (newPlan && newPlan !== currentPlan) {
+            console.log('RealtimePlanUpdater: New plan from profile:', newPlan, 'Current plan:', currentPlan);
+            if (newPlan) {
               console.log('RealtimePlanUpdater: Plan updated via profile:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);

@@ -117,6 +117,18 @@ function PricingPageInner() {
         return () => { if (sub) supabase.removeChannel(sub); };
     }, [supabase, sp]);
 
+    // Periodic refresh as fallback for real-time updates
+    useEffect(() => {
+        if (!userId) return;
+
+        const interval = setInterval(() => {
+            console.log('Periodic refresh: Checking plan status...');
+            refreshPlan();
+        }, 30000); // Check every 30 seconds
+
+        return () => clearInterval(interval);
+    }, [userId]);
+
     // Calculate pricing when currency changes
     useEffect(() => {
         const calculatePricing = async () => {
@@ -180,16 +192,22 @@ function PricingPageInner() {
     const refreshPlan = async () => {
         if (!userId) return;
         
+        console.log('Manual refresh: Starting plan refresh for user:', userId);
+        
         try {
             const supabase = getSupabaseBrowser();
             
             // Check subscriptions table
-            const { data: subscription } = await supabase
+            const { data: subscription, error: subError } = await supabase
                 .from('subscriptions')
                 .select('plan')
                 .eq('user_id', userId)
                 .eq('status', 'active')
                 .maybeSingle();
+
+            if (subError) {
+                console.error('Manual refresh: Subscription error:', subError);
+            }
 
             if (subscription?.plan) {
                 console.log('Manual refresh: Found subscription plan:', subscription.plan);
@@ -199,16 +217,35 @@ function PricingPageInner() {
             }
 
             // Check profiles table
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('plan')
                 .eq('id', userId)
                 .maybeSingle();
 
+            if (profileError) {
+                console.error('Manual refresh: Profile error:', profileError);
+            }
+
             if (profile?.plan) {
                 console.log('Manual refresh: Found profile plan:', profile.plan);
                 setCurrentPlan(profile.plan);
                 setPendingPlans(new Set());
+            } else {
+                console.log('Manual refresh: No plan found, keeping current plan:', currentPlan);
+            }
+
+            // Also refresh pending payments
+            const { data: pendingPayments } = await supabase
+                .from('payments')
+                .select('plan')
+                .eq('user_id', userId)
+                .eq('status', 'pending');
+
+            if (pendingPayments) {
+                const pendingPlans = new Set(pendingPayments.map(p => p.plan));
+                console.log('Manual refresh: Pending plans:', Array.from(pendingPlans));
+                setPendingPlans(pendingPlans);
             }
         } catch (error) {
             console.error('Manual refresh error:', error);
@@ -242,13 +279,18 @@ function PricingPageInner() {
                             Simple <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Pricing</span>
                         </h1>
                         {userId && (
-                            <button
-                                onClick={refreshPlan}
-                                className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-300 hover:text-purple-200 transition-all text-sm"
-                                title="Refresh plan status"
-                            >
-                                🔄
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={refreshPlan}
+                                    className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-300 hover:text-purple-200 transition-all text-sm"
+                                    title="Refresh plan status"
+                                >
+                                    🔄 Refresh
+                                </button>
+                                <div className="text-xs text-gray-400">
+                                    Current: {currentPlan} | Pending: {Array.from(pendingPlans).join(', ') || 'None'}
+                                </div>
+                            </div>
                         )}
                     </div>
                     <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-5xl mx-auto leading-relaxed mb-8 sm:mb-12">

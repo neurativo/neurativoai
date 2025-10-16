@@ -43,21 +43,43 @@ function PricingPageInner() {
             setUserId(uid);
             if (!uid) return;
 
-            // Fetch current subscription from both subscriptions and profiles tables
-            const { data: subRow } = await supabase.from("subscriptions").select("plan").eq("user_id", uid).maybeSingle();
+            // Fetch current subscription from subscriptions table (prioritize active subscriptions)
+            const { data: subRow, error: subError } = await supabase
+                .from("subscriptions")
+                .select("plan, status")
+                .eq("user_id", uid)
+                .eq("status", "active")
+                .order("created_at", { ascending: false })
+                .maybeSingle();
+            
+            console.log('Initial plan fetch - subscription:', subRow, 'error:', subError);
             
             // Try to fetch from profiles table, but handle RLS errors gracefully
             let profileRow: { plan: string } | null = null;
             try {
-                const { data: profileData } = await supabase.from("profiles").select("plan").eq("id", uid).maybeSingle();
+                const { data: profileData, error: profileError } = await supabase
+                    .from("profiles")
+                    .select("plan")
+                    .eq("id", uid)
+                    .maybeSingle();
                 profileRow = profileData;
+                console.log('Initial plan fetch - profile:', profileData, 'error:', profileError);
             } catch (error) {
                 console.warn('Could not fetch profile data:', error);
                 // Continue without profile data
             }
             
-            // Use subscription plan if available, otherwise fall back to profile plan
-            let userPlan = subRow?.plan || profileRow?.plan || 'free';
+            // Use subscription plan if available and active, otherwise fall back to profile plan
+            let userPlan = 'free';
+            if (subRow?.plan && subRow?.status === 'active') {
+                userPlan = subRow.plan;
+                console.log('Using subscription plan:', userPlan);
+            } else if (profileRow?.plan) {
+                userPlan = profileRow.plan;
+                console.log('Using profile plan:', userPlan);
+            } else {
+                console.log('No plan found, using default free plan');
+            }
             
             // Map old plan names to new plan structure
             const planMapping: Record<string, string> = {
@@ -223,55 +245,69 @@ function PricingPageInner() {
         try {
             const supabase = getSupabaseBrowser();
             
-            // Check subscriptions table
+            // Check subscriptions table for active subscriptions
             const { data: subscription, error: subError } = await supabase
                 .from('subscriptions')
-                .select('plan')
+                .select('plan, status, created_at')
                 .eq('user_id', userId)
                 .eq('status', 'active')
+                .order('created_at', { ascending: false })
                 .maybeSingle();
 
-            if (subError) {
-                console.error('Manual refresh: Subscription error:', subError);
-            }
+            console.log('Manual refresh: Subscription query result:', subscription, 'error:', subError);
 
-            if (subscription?.plan) {
-                console.log('Manual refresh: Found subscription plan:', subscription.plan);
+            if (subscription?.plan && subscription?.status === 'active') {
+                console.log('Manual refresh: Found active subscription plan:', subscription.plan);
                 setCurrentPlan(subscription.plan);
                 setPendingPlans(new Set());
+                
+                // Also refresh usage stats
+                try {
+                    const response = await fetch(`/api/user/usage-limits?userId=${userId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        setUsageStats(data);
+                        console.log('Manual refresh: Usage stats updated');
+                    }
+                } catch (error) {
+                    console.error('Manual refresh: Error updating usage stats:', error);
+                }
                 return;
             }
 
-            // Check profiles table
+            // Check profiles table as fallback
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('plan')
                 .eq('id', userId)
                 .maybeSingle();
 
-            if (profileError) {
-                console.error('Manual refresh: Profile error:', profileError);
-            }
+            console.log('Manual refresh: Profile query result:', profile, 'error:', profileError);
 
             if (profile?.plan) {
                 console.log('Manual refresh: Found profile plan:', profile.plan);
                 setCurrentPlan(profile.plan);
                 setPendingPlans(new Set());
             } else {
-                console.log('Manual refresh: No plan found, keeping current plan:', currentPlan);
+                console.log('Manual refresh: No plan found, setting to free');
+                setCurrentPlan('free');
             }
 
             // Also refresh pending payments
-            const { data: pendingPayments } = await supabase
+            const { data: pendingPayments, error: pendingError } = await supabase
                 .from('payments')
-                .select('plan')
+                .select('plan, status')
                 .eq('user_id', userId)
                 .eq('status', 'pending');
+
+            console.log('Manual refresh: Pending payments query result:', pendingPayments, 'error:', pendingError);
 
             if (pendingPayments) {
                 const pendingPlans = new Set(pendingPayments.map(p => p.plan));
                 console.log('Manual refresh: Pending plans:', Array.from(pendingPlans));
                 setPendingPlans(pendingPlans);
+            } else {
+                setPendingPlans(new Set());
             }
         } catch (error) {
             console.error('Manual refresh error:', error);
@@ -312,6 +348,23 @@ function PricingPageInner() {
                                     title="Refresh plan status"
                                 >
                                     🔄 Refresh
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const response = await fetch(`/api/debug/current-plan?userId=${userId}`);
+                                            const data = await response.json();
+                                            console.log('Debug current plan data:', data);
+                                            alert(`Current Plan: ${data.currentPlan}\nActive Subscription: ${JSON.stringify(data.currentActiveSubscription, null, 2)}\nProfile: ${JSON.stringify(data.profile, null, 2)}`);
+                                        } catch (error) {
+                                            console.error('Debug error:', error);
+                                            alert('Debug failed: ' + error);
+                                        }
+                                    }}
+                                    className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all text-sm"
+                                    title="Debug current plan status"
+                                >
+                                    🐛 Debug
                                 </button>
                                 <div className="text-xs text-gray-400">
                                     Current: {currentPlan} | Pending: {Array.from(pendingPlans).join(', ') || 'None'}

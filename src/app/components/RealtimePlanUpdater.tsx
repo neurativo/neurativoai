@@ -30,22 +30,21 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
     // Initial plan fetch
     const fetchCurrentPlan = async () => {
       try {
-        console.log('RealtimePlanUpdater: Fetching current plan...');
+        console.log('RealtimePlanUpdater: Fetching current plan for user:', userId);
         
         // Try to get from subscriptions table first (what the frontend uses)
         const { data: subscription, error: subError } = await supabase
           .from('subscriptions')
-          .select('plan')
+          .select('plan, status, created_at')
           .eq('user_id', userId)
           .eq('status', 'active')
+          .order('created_at', { ascending: false })
           .maybeSingle();
 
-        if (subError) {
-          console.warn('RealtimePlanUpdater: Error fetching subscription:', subError);
-        }
+        console.log('RealtimePlanUpdater: Subscription query result:', subscription, 'error:', subError);
 
-        if (subscription?.plan) {
-          console.log('RealtimePlanUpdater: Found subscription plan:', subscription.plan);
+        if (subscription?.plan && subscription?.status === 'active') {
+          console.log('RealtimePlanUpdater: Found active subscription plan:', subscription.plan);
           setCurrentPlan(subscription.plan);
           onPlanUpdate(subscription.plan);
           return;
@@ -58,9 +57,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           .eq('id', userId)
           .maybeSingle();
 
-        if (profileError) {
-          console.warn('RealtimePlanUpdater: Error fetching profile:', profileError);
-        }
+        console.log('RealtimePlanUpdater: Profile query result:', profile, 'error:', profileError);
 
         if (profile?.plan) {
           console.log('RealtimePlanUpdater: Found profile plan:', profile.plan);
@@ -73,6 +70,9 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
         }
       } catch (error) {
         console.error('RealtimePlanUpdater: Error fetching current plan:', error);
+        // Set to free as fallback
+        setCurrentPlan('free');
+        onPlanUpdate('free');
       }
     };
 

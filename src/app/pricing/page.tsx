@@ -8,7 +8,6 @@ import { CurrencyConverter, getPricingInCurrency, CURRENCIES } from "@/lib/curre
 import CurrencySelector from "@/app/components/CurrencySelector";
 import PricingDisplay from "@/app/components/PricingDisplay";
 import PlanUpgrade from "@/app/components/PlanUpgrade";
-import PaymentSubmission from "@/app/components/PaymentSubmission";
 import RealtimePlanUpdater from "@/app/components/RealtimePlanUpdater";
 
 export default function PricingPage() {
@@ -30,9 +29,6 @@ function PricingPageInner() {
     const [selectedCurrency, setSelectedCurrency] = useState<string>('USD');
     const [pricingData, setPricingData] = useState<any>({});
     const [isYearly, setIsYearly] = useState(false);
-    const [showPaymentForm, setShowPaymentForm] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState<string>('');
-    const [selectedBilling, setSelectedBilling] = useState<'monthly' | 'yearly'>('monthly');
 
     useEffect(() => {
         let sub: any;
@@ -129,10 +125,11 @@ function PricingPageInner() {
 
             // Note: Realtime updates are now handled by RealtimePlanUpdater component
         })();
-        // Banner on redirect
+        // Banner on redirect from upgrade page
         const submitted = sp.get('submitted');
         const sPlan = sp.get('plan');
         if (submitted && sPlan) {
+          console.log('Payment submitted, adding to pending plans:', sPlan);
           setPendingPlans(prev => new Set([...Array.from(prev), sPlan]));
         }
         return () => { if (sub) supabase.removeChannel(sub); };
@@ -191,26 +188,8 @@ function PricingPageInner() {
     }, [selectedCurrency]);
 
     const handleUpgrade = (plan: string, billing: 'monthly' | 'yearly') => {
-        setSelectedPlan(plan);
-        setSelectedBilling(billing);
-        setShowPaymentForm(true);
-    };
-
-    const handlePaymentSuccess = () => {
-        setShowPaymentForm(false);
-        setSelectedPlan('');
-        setSelectedBilling('monthly');
-        // Add the submitted plan to pending plans
-        if (selectedPlan) {
-            setPendingPlans(prev => new Set([...Array.from(prev), selectedPlan]));
-        }
-        // Plan will be updated via realtime updates when admin approves
-    };
-
-    const handlePaymentCancel = () => {
-        setShowPaymentForm(false);
-        setSelectedPlan('');
-        setSelectedBilling('monthly');
+        // Redirect to upgrade page with parameters
+        window.location.href = `/pricing/upgrade?plan=${plan}&billing=${billing}`;
     };
 
     const handlePlanUpdate = (newPlan: string) => {
@@ -313,16 +292,6 @@ function PricingPageInner() {
         }
     };
 
-    if (showPaymentForm) {
-        return (
-            <PaymentSubmission
-                plan={selectedPlan}
-                billing={selectedBilling}
-                onSuccess={handlePaymentSuccess}
-                onCancel={handlePaymentCancel}
-            />
-        );
-    }
 
     return (
         <RealtimePlanUpdater userId={userId || ''} onPlanUpdate={handlePlanUpdate}>
@@ -377,6 +346,20 @@ function PricingPageInner() {
                     <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-5xl mx-auto leading-relaxed mb-8 sm:mb-12">
                         Start free and upgrade as you grow. All plans include our core AI features with no hidden fees.
                     </p>
+                    
+                    {/* Success Message */}
+                    {sp.get('submitted') && sp.get('plan') && (
+                        <div className="max-w-2xl mx-auto mb-8">
+                            <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-6 text-center">
+                                <div className="text-4xl mb-3">✅</div>
+                                <h3 className="text-xl font-semibold text-green-300 mb-2">Payment Submitted Successfully!</h3>
+                                <p className="text-green-200">
+                                    Your payment for <span className="font-semibold">{sp.get('plan')}</span> plan has been submitted for review. 
+                                    You'll receive an email confirmation once approved.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                     
                     
                     {/* Current Usage Display */}

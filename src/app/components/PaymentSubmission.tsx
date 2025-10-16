@@ -100,7 +100,6 @@ export default function PaymentSubmission({ plan, billing, onSuccess, onCancel }
           .upload(fileName, proofFile);
 
         if (uploadError) {
-          console.warn('File upload failed:', uploadError);
           // Continue without proof
         } else {
           const { data: { publicUrl } } = supabase.storage

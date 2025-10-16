@@ -47,7 +47,6 @@ function PricingPageInner() {
                 .order("created_at", { ascending: false })
                 .maybeSingle();
             
-            console.log('Initial plan fetch - subscription:', subRow, 'error:', subError);
             
             // Try to fetch from profiles table, but handle RLS errors gracefully
             let profileRow: { plan: string } | null = null;
@@ -58,7 +57,6 @@ function PricingPageInner() {
                     .eq("id", uid)
                     .maybeSingle();
                 profileRow = profileData;
-                console.log('Initial plan fetch - profile:', profileData, 'error:', profileError);
             } catch (error) {
                 console.warn('Could not fetch profile data:', error);
                 // Continue without profile data
@@ -68,12 +66,8 @@ function PricingPageInner() {
             let userPlan = 'free';
             if (subRow?.plan && subRow?.status === 'active') {
                 userPlan = subRow.plan;
-                console.log('Using subscription plan:', userPlan);
             } else if (profileRow?.plan) {
                 userPlan = profileRow.plan;
-                console.log('Using profile plan:', userPlan);
-            } else {
-                console.log('No plan found, using default free plan');
             }
             
             // Map old plan names to new plan structure
@@ -129,7 +123,6 @@ function PricingPageInner() {
         const submitted = sp.get('submitted');
         const sPlan = sp.get('plan');
         if (submitted && sPlan) {
-          console.log('Payment submitted, adding to pending plans:', sPlan);
           setPendingPlans(prev => new Set([...Array.from(prev), sPlan]));
         }
         return () => { if (sub) supabase.removeChannel(sub); };
@@ -140,7 +133,6 @@ function PricingPageInner() {
         if (!userId) return;
 
         const interval = setInterval(() => {
-            console.log('Periodic refresh: Checking plan status...');
             refreshPlan();
         }, 10000); // Check every 10 seconds for faster updates
 
@@ -150,7 +142,6 @@ function PricingPageInner() {
     // Additional immediate refresh when component mounts
     useEffect(() => {
         if (userId) {
-            console.log('Component mounted, doing immediate plan refresh...');
             refreshPlan();
         }
     }, [userId]);
@@ -159,7 +150,6 @@ function PricingPageInner() {
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && userId) {
-                console.log('Page became visible, refreshing plan...');
                 refreshPlan();
             }
         };
@@ -193,10 +183,6 @@ function PricingPageInner() {
     };
 
     const handlePlanUpdate = (newPlan: string) => {
-        console.log('Plan updated via RealtimePlanUpdater:', newPlan);
-        console.log('Previous plan:', currentPlan);
-        console.log('Previous pending plans:', Array.from(pendingPlans));
-        
         setCurrentPlan(newPlan);
         setPendingPlans(new Set()); // Clear all pending plans when plan is updated
         
@@ -207,18 +193,15 @@ function PricingPageInner() {
                 .then(data => {
                     if (data.success) {
                         setUsageStats(data);
-                        console.log('Usage stats refreshed after plan update');
                     }
                 })
                 .catch(error => console.error('Error refreshing usage stats:', error));
         }
     };
 
-    // Manual refresh function for debugging
+    // Manual refresh function
     const refreshPlan = async () => {
         if (!userId) return;
-        
-        console.log('Manual refresh: Starting plan refresh for user:', userId);
         
         try {
             const supabase = getSupabaseBrowser();
@@ -232,10 +215,7 @@ function PricingPageInner() {
                 .order('created_at', { ascending: false })
                 .maybeSingle();
 
-            console.log('Manual refresh: Subscription query result:', subscription, 'error:', subError);
-
             if (subscription?.plan && subscription?.status === 'active') {
-                console.log('Manual refresh: Found active subscription plan:', subscription.plan);
                 setCurrentPlan(subscription.plan);
                 setPendingPlans(new Set());
                 
@@ -245,10 +225,9 @@ function PricingPageInner() {
                     if (response.ok) {
                         const data = await response.json();
                         setUsageStats(data);
-                        console.log('Manual refresh: Usage stats updated');
                     }
                 } catch (error) {
-                    console.error('Manual refresh: Error updating usage stats:', error);
+                    console.error('Error updating usage stats:', error);
                 }
                 return;
             }
@@ -260,14 +239,10 @@ function PricingPageInner() {
                 .eq('id', userId)
                 .maybeSingle();
 
-            console.log('Manual refresh: Profile query result:', profile, 'error:', profileError);
-
             if (profile?.plan) {
-                console.log('Manual refresh: Found profile plan:', profile.plan);
                 setCurrentPlan(profile.plan);
                 setPendingPlans(new Set());
             } else {
-                console.log('Manual refresh: No plan found, setting to free');
                 setCurrentPlan('free');
             }
 
@@ -278,17 +253,14 @@ function PricingPageInner() {
                 .eq('user_id', userId)
                 .eq('status', 'pending');
 
-            console.log('Manual refresh: Pending payments query result:', pendingPayments, 'error:', pendingError);
-
             if (pendingPayments) {
                 const pendingPlans = new Set(pendingPayments.map(p => p.plan));
-                console.log('Manual refresh: Pending plans:', Array.from(pendingPlans));
                 setPendingPlans(pendingPlans);
             } else {
                 setPendingPlans(new Set());
             }
         } catch (error) {
-            console.error('Manual refresh error:', error);
+            console.error('Refresh error:', error);
         }
     };
 

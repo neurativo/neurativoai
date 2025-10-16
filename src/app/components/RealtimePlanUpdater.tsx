@@ -17,21 +17,17 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
 
   useEffect(() => {
     if (!userId) {
-      console.log('RealtimePlanUpdater: No userId provided');
       return;
     }
 
     // Reset initialization when userId changes
     isInitializedRef.current = false;
 
-    console.log('RealtimePlanUpdater: Setting up for userId:', userId);
     const supabase = getSupabaseBrowser();
 
     // Initial plan fetch
     const fetchCurrentPlan = async () => {
       try {
-        console.log('RealtimePlanUpdater: Fetching current plan for user:', userId);
-        
         // Try to get from subscriptions table first (what the frontend uses)
         const { data: subscription, error: subError } = await supabase
           .from('subscriptions')
@@ -41,10 +37,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           .order('created_at', { ascending: false })
           .maybeSingle();
 
-        console.log('RealtimePlanUpdater: Subscription query result:', subscription, 'error:', subError);
-
         if (subscription?.plan && subscription?.status === 'active') {
-          console.log('RealtimePlanUpdater: Found active subscription plan:', subscription.plan);
           setCurrentPlan(subscription.plan);
           onPlanUpdate(subscription.plan);
           return;
@@ -57,19 +50,15 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           .eq('id', userId)
           .maybeSingle();
 
-        console.log('RealtimePlanUpdater: Profile query result:', profile, 'error:', profileError);
-
         if (profile?.plan) {
-          console.log('RealtimePlanUpdater: Found profile plan:', profile.plan);
           setCurrentPlan(profile.plan);
           onPlanUpdate(profile.plan);
         } else {
-          console.log('RealtimePlanUpdater: No plan found, defaulting to free');
           setCurrentPlan('free');
           onPlanUpdate('free');
         }
       } catch (error) {
-        console.error('RealtimePlanUpdater: Error fetching current plan:', error);
+        console.error('Error fetching current plan:', error);
         // Set to free as fallback
         setCurrentPlan('free');
         onPlanUpdate('free');
@@ -80,7 +69,6 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
 
     // Clean up existing channel
     if (channelRef.current) {
-      console.log('RealtimePlanUpdater: Cleaning up existing channel');
       channelRef.current.unsubscribe();
     }
 
@@ -96,16 +84,12 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          console.log('RealtimePlanUpdater: Subscription change detected:', payload);
-          
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
             const newStatus = payload.new?.status;
-            console.log('RealtimePlanUpdater: New plan from subscription:', newPlan, 'Status:', newStatus, 'Current plan:', currentPlan);
             
             // Only update if it's an active subscription and the plan is different
             if (newPlan && newStatus === 'active' && newPlan !== currentPlan) {
-              console.log('RealtimePlanUpdater: Plan updated via subscription:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
             }
@@ -121,13 +105,9 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           filter: `id=eq.${userId}`
         },
         (payload) => {
-          console.log('RealtimePlanUpdater: Profile change detected:', payload);
-          
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            console.log('RealtimePlanUpdater: New plan from profile:', newPlan, 'Current plan:', currentPlan);
             if (newPlan && newPlan !== currentPlan) {
-              console.log('RealtimePlanUpdater: Plan updated via profile:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
             }
@@ -135,7 +115,6 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
         }
       )
       .subscribe((status) => {
-        console.log('RealtimePlanUpdater: Subscription status:', status);
         setIsConnected(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') {
           isInitializedRef.current = true;
@@ -147,7 +126,6 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
     // Cleanup
     return () => {
       if (channelRef.current) {
-        console.log('RealtimePlanUpdater: Cleaning up channel on unmount');
         channelRef.current.unsubscribe();
         channelRef.current = null;
       }

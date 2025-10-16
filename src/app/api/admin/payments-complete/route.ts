@@ -62,17 +62,13 @@ export async function PATCH(request: NextRequest) {
   try {
     const { paymentId, status, adminNote } = await request.json();
     
-    console.log('Payment update request:', { paymentId, status, adminNote });
-    
     if (!paymentId || !status) {
-      console.error('Missing required fields:', { paymentId, status });
       return NextResponse.json({ 
         error: 'Missing required fields: paymentId and status are required' 
       }, { status: 400 });
     }
 
     if (!['approved', 'rejected'].includes(status)) {
-      console.error('Invalid status:', status);
       return NextResponse.json({ 
         error: 'Invalid status. Must be "approved" or "rejected"' 
       }, { status: 400 });
@@ -91,8 +87,6 @@ export async function PATCH(request: NextRequest) {
       console.error('Error fetching payment:', fetchError);
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
-
-    console.log('Found payment:', existingPayment);
     
     // Update payment status
     const { error: updateError } = await supabase
@@ -112,12 +106,8 @@ export async function PATCH(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log('Payment updated successfully');
-
     // If approved, update user's plan in both profiles and subscriptions tables
     if (status === 'approved') {
-      console.log('Updating user plan for payment:', existingPayment);
-      
       // Update or create profile
       const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
@@ -126,8 +116,6 @@ export async function PATCH(request: NextRequest) {
         .single();
 
       if (profileFetchError) {
-        console.log('Profile not found, creating new profile...');
-        
         const { error: createError } = await supabase
           .from('profiles')
           .insert({
@@ -139,13 +127,8 @@ export async function PATCH(request: NextRequest) {
 
         if (createError) {
           console.error('Error creating user profile:', createError);
-          console.warn('Payment approved but profile creation failed');
-        } else {
-          console.log('User profile created successfully');
         }
       } else {
-        console.log('Found existing profile, updating...');
-        
         const { error: profileError } = await supabase
           .from('profiles')
           .update({ 
@@ -156,15 +139,10 @@ export async function PATCH(request: NextRequest) {
 
         if (profileError) {
           console.error('Error updating user profile:', profileError);
-          console.warn('Payment approved but profile update failed');
-        } else {
-          console.log('User profile updated successfully');
         }
       }
 
       // Update or create subscription (this is what the frontend actually uses)
-      console.log('Updating subscription...');
-      
       // First, deactivate any existing active subscriptions
       const { error: deactivateError } = await supabase
         .from('subscriptions')
@@ -177,8 +155,6 @@ export async function PATCH(request: NextRequest) {
 
       if (deactivateError) {
         console.warn('Error deactivating existing subscriptions:', deactivateError);
-      } else {
-        console.log('Deactivated existing active subscriptions');
       }
 
       // Create new active subscription
@@ -194,17 +170,6 @@ export async function PATCH(request: NextRequest) {
 
       if (subCreateError) {
         console.error('Error creating subscription:', subCreateError);
-        console.warn('Payment approved but subscription creation failed');
-      } else {
-        console.log('Subscription created successfully');
-      }
-
-      // Send notification email to user (optional)
-      try {
-        // TODO: Implement email notification
-        console.log('Payment approved - user should be notified');
-      } catch (emailError) {
-        console.warn('Email notification failed:', emailError);
       }
     }
 

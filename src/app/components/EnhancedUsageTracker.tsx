@@ -106,8 +106,7 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
           table: 'usage_counters',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          console.log('Usage counter updated:', payload);
+        () => {
           fetchUsage();
         }
       )
@@ -119,8 +118,7 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
           table: 'user_usage',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          console.log('User usage updated:', payload);
+        () => {
           fetchUsage();
         }
       )
@@ -132,8 +130,7 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
           table: 'user_source_usage',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          console.log('Source usage updated:', payload);
+        () => {
           fetchUsage();
         }
       )
@@ -145,14 +142,11 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
           table: 'user_daily_usage',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          console.log('Daily usage updated:', payload);
+        () => {
           fetchUsage();
         }
       )
-      .subscribe((status) => {
-        console.log('Enhanced usage tracker subscription status:', status);
-      });
+      .subscribe();
 
     // Polling fallback every 30 seconds
     const interval = setInterval(fetchUsage, 30000);

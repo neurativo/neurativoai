@@ -39,6 +39,7 @@ function UpgradePageInner() {
     });
 
     const [proofFile, setProofFile] = useState<File | null>(null);
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
     useEffect(() => {
         const getUser = async () => {
@@ -96,6 +97,18 @@ function UpgradePageInner() {
             }
             setProofFile(file);
             setError(null);
+        }
+    };
+
+    const handleCopyToClipboard = async (text: string, label: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopyFeedback(`${label} copied to clipboard!`);
+            setTimeout(() => setCopyFeedback(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            setCopyFeedback('Failed to copy. Please select and copy manually.');
+            setTimeout(() => setCopyFeedback(null), 3000);
         }
     };
 
@@ -241,9 +254,16 @@ function UpgradePageInner() {
     
     const formattedPrice = formatPrice(price, currency);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
-            <div className="max-w-6xl mx-auto">
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
+                {/* Copy Feedback Toast */}
+                {copyFeedback && (
+                    <div className="fixed top-4 right-4 z-50 bg-green-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg border border-green-500/30 animate-pulse">
+                        {copyFeedback}
+                    </div>
+                )}
+                
+                <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-2">
@@ -344,15 +364,43 @@ function UpgradePageInner() {
                                             <div className="space-y-2 text-sm">
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Account Name:</span>
-                                                    <span className="text-white font-mono">Neurativo AI Learning</span>
+                                                    <span 
+                                                        className="text-white font-mono cursor-pointer hover:text-blue-300 transition-colors select-all"
+                                                        onClick={() => handleCopyToClipboard('H.A.S.S.K WICKRAMASINGHE', 'Account Name')}
+                                                        title="Click to copy"
+                                                    >
+                                                        H.A.S.S.K WICKRAMASINGHE
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Account Number:</span>
-                                                    <span className="text-white font-mono">1234567890</span>
+                                                    <span 
+                                                        className="text-white font-mono cursor-pointer hover:text-blue-300 transition-colors select-all"
+                                                        onClick={() => handleCopyToClipboard('106257813546', 'Account Number')}
+                                                        title="Click to copy"
+                                                    >
+                                                        106257813546
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Bank Name:</span>
-                                                    <span className="text-white font-mono">Chase Bank</span>
+                                                    <span 
+                                                        className="text-white font-mono cursor-pointer hover:text-blue-300 transition-colors select-all"
+                                                        onClick={() => handleCopyToClipboard('Sampath Bank', 'Bank Name')}
+                                                        title="Click to copy"
+                                                    >
+                                                        Sampath Bank
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Branch:</span>
+                                                    <span 
+                                                        className="text-white font-mono cursor-pointer hover:text-blue-300 transition-colors select-all"
+                                                        onClick={() => handleCopyToClipboard('Ampara', 'Branch')}
+                                                        title="Click to copy"
+                                                    >
+                                                        Ampara
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Amount:</span>

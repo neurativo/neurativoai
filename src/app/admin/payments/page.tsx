@@ -3,28 +3,41 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PaymentManagement from '@/app/components/admin/PaymentManagement';
-
-interface AdminUser {
-  id: string;
-  email: string;
-  role: string;
-}
+import { checkAdminStatus, getStoredAdmin } from '@/lib/admin-auth';
 
 export default function PaymentVerification() {
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const [admin, setAdmin] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Check if admin is logged in
-    const adminData = localStorage.getItem('admin');
-    if (!adminData) {
-      router.push('/admin/login');
-      return;
-    }
+    const checkAdmin = async () => {
+      try {
+        // First check stored admin
+        const storedAdmin = getStoredAdmin();
+        if (storedAdmin) {
+          setAdmin(storedAdmin);
+          setLoading(false);
+          return;
+        }
 
-    setAdmin(JSON.parse(adminData));
-    setLoading(false);
+        // If no stored admin, check current session
+        const currentAdmin = await checkAdminStatus();
+        if (currentAdmin) {
+          setAdmin(currentAdmin);
+          localStorage.setItem('admin', JSON.stringify(currentAdmin));
+        } else {
+          router.push('/admin/login');
+        }
+      } catch (error) {
+        console.error('Admin check error:', error);
+        router.push('/admin/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdmin();
   }, [router]);
 
   if (loading) {
@@ -70,8 +83,9 @@ export default function PaymentVerification() {
                 Users
               </a>
               <button
-                onClick={() => {
-                  localStorage.removeItem('admin');
+                onClick={async () => {
+                  const { logoutAdmin } = await import('@/lib/admin-auth');
+                  await logoutAdmin();
                   router.push('/admin/login');
                 }}
                 className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-red-300 hover:text-red-200 transition-all"

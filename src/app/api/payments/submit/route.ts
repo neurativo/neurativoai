@@ -3,7 +3,22 @@ import { getSupabaseServer } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { plan, billing, amount, currency, paymentMethod, transactionId, notes, proofUrl } = await request.json();
+    const { 
+      plan, 
+      billing, 
+      amount, 
+      currency, 
+      paymentMethod, 
+      transactionId, 
+      notes, 
+      proofUrl,
+      // Bank transfer specific fields
+      accountName,
+      accountNumber,
+      bankName,
+      // Binance specific fields
+      binanceId
+    } = await request.json();
     
     // Validate required fields
     if (!plan || !billing || !amount || !currency || !paymentMethod || !transactionId) {
@@ -27,6 +42,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Validate payment method specific fields
+    if (paymentMethod === 'bank') {
+      if (!accountName || !accountNumber || !bankName) {
+        return NextResponse.json({ 
+          error: 'Bank transfer requires account name, account number, and bank name' 
+        }, { status: 400 });
+      }
+    } else if (paymentMethod === 'binance') {
+      if (!binanceId) {
+        return NextResponse.json({ 
+          error: 'Binance payment requires Binance ID' 
+        }, { status: 400 });
+      }
+    }
+
     // Get user from auth header
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -48,21 +78,33 @@ export async function POST(request: NextRequest) {
     // Calculate amount in cents
     const amountCents = Math.round(amount * 100);
 
+    // Prepare payment data with method-specific fields
+    const paymentData: any = {
+      user_id: user.id,
+      plan,
+      method: paymentMethod,
+      amount_cents: amountCents,
+      currency,
+      proof_url: proofUrl,
+      status: 'pending',
+      admin_note: notes || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Add method-specific data
+    if (paymentMethod === 'bank') {
+      paymentData.account_name = accountName;
+      paymentData.account_number = accountNumber;
+      paymentData.bank_name = bankName;
+    } else if (paymentMethod === 'binance') {
+      paymentData.binance_id = binanceId;
+    }
+
     // Create payment record
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        user_id: user.id,
-        plan,
-        method: paymentMethod,
-        amount_cents: amountCents,
-        currency,
-        proof_url: proofUrl,
-        status: 'pending',
-        admin_note: notes || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(paymentData)
       .select()
       .single();
 

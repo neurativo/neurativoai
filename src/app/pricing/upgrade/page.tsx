@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { PRICING_CONFIG } from "@/lib/usage-limits";
 import { getPricingInCurrency } from "@/lib/currency";
-import PaymentSubmission from "@/app/components/PaymentSubmission";
 
 export default function UpgradePage() {
     return (
@@ -23,6 +22,26 @@ function UpgradePageInner() {
     const [plan, setPlan] = useState<string>('');
     const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
     const [pricing, setPricing] = useState<any>(null);
+    const [selectedMethod, setSelectedMethod] = useState<'bank' | 'binance'>('bank');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Form data
+    const [bankData, setBankData] = useState({
+        accountName: '',
+        accountNumber: '',
+        bankName: '',
+        transactionId: '',
+        notes: ''
+    });
+
+    const [binanceData, setBinanceData] = useState({
+        binanceId: '',
+        transactionId: '',
+        notes: ''
+    });
+
+    const [proofFile, setProofFile] = useState<File | null>(null);
 
     useEffect(() => {
         const getUser = async () => {
@@ -39,7 +58,6 @@ function UpgradePageInner() {
         const billingParam = searchParams.get('billing');
 
         if (!planParam || !billingParam) {
-            // Redirect back to pricing if parameters are missing
             router.push('/pricing');
             return;
         }
@@ -65,13 +83,100 @@ function UpgradePageInner() {
         fetchPricing();
     }, [searchParams, router]);
 
-    const handlePaymentSuccess = () => {
-        // Redirect back to pricing page with success message
-        router.push('/pricing?submitted=true&plan=' + plan);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+                setError('File size must be less than 10MB');
+                return;
+            }
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+            if (!allowedTypes.includes(file.type)) {
+                setError('File must be an image (JPEG, PNG, GIF) or PDF');
+                return;
+            }
+            setProofFile(file);
+            setError(null);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!userId) return;
+
+        setSubmitting(true);
+        setError(null);
+
+        try {
+            // Upload proof file if provided
+            let proofUrl: string | null = null;
+            if (proofFile) {
+                const supabase = getSupabaseBrowser();
+                const fileExt = proofFile.name.split('.').pop();
+                const fileName = `${userId}/${Date.now()}.${fileExt}`;
+                
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('payments')
+                    .upload(fileName, proofFile);
+
+                if (uploadError) {
+                    // Continue without proof
+                } else {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('payments')
+                        .getPublicUrl(fileName);
+                    proofUrl = publicUrl;
+                }
+            }
+
+            // Prepare payment data
+            const paymentData = selectedMethod === 'bank' ? bankData : binanceData;
+            const price = billing === 'yearly' ? pricing.yearlyPrice : pricing.monthlyPrice;
+
+            // Submit payment
+            const response = await fetch('/api/payments/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    plan,
+                    billing,
+                    amount: price,
+                    currency: 'USD',
+                    paymentMethod: selectedMethod,
+                    transactionId: paymentData.transactionId,
+                    notes: paymentData.notes,
+                    proofUrl,
+                    // Include method-specific data
+                    ...(selectedMethod === 'bank' ? {
+                        accountName: bankData.accountName,
+                        accountNumber: bankData.accountNumber,
+                        bankName: bankData.bankName
+                    } : {
+                        binanceId: binanceData.binanceId
+                    })
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Payment submission failed');
+            }
+
+            // Redirect back to pricing page with success message
+            router.push('/pricing?submitted=true&plan=' + plan);
+
+        } catch (err) {
+            console.error('Payment submission error:', err);
+            setError(err instanceof Error ? err.message : 'Payment submission failed');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handlePaymentCancel = () => {
-        // Redirect back to pricing page
         router.push('/pricing');
     };
 
@@ -103,7 +208,7 @@ function UpgradePageInner() {
         );
     }
 
-    if (!plan || !billing) {
+    if (!plan || !billing || !pricing) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
                 <div className="text-center">
@@ -120,12 +225,254 @@ function UpgradePageInner() {
         );
     }
 
+    const price = billing === 'yearly' ? pricing.yearlyPrice : pricing.monthlyPrice;
+
     return (
-        <PaymentSubmission
-            plan={plan}
-            billing={billing}
-            onSuccess={handlePaymentSuccess}
-            onCancel={handlePaymentCancel}
-        />
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
+            <div className="max-w-6xl mx-auto">
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-2">
+                        Complete Your Upgrade
+                    </h1>
+                    <p className="text-gray-300">
+                        Upgrade to <span className="font-semibold text-purple-300">{plan}</span> plan
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Plan Summary */}
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                        <h3 className="text-xl font-semibold text-white mb-4">Plan Details</h3>
+                        <div className="space-y-3">
+                            <div className="flex justify-between">
+                                <span className="text-gray-300">Plan:</span>
+                                <span className="text-white font-semibold capitalize">{plan}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-300">Billing:</span>
+                                <span className="text-white font-semibold capitalize">{billing}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-300">Amount:</span>
+                                <span className="text-white font-semibold text-lg">
+                                    USD {price}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <h4 className="text-lg font-semibold text-white mb-3">Features Included:</h4>
+                            <ul className="space-y-2">
+                                {PRICING_CONFIG[plan]?.features?.map((feature: string, index: number) => (
+                                    <li key={index} className="flex items-center text-gray-300">
+                                        <span className="text-green-400 mr-2">✓</span>
+                                        {feature}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+
+                    {/* Payment Methods */}
+                    <div className="space-y-6">
+                        {/* Payment Method Selection */}
+                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                            <h3 className="text-xl font-semibold text-white mb-4">Choose Payment Method</h3>
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <button
+                                    onClick={() => setSelectedMethod('bank')}
+                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                        selectedMethod === 'bank'
+                                            ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                                            : 'border-gray-600 bg-gray-600/20 text-gray-300 hover:border-gray-500'
+                                    }`}
+                                >
+                                    <div className="text-center">
+                                        <div className="text-2xl mb-2">🏦</div>
+                                        <div className="font-semibold">Bank Transfer</div>
+                                        <div className="text-sm opacity-75">Direct bank transfer</div>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => setSelectedMethod('binance')}
+                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                        selectedMethod === 'binance'
+                                            ? 'border-yellow-500 bg-yellow-500/20 text-yellow-300'
+                                            : 'border-gray-600 bg-gray-600/20 text-gray-300 hover:border-gray-500'
+                                    }`}
+                                >
+                                    <div className="text-center">
+                                        <div className="text-2xl mb-2">₿</div>
+                                        <div className="font-semibold">Binance</div>
+                                        <div className="text-sm opacity-75">Cryptocurrency</div>
+                                    </div>
+                                </button>
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 mb-4">
+                                    <p className="text-red-300 text-sm">{error}</p>
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                {/* Bank Details Form */}
+                                {selectedMethod === 'bank' && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-lg font-semibold text-white">Bank Transfer Details</h4>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Account Name *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={bankData.accountName}
+                                                onChange={(e) => setBankData({...bankData, accountName: e.target.value})}
+                                                placeholder="Enter account holder name"
+                                                required
+                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Account Number *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={bankData.accountNumber}
+                                                onChange={(e) => setBankData({...bankData, accountNumber: e.target.value})}
+                                                placeholder="Enter account number"
+                                                required
+                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Bank Name *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={bankData.bankName}
+                                                onChange={(e) => setBankData({...bankData, bankName: e.target.value})}
+                                                placeholder="Enter bank name"
+                                                required
+                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Transaction ID *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={bankData.transactionId}
+                                                onChange={(e) => setBankData({...bankData, transactionId: e.target.value})}
+                                                placeholder="Enter transaction reference"
+                                                required
+                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Binance Details Form */}
+                                {selectedMethod === 'binance' && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-lg font-semibold text-white">Binance Payment Details</h4>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Binance ID *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={binanceData.binanceId}
+                                                onChange={(e) => setBinanceData({...binanceData, binanceId: e.target.value})}
+                                                placeholder="Enter your Binance ID"
+                                                required
+                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                Transaction ID *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={binanceData.transactionId}
+                                                onChange={(e) => setBinanceData({...binanceData, transactionId: e.target.value})}
+                                                placeholder="Enter transaction hash/ID"
+                                                required
+                                                className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Common Fields */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Payment Proof (Optional)
+                                    </label>
+                                    <input
+                                        type="file"
+                                        onChange={handleFileChange}
+                                        accept="image/*,.pdf"
+                                        className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                                    />
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        Upload receipt, screenshot, or proof of payment (max 10MB)
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Additional Notes (Optional)
+                                    </label>
+                                    <textarea
+                                        value={selectedMethod === 'bank' ? bankData.notes : binanceData.notes}
+                                        onChange={(e) => {
+                                            if (selectedMethod === 'bank') {
+                                                setBankData({...bankData, notes: e.target.value});
+                                            } else {
+                                                setBinanceData({...binanceData, notes: e.target.value});
+                                            }
+                                        }}
+                                        placeholder="Any additional information..."
+                                        rows={3}
+                                        className="w-full px-4 py-3 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handlePaymentCancel}
+                                        className="flex-1 px-6 py-3 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 rounded-lg text-gray-300 hover:text-white transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submitting}
+                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {submitting ? 'Submitting...' : 'Submit Payment'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }

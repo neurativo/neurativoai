@@ -14,40 +14,60 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('RealtimePlanUpdater: No userId provided');
+      return;
+    }
 
+    console.log('RealtimePlanUpdater: Setting up for userId:', userId);
     const supabase = getSupabaseBrowser();
 
     // Initial plan fetch
     const fetchCurrentPlan = async () => {
       try {
+        console.log('RealtimePlanUpdater: Fetching current plan...');
+        
         // Try to get from subscriptions table first (what the frontend uses)
-        const { data: subscription } = await supabase
+        const { data: subscription, error: subError } = await supabase
           .from('subscriptions')
           .select('plan')
           .eq('user_id', userId)
           .eq('status', 'active')
           .maybeSingle();
 
+        if (subError) {
+          console.warn('RealtimePlanUpdater: Error fetching subscription:', subError);
+        }
+
         if (subscription?.plan) {
+          console.log('RealtimePlanUpdater: Found subscription plan:', subscription.plan);
           setCurrentPlan(subscription.plan);
           onPlanUpdate(subscription.plan);
           return;
         }
 
         // Fallback to profiles table
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('plan')
           .eq('id', userId)
           .maybeSingle();
 
+        if (profileError) {
+          console.warn('RealtimePlanUpdater: Error fetching profile:', profileError);
+        }
+
         if (profile?.plan) {
+          console.log('RealtimePlanUpdater: Found profile plan:', profile.plan);
           setCurrentPlan(profile.plan);
           onPlanUpdate(profile.plan);
+        } else {
+          console.log('RealtimePlanUpdater: No plan found, defaulting to free');
+          setCurrentPlan('free');
+          onPlanUpdate('free');
         }
       } catch (error) {
-        console.error('Error fetching current plan:', error);
+        console.error('RealtimePlanUpdater: Error fetching current plan:', error);
       }
     };
 
@@ -55,7 +75,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
 
     // Set up realtime subscription for subscriptions table
     const subscriptionChannel = supabase
-      .channel('subscription-changes')
+      .channel(`subscription-changes-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -65,12 +85,12 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          console.log('Subscription change detected:', payload);
+          console.log('RealtimePlanUpdater: Subscription change detected:', payload);
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            if (newPlan) {
-              console.log('Plan updated via subscription:', newPlan);
+            if (newPlan && newPlan !== currentPlan) {
+              console.log('RealtimePlanUpdater: Plan updated via subscription:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
             }
@@ -86,12 +106,12 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           filter: `id=eq.${userId}`
         },
         (payload) => {
-          console.log('Profile change detected:', payload);
+          console.log('RealtimePlanUpdater: Profile change detected:', payload);
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            if (newPlan) {
-              console.log('Plan updated via profile:', newPlan);
+            if (newPlan && newPlan !== currentPlan) {
+              console.log('RealtimePlanUpdater: Plan updated via profile:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
             }
@@ -99,7 +119,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
+        console.log('RealtimePlanUpdater: Subscription status:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 

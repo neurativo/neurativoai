@@ -159,7 +159,56 @@ function PricingPageInner() {
         console.log('Plan updated via RealtimePlanUpdater:', newPlan);
         setCurrentPlan(newPlan);
         setPendingPlans(new Set());
-        setShowCongrats(newPlan);
+        // Refresh usage stats when plan changes
+        if (userId) {
+            fetch(`/api/user/usage-limits?userId=${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        setUsageStats(data);
+                    }
+                })
+                .catch(error => console.error('Error refreshing usage stats:', error));
+        }
+    };
+
+    // Manual refresh function for debugging
+    const refreshPlan = async () => {
+        if (!userId) return;
+        
+        try {
+            const supabase = getSupabaseBrowser();
+            
+            // Check subscriptions table
+            const { data: subscription } = await supabase
+                .from('subscriptions')
+                .select('plan')
+                .eq('user_id', userId)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (subscription?.plan) {
+                console.log('Manual refresh: Found subscription plan:', subscription.plan);
+                setCurrentPlan(subscription.plan);
+                setPendingPlans(new Set());
+                return;
+            }
+
+            // Check profiles table
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('plan')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (profile?.plan) {
+                console.log('Manual refresh: Found profile plan:', profile.plan);
+                setCurrentPlan(profile.plan);
+                setPendingPlans(new Set());
+            }
+        } catch (error) {
+            console.error('Manual refresh error:', error);
+        }
     };
 
     if (showPaymentForm) {
@@ -177,26 +226,6 @@ function PricingPageInner() {
         <RealtimePlanUpdater userId={userId || ''} onPlanUpdate={handlePlanUpdate}>
             <section className="py-24 bg-gradient-to-b from-black/20 to-black/40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Congrats Message */}
-                {showCongrats && (
-                    <div className="max-w-4xl mx-auto mb-8">
-                        <div className="bg-green-900/20 backdrop-blur-sm rounded-xl p-6 border border-green-500/30 shadow-2xl">
-                            <div className="text-center">
-                                <div className="text-4xl mb-4">🎉</div>
-                                <h2 className="text-2xl font-bold text-green-300 mb-2">Congratulations!</h2>
-                                <p className="text-green-200">
-                                    Your <span className="font-semibold">{showCongrats}</span> plan has been activated!
-                                </p>
-                                <button
-                                    onClick={() => setShowCongrats(null)}
-                                    className="mt-4 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all"
-                                >
-                                    Dismiss
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {/* Header Section */}
                 <div className="text-center mb-16 sm:mb-20">
@@ -204,9 +233,20 @@ function PricingPageInner() {
                         <i className="fas fa-crown mr-2 sm:mr-3 text-lg sm:text-xl"></i>
                         Choose Your Learning Journey
                     </div>
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 sm:mb-8">
-                        Simple <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Pricing</span>
-                    </h1>
+                    <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white">
+                            Simple <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Pricing</span>
+                        </h1>
+                        {userId && (
+                            <button
+                                onClick={refreshPlan}
+                                className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-300 hover:text-purple-200 transition-all text-sm"
+                                title="Refresh plan status"
+                            >
+                                🔄
+                            </button>
+                        )}
+                    </div>
                     <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-5xl mx-auto leading-relaxed mb-8 sm:mb-12">
                         Start free and upgrade as you grow. All plans include our core AI features with no hidden fees.
                     </p>

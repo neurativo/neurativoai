@@ -83,11 +83,11 @@ export async function PATCH(request: NextRequest) {
 
     console.log('Payment updated successfully');
 
-    // If approved, update user's plan
+    // If approved, update user's plan in both profiles and subscriptions tables
     if (status === 'approved') {
       console.log('Updating user plan for payment:', existingPayment);
       
-      // First check if profile exists
+      // Update or create profile
       const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
         .select('id, plan')
@@ -95,8 +95,6 @@ export async function PATCH(request: NextRequest) {
         .single();
 
       if (profileFetchError) {
-        console.error('Error fetching user profile:', profileFetchError);
-        // If profile doesn't exist, create it
         console.log('Profile not found, creating new profile...');
         
         const { error: createError } = await supabase
@@ -110,14 +108,12 @@ export async function PATCH(request: NextRequest) {
 
         if (createError) {
           console.error('Error creating user profile:', createError);
-          // Don't fail the entire operation, just log the error
-          console.warn('Payment approved but profile creation failed - user will need to update plan manually');
+          console.warn('Payment approved but profile creation failed');
+        } else {
+          console.log('User profile created successfully');
         }
-        
-        console.log('User profile created successfully');
       } else {
-        // Profile exists, update it
-        console.log('Found existing profile:', existingProfile);
+        console.log('Found existing profile, updating...');
         
         const { error: profileError } = await supabase
           .from('profiles')
@@ -128,12 +124,61 @@ export async function PATCH(request: NextRequest) {
           .eq('id', existingPayment.user_id);
 
         if (profileError) {
-          console.error('Error updating user plan:', profileError);
-          // Don't fail the entire operation, just log the error
-          console.warn('Payment approved but profile update failed - user will need to update plan manually');
+          console.error('Error updating user profile:', profileError);
+          console.warn('Payment approved but profile update failed');
+        } else {
+          console.log('User profile updated successfully');
         }
+      }
 
-        console.log('User plan updated successfully');
+      // Update or create subscription (this is what the frontend actually uses)
+      console.log('Updating subscription...');
+      
+      const { data: existingSubscription, error: subFetchError } = await supabase
+        .from('subscriptions')
+        .select('id, plan, status')
+        .eq('user_id', existingPayment.user_id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (subFetchError) {
+        console.error('Error fetching subscription:', subFetchError);
+      }
+
+      if (existingSubscription) {
+        // Update existing active subscription
+        const { error: subUpdateError } = await supabase
+          .from('subscriptions')
+          .update({
+            plan: existingPayment.plan,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingSubscription.id);
+
+        if (subUpdateError) {
+          console.error('Error updating subscription:', subUpdateError);
+          console.warn('Payment approved but subscription update failed');
+        } else {
+          console.log('Subscription updated successfully');
+        }
+      } else {
+        // Create new subscription
+        const { error: subCreateError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: existingPayment.user_id,
+            plan: existingPayment.plan,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (subCreateError) {
+          console.error('Error creating subscription:', subCreateError);
+          console.warn('Payment approved but subscription creation failed');
+        } else {
+          console.log('Subscription created successfully');
+        }
       }
     }
 

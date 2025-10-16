@@ -165,51 +165,38 @@ export async function PATCH(request: NextRequest) {
       // Update or create subscription (this is what the frontend actually uses)
       console.log('Updating subscription...');
       
-      const { data: existingSubscription, error: subFetchError } = await supabase
+      // First, deactivate any existing active subscriptions
+      const { error: deactivateError } = await supabase
         .from('subscriptions')
-        .select('id, plan, status')
+        .update({
+          status: 'inactive',
+          updated_at: new Date().toISOString()
+        })
         .eq('user_id', existingPayment.user_id)
-        .eq('status', 'active')
-        .maybeSingle();
+        .eq('status', 'active');
 
-      if (subFetchError) {
-        console.error('Error fetching subscription:', subFetchError);
+      if (deactivateError) {
+        console.warn('Error deactivating existing subscriptions:', deactivateError);
+      } else {
+        console.log('Deactivated existing active subscriptions');
       }
 
-      if (existingSubscription) {
-        // Update existing active subscription
-        const { error: subUpdateError } = await supabase
-          .from('subscriptions')
-          .update({
-            plan: existingPayment.plan,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSubscription.id);
+      // Create new active subscription
+      const { error: subCreateError } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: existingPayment.user_id,
+          plan: existingPayment.plan,
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
 
-        if (subUpdateError) {
-          console.error('Error updating subscription:', subUpdateError);
-          console.warn('Payment approved but subscription update failed');
-        } else {
-          console.log('Subscription updated successfully');
-        }
+      if (subCreateError) {
+        console.error('Error creating subscription:', subCreateError);
+        console.warn('Payment approved but subscription creation failed');
       } else {
-        // Create new subscription
-        const { error: subCreateError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: existingPayment.user_id,
-            plan: existingPayment.plan,
-            status: 'active',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (subCreateError) {
-          console.error('Error creating subscription:', subCreateError);
-          console.warn('Payment approved but subscription creation failed');
-        } else {
-          console.log('Subscription created successfully');
-        }
+        console.log('Subscription created successfully');
       }
 
       // Send notification email to user (optional)

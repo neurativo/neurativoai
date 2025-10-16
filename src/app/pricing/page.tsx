@@ -124,9 +124,30 @@ function PricingPageInner() {
         const interval = setInterval(() => {
             console.log('Periodic refresh: Checking plan status...');
             refreshPlan();
-        }, 30000); // Check every 30 seconds
+        }, 10000); // Check every 10 seconds for faster updates
 
         return () => clearInterval(interval);
+    }, [userId]);
+
+    // Additional immediate refresh when component mounts
+    useEffect(() => {
+        if (userId) {
+            console.log('Component mounted, doing immediate plan refresh...');
+            refreshPlan();
+        }
+    }, [userId]);
+
+    // Force refresh when page becomes visible (user comes back to tab)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && userId) {
+                console.log('Page became visible, refreshing plan...');
+                refreshPlan();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [userId]);
 
     // Calculate pricing when currency changes
@@ -173,8 +194,12 @@ function PricingPageInner() {
 
     const handlePlanUpdate = (newPlan: string) => {
         console.log('Plan updated via RealtimePlanUpdater:', newPlan);
+        console.log('Previous plan:', currentPlan);
+        console.log('Previous pending plans:', Array.from(pendingPlans));
+        
         setCurrentPlan(newPlan);
-        setPendingPlans(new Set());
+        setPendingPlans(new Set()); // Clear all pending plans when plan is updated
+        
         // Refresh usage stats when plan changes
         if (userId) {
             fetch(`/api/user/usage-limits?userId=${userId}`)
@@ -182,6 +207,7 @@ function PricingPageInner() {
                 .then(data => {
                     if (data.success) {
                         setUsageStats(data);
+                        console.log('Usage stats refreshed after plan update');
                     }
                 })
                 .catch(error => console.error('Error refreshing usage stats:', error));
@@ -289,6 +315,9 @@ function PricingPageInner() {
                                 </button>
                                 <div className="text-xs text-gray-400">
                                     Current: {currentPlan} | Pending: {Array.from(pendingPlans).join(', ') || 'None'}
+                                </div>
+                                <div className="text-xs text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded">
+                                    Debug Mode
                                 </div>
                             </div>
                         )}

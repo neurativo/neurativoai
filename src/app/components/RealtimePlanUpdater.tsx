@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSupabaseBrowser } from '@/lib/supabase';
 
 interface RealtimePlanUpdaterProps {
@@ -12,7 +12,8 @@ interface RealtimePlanUpdaterProps {
 export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: RealtimePlanUpdaterProps) {
   const [currentPlan, setCurrentPlan] = useState<string>('free');
   const [isConnected, setIsConnected] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const isInitializedRef = useRef(false);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -20,10 +21,8 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
       return;
     }
 
-    if (isInitialized) {
-      console.log('RealtimePlanUpdater: Already initialized, skipping');
-      return;
-    }
+    // Reset initialization when userId changes
+    isInitializedRef.current = false;
 
     console.log('RealtimePlanUpdater: Setting up for userId:', userId);
     const supabase = getSupabaseBrowser();
@@ -49,7 +48,6 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           console.log('RealtimePlanUpdater: Found subscription plan:', subscription.plan);
           setCurrentPlan(subscription.plan);
           onPlanUpdate(subscription.plan);
-          setIsInitialized(true);
           return;
         }
 
@@ -73,8 +71,6 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           setCurrentPlan('free');
           onPlanUpdate('free');
         }
-        
-        setIsInitialized(true);
       } catch (error) {
         console.error('RealtimePlanUpdater: Error fetching current plan:', error);
       }
@@ -82,9 +78,15 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
 
     fetchCurrentPlan();
 
+    // Clean up existing channel
+    if (channelRef.current) {
+      console.log('RealtimePlanUpdater: Cleaning up existing channel');
+      channelRef.current.unsubscribe();
+    }
+
     // Set up realtime subscription for subscriptions table
     const subscriptionChannel = supabase
-      .channel(`subscription-changes-${userId}`)
+      .channel(`subscription-changes-${userId}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -98,8 +100,11 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
-            console.log('RealtimePlanUpdater: New plan from subscription:', newPlan, 'Current plan:', currentPlan);
-            if (newPlan) {
+            const newStatus = payload.new?.status;
+            console.log('RealtimePlanUpdater: New plan from subscription:', newPlan, 'Status:', newStatus, 'Current plan:', currentPlan);
+            
+            // Only update if it's an active subscription and the plan is different
+            if (newPlan && newStatus === 'active' && newPlan !== currentPlan) {
               console.log('RealtimePlanUpdater: Plan updated via subscription:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
@@ -121,7 +126,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newPlan = payload.new?.plan;
             console.log('RealtimePlanUpdater: New plan from profile:', newPlan, 'Current plan:', currentPlan);
-            if (newPlan) {
+            if (newPlan && newPlan !== currentPlan) {
               console.log('RealtimePlanUpdater: Plan updated via profile:', newPlan);
               setCurrentPlan(newPlan);
               onPlanUpdate(newPlan);
@@ -132,13 +137,22 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
       .subscribe((status) => {
         console.log('RealtimePlanUpdater: Subscription status:', status);
         setIsConnected(status === 'SUBSCRIBED');
+        if (status === 'SUBSCRIBED') {
+          isInitializedRef.current = true;
+        }
       });
+
+    channelRef.current = subscriptionChannel;
 
     // Cleanup
     return () => {
-      subscriptionChannel.unsubscribe();
+      if (channelRef.current) {
+        console.log('RealtimePlanUpdater: Cleaning up channel on unmount');
+        channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
     };
-  }, [userId, onPlanUpdate, isInitialized]);
+  }, [userId, onPlanUpdate]);
 
   // Show connection status in development
   if (process.env.NODE_ENV === 'development') {

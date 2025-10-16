@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       method: paymentMethod,
       amount_cents: amountCents,
       currency,
+      transaction_reference: transactionId,
       proof_url: proofUrl,
       status: 'pending',
       admin_note: notes || null,

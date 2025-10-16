@@ -1,6 +1,10 @@
 -- Add payment method specific fields to payments table
 -- This script adds columns for bank transfer and binance payment details
 
+-- Add transaction reference column (most important)
+ALTER TABLE payments 
+ADD COLUMN IF NOT EXISTS transaction_reference TEXT;
+
 -- Add bank transfer specific fields
 ALTER TABLE payments 
 ADD COLUMN IF NOT EXISTS account_name TEXT,
@@ -12,6 +16,7 @@ ALTER TABLE payments
 ADD COLUMN IF NOT EXISTS binance_id TEXT;
 
 -- Add comments for documentation
+COMMENT ON COLUMN payments.transaction_reference IS 'Transaction reference/hash provided by user for payment verification';
 COMMENT ON COLUMN payments.account_name IS 'Account holder name for bank transfers';
 COMMENT ON COLUMN payments.account_number IS 'Bank account number for bank transfers';
 COMMENT ON COLUMN payments.bank_name IS 'Bank name for bank transfers';

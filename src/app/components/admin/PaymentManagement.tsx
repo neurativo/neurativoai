@@ -10,6 +10,7 @@ interface Payment {
   method: string;
   amount_cents: number;
   currency: string;
+  transaction_reference: string | null;
   proof_url: string | null;
   status: 'pending' | 'approved' | 'rejected';
   admin_note: string | null;
@@ -115,6 +116,15 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
                     </span>
                   </div>
                 </div>
+                
+                {payment.transaction_reference && (
+                  <div>
+                    <label className="text-sm text-gray-400">Transaction Reference</label>
+                    <p className="text-white font-mono text-sm bg-gray-800 p-2 rounded break-all">
+                      {payment.transaction_reference}
+                    </p>
+                  </div>
+                )}
                 
                 <div>
                   <label className="text-sm text-gray-400">Created</label>
@@ -382,6 +392,9 @@ export default function PaymentManagement() {
                     Method
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
+                    Transaction Ref
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
@@ -417,6 +430,15 @@ export default function PaymentManagement() {
                       <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-600 text-white">
                         {payment.method.replace('_', ' ').toUpperCase()}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {payment.transaction_reference ? (
+                        <div className="text-xs text-gray-300 font-mono bg-gray-800 px-2 py-1 rounded max-w-32 truncate" title={payment.transaction_reference}>
+                          {payment.transaction_reference}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">No reference</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${

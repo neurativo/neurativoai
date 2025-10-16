@@ -131,7 +131,8 @@ function UpgradePageInner() {
             // Prepare payment data
             const paymentData = selectedMethod === 'bank' ? bankData : binanceData;
             const currentPricing = selectedMethod === 'bank' ? lkrPricing : pricing;
-            const price = billing === 'yearly' ? currentPricing.yearlyPrice : currentPricing.monthlyPrice;
+            const rawPrice = billing === 'yearly' ? currentPricing.yearlyPrice : currentPricing.monthlyPrice;
+            const price = Math.round(rawPrice * 100) / 100; // Round to 2 decimal places
             const currency = selectedMethod === 'bank' ? 'LKR' : 'USD';
 
             // Submit payment
@@ -219,8 +220,26 @@ function UpgradePageInner() {
     }
 
     const currentPricing = selectedMethod === 'bank' ? lkrPricing : pricing;
-    const price = billing === 'yearly' ? currentPricing.yearlyPrice : currentPricing.monthlyPrice;
+    const rawPrice = billing === 'yearly' ? currentPricing.yearlyPrice : currentPricing.monthlyPrice;
+    const price = Math.round(rawPrice * 100) / 100; // Round to 2 decimal places
     const currency = selectedMethod === 'bank' ? 'LKR' : 'USD';
+    
+    // Format price for display
+    const formatPrice = (price: number, currency: string) => {
+        if (currency === 'LKR') {
+            return price.toLocaleString('en-LK', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
+            });
+        } else {
+            return price.toLocaleString('en-US', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
+        }
+    };
+    
+    const formattedPrice = formatPrice(price, currency);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
@@ -251,7 +270,7 @@ function UpgradePageInner() {
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Amount:</span>
                                 <span className="text-white font-semibold text-lg">
-                                    {currency} {price}
+                                    {currency} {formattedPrice}
                                 </span>
                             </div>
                         </div>
@@ -337,7 +356,7 @@ function UpgradePageInner() {
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Amount:</span>
-                                                    <span className="text-green-400 font-semibold">{currency} {price}</span>
+                                                    <span className="text-green-400 font-semibold">{currency} {formattedPrice}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -373,7 +392,7 @@ function UpgradePageInner() {
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-300">Amount:</span>
-                                                    <span className="text-green-400 font-semibold">{currency} {price}</span>
+                                                    <span className="text-green-400 font-semibold">{currency} {formattedPrice}</span>
                                                 </div>
                                                 <div className="text-xs text-gray-400 mt-2">
                                                     Send USDT or USDC to the above Binance ID

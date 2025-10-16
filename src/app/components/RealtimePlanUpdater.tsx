@@ -12,10 +12,16 @@ interface RealtimePlanUpdaterProps {
 export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: RealtimePlanUpdaterProps) {
   const [currentPlan, setCurrentPlan] = useState<string>('free');
   const [isConnected, setIsConnected] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (!userId) {
       console.log('RealtimePlanUpdater: No userId provided');
+      return;
+    }
+
+    if (isInitialized) {
+      console.log('RealtimePlanUpdater: Already initialized, skipping');
       return;
     }
 
@@ -43,6 +49,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           console.log('RealtimePlanUpdater: Found subscription plan:', subscription.plan);
           setCurrentPlan(subscription.plan);
           onPlanUpdate(subscription.plan);
+          setIsInitialized(true);
           return;
         }
 
@@ -66,6 +73,8 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
           setCurrentPlan('free');
           onPlanUpdate('free');
         }
+        
+        setIsInitialized(true);
       } catch (error) {
         console.error('RealtimePlanUpdater: Error fetching current plan:', error);
       }
@@ -127,7 +136,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
     return () => {
       subscriptionChannel.unsubscribe();
     };
-  }, [userId, onPlanUpdate]);
+  }, [userId, onPlanUpdate, isInitialized]);
 
   // Show connection status in development
   if (process.env.NODE_ENV === 'development') {

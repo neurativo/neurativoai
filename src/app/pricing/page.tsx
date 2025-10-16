@@ -146,7 +146,11 @@ function PricingPageInner() {
         setShowPaymentForm(false);
         setSelectedPlan('');
         setSelectedBilling('monthly');
-        // Plan will be updated via realtime updates
+        // Add the submitted plan to pending plans
+        if (selectedPlan) {
+            setPendingPlans(prev => new Set([...Array.from(prev), selectedPlan]));
+        }
+        // Plan will be updated via realtime updates when admin approves
     };
 
     const handlePaymentCancel = () => {

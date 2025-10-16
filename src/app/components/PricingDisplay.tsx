@@ -159,12 +159,12 @@ export default function PricingDisplay({
                 Pending Approval
               </div>
             ) : pricing.plan !== 'free' ? (
-              <a
-                href={`/pricing/upgrade?plan=${pricing.plan}&billing=${isYearly ? 'yearly' : 'monthly'}`}
-                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 text-center block"
+              <button
+                onClick={() => onUpgrade?.(pricing.plan)}
+                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105"
               >
                 Upgrade
-              </a>
+              </button>
             ) : (
               <a
                 href="/signup"

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     console.error('Error in test payments API:', error);
     return NextResponse.json({ 
       error: 'Internal server error', 
-      details: error.message,
+      details: error instanceof Error ? error.message : 'Unknown error',
       serviceRoleKeyAvailable: !!process.env.SUPABASE_SERVICE_ROLE_KEY
     }, { status: 500 });
   }

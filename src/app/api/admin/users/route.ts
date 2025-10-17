@@ -35,26 +35,45 @@ export async function GET(req: NextRequest) {
     // Get real data for each user
     const transformedUsers = await Promise.all(
       (users || []).map(async (user) => {
-        // Get quiz count for this user
-        const { count: quizCount } = await supabase
-          .from('quizzes')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
+        let quizCount = 0;
+        let paymentCount = 0;
+        let lastActivity = null;
 
-        // Get payment count for this user
-        const { count: paymentCount } = await supabase
-          .from('payments')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
+        try {
+          // Get quiz count for this user (if quizzes table exists)
+          const { count: quizCountResult } = await supabase
+            .from('quizzes')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+          quizCount = quizCountResult || 0;
+        } catch (error) {
+          console.warn('Quizzes table not found or error:', error);
+        }
 
-        // Get last activity from quiz attempts or user activity
-        const { data: lastActivity } = await supabase
-          .from('quiz_attempts')
-          .select('created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        try {
+          // Get payment count for this user
+          const { count: paymentCountResult } = await supabase
+            .from('payments')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+          paymentCount = paymentCountResult || 0;
+        } catch (error) {
+          console.warn('Payments table error:', error);
+        }
+
+        try {
+          // Get last activity from quiz attempts or user activity
+          const { data: lastActivityResult } = await supabase
+            .from('quiz_attempts')
+            .select('created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          lastActivity = lastActivityResult;
+        } catch (error) {
+          console.warn('Quiz attempts table not found or error:', error);
+        }
 
         return {
           id: user.id,
@@ -65,8 +84,8 @@ export async function GET(req: NextRequest) {
           plan: user.plan || 'free',
           is_active: true,
           is_admin: user.is_admin || false,
-          total_quizzes: quizCount || 0,
-          total_payments: paymentCount || 0,
+          total_quizzes: quizCount,
+          total_payments: paymentCount,
         };
       })
     );

@@ -48,16 +48,22 @@ export default function UserManagement() {
 
   const loadUsers = async () => {
     try {
+      console.log('Loading users...');
       const response = await fetch('/api/admin/users');
       const data = await response.json();
       
+      console.log('Users API response:', { status: response.status, data });
+      
       if (response.ok) {
         setUsers(data.users || []);
+        console.log('Users loaded successfully:', data.users?.length || 0);
       } else {
         console.error('Failed to load users:', data.error);
+        alert(`Failed to load users: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error loading users:', error);
+      alert('Error loading users. Please check the console for details.');
     } finally {
       setLoading(false);
     }
@@ -155,6 +161,12 @@ export default function UserManagement() {
             <p className="text-gray-300 mt-1">Manage user accounts and permissions</p>
           </div>
                   <div className="flex gap-3">
+                    <button
+                      onClick={loadUsers}
+                      className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all duration-200 hover:border-blue-400/50"
+                    >
+                      🔄 Refresh
+                    </button>
                     <button
                       onClick={handleExportUsers}
                       className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg transition-all duration-200 hover:border-green-400/50"

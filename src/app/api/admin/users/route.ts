@@ -7,30 +7,42 @@ export async function GET(req: NextRequest) {
 
     console.log('Fetching users from profiles table...');
 
-    // Get users from profiles with related data
-    const { data: users, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        email,
-        display_name,
-        created_at,
-        updated_at,
-        is_admin,
-        plan
-      `)
-      .order('created_at', { ascending: false });
-
-    console.log('Users query result:', { users, error, count: users?.length });
-
-    if (error) {
-      console.error('Users query error:', error);
+    // Get users from auth.users table (this is where Supabase stores user data)
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('Auth users query error:', authError);
       return NextResponse.json({ 
-        error: 'Failed to fetch users', 
-        details: error.message,
-        debug: { error }
+        error: 'Failed to fetch users from auth', 
+        details: authError.message
       }, { status: 500 });
     }
+
+    console.log('Auth users query result:', { users: authUsers?.users, count: authUsers?.users?.length });
+
+    // Get additional profile data for each user
+    const users = await Promise.all(
+      (authUsers?.users || []).map(async (authUser) => {
+        // Get profile data if it exists
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan, is_admin, display_name, updated_at')
+          .eq('id', authUser.id)
+          .single();
+
+        return {
+          id: authUser.id,
+          email: authUser.email,
+          display_name: profile?.display_name || authUser.user_metadata?.full_name || 'No name',
+          created_at: authUser.created_at,
+          updated_at: profile?.updated_at || authUser.updated_at,
+          is_admin: profile?.is_admin || false,
+          plan: profile?.plan || 'free'
+        };
+      })
+    );
+
+    console.log('Users query result:', { users, count: users?.length });
 
     // Get real data for each user
     const transformedUsers = await Promise.all(

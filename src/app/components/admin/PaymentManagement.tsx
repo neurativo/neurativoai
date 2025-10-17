@@ -246,15 +246,21 @@ export default function PaymentManagement() {
   const loadPayments = async () => {
     try {
       setError(null);
+      console.log('Loading payments from /api/admin/payments-complete...');
       const response = await fetch('/api/admin/payments-complete');
       const data = await response.json();
       
+      console.log('Payments API response:', { status: response.status, data });
+      
       if (response.ok) {
         setPayments(data.payments || []);
+        console.log('Payments loaded successfully:', data.payments?.length || 0);
       } else {
+        console.error('Failed to load payments:', data.error);
         setError(data.error || 'Failed to load payments');
       }
     } catch (error) {
+      console.error('Error loading payments:', error);
       setError('Network error - please check your connection');
     } finally {
       setLoading(false);

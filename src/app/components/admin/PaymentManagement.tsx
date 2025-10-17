@@ -326,6 +326,53 @@ export default function PaymentManagement() {
     setFilter('all');
   };
 
+  const exportPayments = async () => {
+    try {
+      // Build query parameters from current filters
+      const params = new URLSearchParams();
+      
+      if (filter !== 'all') params.append('status', filter);
+      if (planFilter !== 'all') params.append('plan', planFilter);
+      if (methodFilter !== 'all') params.append('method', methodFilter);
+      if (amountMin) params.append('amountMin', amountMin);
+      if (amountMax) params.append('amountMax', amountMax);
+      if (dateFrom) params.append('dateFrom', dateFrom);
+      if (dateTo) params.append('dateTo', dateTo);
+      if (searchTerm) params.append('search', searchTerm);
+
+      const response = await fetch(`/api/admin/payments/export?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to export payments');
+      }
+
+      // Get the filename from the response headers
+      const contentDisposition = response.headers.get('content-disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `payments_export_${new Date().toISOString().split('T')[0]}.csv`;
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Show success message
+      setError(null);
+      // You could add a success toast here if you have a toast system
+      
+    } catch (error) {
+      console.error('Export error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to export payments');
+    }
+  };
+
   const filteredPayments = payments.filter(payment => {
     // Status filter
     const statusMatch = filter === 'all' || payment.status === filter;
@@ -379,6 +426,12 @@ export default function PaymentManagement() {
             <p className="text-gray-300 mt-1">Review and manage payment requests</p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={exportPayments}
+              className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all duration-200 hover:border-green-400/50"
+            >
+              📊 Export CSV
+            </button>
             <button
               onClick={loadPayments}
               className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all duration-200 hover:border-purple-400/50"
@@ -536,11 +589,19 @@ export default function PaymentManagement() {
           </div>
         )}
 
-        {/* Results Summary */}
-        <div className="mt-4 text-sm text-gray-400">
-          Showing {filteredPayments.length} of {payments.length} payments
-          {(searchTerm || planFilter !== 'all' || methodFilter !== 'all' || amountMin || amountMax || dateFrom || dateTo) && 
-            ' (filtered)'}
+        {/* Results Summary and Export */}
+        <div className="mt-4 flex justify-between items-center">
+          <div className="text-sm text-gray-400">
+            Showing {filteredPayments.length} of {payments.length} payments
+            {(searchTerm || planFilter !== 'all' || methodFilter !== 'all' || amountMin || amountMax || dateFrom || dateTo) && 
+              ' (filtered)'}
+          </div>
+          <button
+            onClick={exportPayments}
+            className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all duration-200 hover:border-green-400/50 text-sm"
+          >
+            📊 Export Filtered Data
+          </button>
         </div>
       </div>
 

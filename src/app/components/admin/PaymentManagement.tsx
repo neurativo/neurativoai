@@ -248,6 +248,12 @@ export default function PaymentManagement() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  
+  // Bulk operations states
+  const [selectedPayments, setSelectedPayments] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
+  const [bulkNote, setBulkNote] = useState('');
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   useEffect(() => {
     loadPayments();
@@ -373,6 +379,81 @@ export default function PaymentManagement() {
     }
   };
 
+  // Bulk operations functions
+  const handleSelectPayment = (paymentId: string) => {
+    const newSelected = new Set(selectedPayments);
+    if (newSelected.has(paymentId)) {
+      newSelected.delete(paymentId);
+    } else {
+      newSelected.add(paymentId);
+    }
+    setSelectedPayments(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPayments.size === filteredPayments.length) {
+      setSelectedPayments(new Set());
+    } else {
+      setSelectedPayments(new Set(filteredPayments.map(p => p.id)));
+    }
+  };
+
+  const handleBulkAction = (action: 'approve' | 'reject') => {
+    if (selectedPayments.size === 0) return;
+    setBulkAction(action);
+    setBulkNote('');
+    setShowBulkModal(true);
+  };
+
+  const executeBulkAction = async () => {
+    if (!bulkAction || selectedPayments.size === 0) return;
+
+    setUpdating('bulk');
+    try {
+      const paymentIds = Array.from(selectedPayments);
+      
+      // Process each payment individually
+      const promises = paymentIds.map(paymentId => 
+        fetch('/api/admin/payments-complete', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentId,
+            status: bulkAction,
+            adminNote: bulkNote || undefined
+          }),
+        })
+      );
+
+      const results = await Promise.allSettled(promises);
+      
+      // Check for any failures
+      const failures = results.filter(result => 
+        result.status === 'rejected' || 
+        (result.status === 'fulfilled' && !result.value.ok)
+      );
+
+      if (failures.length > 0) {
+        console.warn(`${failures.length} payments failed to update`);
+      }
+
+      // Reload payments and clear selection
+      await loadPayments();
+      setSelectedPayments(new Set());
+      setShowBulkModal(false);
+      setBulkAction(null);
+      setBulkNote('');
+
+    } catch (error) {
+      console.error('Bulk action error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to execute bulk action');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   const filteredPayments = payments.filter(payment => {
     // Status filter
     const statusMatch = filter === 'all' || payment.status === filter;
@@ -426,6 +507,30 @@ export default function PaymentManagement() {
             <p className="text-gray-300 mt-1">Review and manage payment requests</p>
           </div>
           <div className="flex gap-3">
+            {selectedPayments.size > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleBulkAction('approve')}
+                  disabled={updating === 'bulk'}
+                  className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all duration-200 hover:border-green-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ✅ Approve ({selectedPayments.size})
+                </button>
+                <button
+                  onClick={() => handleBulkAction('reject')}
+                  disabled={updating === 'bulk'}
+                  className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-red-300 hover:text-red-200 transition-all duration-200 hover:border-red-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ❌ Reject ({selectedPayments.size})
+                </button>
+                <button
+                  onClick={() => setSelectedPayments(new Set())}
+                  className="px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 rounded-lg text-gray-300 hover:text-gray-200 transition-all duration-200"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            )}
             <button
               onClick={exportPayments}
               className="px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all duration-200 hover:border-green-400/50"
@@ -613,6 +718,14 @@ export default function PaymentManagement() {
               <thead className="bg-gradient-to-r from-purple-900/50 to-blue-900/50">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={selectedPayments.size === filteredPayments.length && filteredPayments.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-500 focus:ring-2"
+                    />
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
                     User
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-purple-300 uppercase tracking-wider">
@@ -641,6 +754,14 @@ export default function PaymentManagement() {
               <tbody className="bg-black/10 divide-y divide-purple-500/10">
                 {filteredPayments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-purple-500/10 transition-all duration-200 group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedPayments.has(payment.id)}
+                        onChange={() => handleSelectPayment(payment.id)}
+                        className="rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-500 focus:ring-2"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">
                         {payment.user_email || `User ${payment.user_id.slice(0, 8)}`}
@@ -732,6 +853,76 @@ export default function PaymentManagement() {
         onUpdateStatus={updatePaymentStatus}
         updating={updating}
       />
+
+      {/* Bulk Action Modal */}
+      {showBulkModal && bulkAction && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-xl border border-purple-500/20 max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  Bulk {bulkAction === 'approve' ? 'Approve' : 'Reject'} Payments
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowBulkModal(false);
+                    setBulkAction(null);
+                    setBulkNote('');
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-gray-300">
+                  You are about to <span className={`font-semibold ${bulkAction === 'approve' ? 'text-green-400' : 'text-red-400'}`}>
+                    {bulkAction}
+                  </span> {selectedPayments.size} payment{selectedPayments.size > 1 ? 's' : ''}.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {bulkAction === 'approve' ? 'Approval Note (Optional)' : 'Rejection Reason (Optional)'}
+                  </label>
+                  <textarea
+                    value={bulkNote}
+                    onChange={(e) => setBulkNote(e.target.value)}
+                    placeholder={bulkAction === 'approve' ? 'Add a note for the users...' : 'Reason for rejection...'}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowBulkModal(false);
+                      setBulkAction(null);
+                      setBulkNote('');
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 rounded-lg text-gray-300 hover:text-white transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={executeBulkAction}
+                    disabled={updating === 'bulk'}
+                    className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      bulkAction === 'approve'
+                        ? 'bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-300 hover:text-green-200'
+                        : 'bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 hover:text-red-200'
+                    }`}
+                  >
+                    {updating === 'bulk' ? 'Processing...' : `${bulkAction === 'approve' ? '✅' : '❌'} ${bulkAction.charAt(0).toUpperCase() + bulkAction.slice(1)} ${selectedPayments.size} Payment${selectedPayments.size > 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

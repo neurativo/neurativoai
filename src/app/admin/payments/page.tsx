@@ -3,41 +3,28 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PaymentManagement from '@/app/components/admin/PaymentManagement';
-import { checkAdminStatus, getStoredAdmin } from '@/lib/admin-auth';
+
+interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+}
 
 export default function PaymentVerification() {
-  const [admin, setAdmin] = useState<any>(null);
+  const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      try {
-        // First check stored admin
-        const storedAdmin = getStoredAdmin();
-        if (storedAdmin) {
-          setAdmin(storedAdmin);
-          setLoading(false);
-          return;
-        }
+    // Check if admin is logged in
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      router.push('/admin/login');
+      return;
+    }
 
-        // If no stored admin, check current session
-        const currentAdmin = await checkAdminStatus();
-        if (currentAdmin) {
-          setAdmin(currentAdmin);
-          localStorage.setItem('admin', JSON.stringify(currentAdmin));
-        } else {
-          router.push('/admin/login');
-        }
-      } catch (error) {
-        console.error('Admin check error:', error);
-        router.push('/admin/login');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdmin();
+    setAdmin(JSON.parse(adminData));
+    setLoading(false);
   }, [router]);
 
   if (loading) {

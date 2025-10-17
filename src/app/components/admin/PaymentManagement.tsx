@@ -246,22 +246,7 @@ export default function PaymentManagement() {
   const loadPayments = async () => {
     try {
       setError(null);
-      
-      // Get auth token
-      const supabase = getSupabaseBrowser();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        setError('Authentication required. Please sign in again.');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/admin/payments', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
+      const response = await fetch('/api/admin/payments-complete');
       const data = await response.json();
       
       if (response.ok) {

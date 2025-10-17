@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       (users || []).map(async (user) => {
         let quizCount = 0;
         let paymentCount = 0;
-        let lastActivity = null;
+        let lastActivity: { created_at: string } | null = null;
 
         try {
           // Get quiz count for this user (if quizzes table exists)

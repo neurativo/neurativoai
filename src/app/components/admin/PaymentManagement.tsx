@@ -238,6 +238,16 @@ export default function PaymentManagement() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  
+  // Enhanced search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [methodFilter, setMethodFilter] = useState('all');
+  const [amountMin, setAmountMin] = useState('');
+  const [amountMax, setAmountMax] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   useEffect(() => {
     loadPayments();
@@ -305,9 +315,46 @@ export default function PaymentManagement() {
     setShowDetailsModal(true);
   };
 
-  const filteredPayments = payments.filter(payment => 
-    filter === 'all' || payment.status === filter
-  );
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setPlanFilter('all');
+    setMethodFilter('all');
+    setAmountMin('');
+    setAmountMax('');
+    setDateFrom('');
+    setDateTo('');
+    setFilter('all');
+  };
+
+  const filteredPayments = payments.filter(payment => {
+    // Status filter
+    const statusMatch = filter === 'all' || payment.status === filter;
+    
+    // Search term filter (user email, name, or transaction reference)
+    const searchMatch = !searchTerm || 
+      payment.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.transaction_reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Plan filter
+    const planMatch = planFilter === 'all' || payment.plan === planFilter;
+    
+    // Method filter
+    const methodMatch = methodFilter === 'all' || payment.method === methodFilter;
+    
+    // Amount range filter
+    const amount = payment.amount_cents / 100;
+    const amountMatch = (!amountMin || amount >= parseFloat(amountMin)) && 
+                       (!amountMax || amount <= parseFloat(amountMax));
+    
+    // Date range filter
+    const paymentDate = new Date(payment.created_at);
+    const dateMatch = (!dateFrom || paymentDate >= new Date(dateFrom)) && 
+                     (!dateTo || paymentDate <= new Date(dateTo));
+    
+    return statusMatch && searchMatch && planMatch && methodMatch && amountMatch && dateMatch;
+  });
 
   if (loading) {
     return (
@@ -358,23 +405,142 @@ export default function PaymentManagement() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Enhanced Search and Filters */}
       <div className="p-6 bg-black/10 backdrop-blur-sm border-b border-purple-500/20">
-        <div className="flex gap-4">
-          {(['all', 'pending', 'approved', 'rejected'] as const).map((filterType) => (
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="flex gap-4 items-center">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search by user email, name, transaction reference, or payment ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 pl-10 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                🔍
+              </div>
+            </div>
             <button
-              key={filterType}
-              onClick={() => setFilter(filterType)}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                filter === filterType
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`px-4 py-3 rounded-lg transition-all ${
+                showAdvancedFilters
                   ? 'bg-purple-600/30 border border-purple-500/50 text-purple-300'
                   : 'bg-gray-600/20 border border-gray-500/30 text-gray-300 hover:bg-gray-600/30'
               }`}
             >
-              {filterType.charAt(0).toUpperCase() + filterType.slice(1)} 
-              ({payments.filter(p => filterType === 'all' || p.status === filterType).length})
+              {showAdvancedFilters ? '🔽 Hide Filters' : '🔍 Advanced Filters'}
             </button>
-          ))}
+            <button
+              onClick={clearAllFilters}
+              className="px-4 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-red-300 hover:text-red-200 transition-all"
+            >
+              🗑️ Clear All
+            </button>
+          </div>
+        </div>
+
+        {/* Status Filter Pills */}
+        <div className="mb-4">
+          <div className="flex gap-3 flex-wrap">
+            {(['all', 'pending', 'approved', 'rejected'] as const).map((filterType) => (
+              <button
+                key={filterType}
+                onClick={() => setFilter(filterType)}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  filter === filterType
+                    ? 'bg-purple-600/30 border border-purple-500/50 text-purple-300'
+                    : 'bg-gray-600/20 border border-gray-500/30 text-gray-300 hover:bg-gray-600/30'
+                }`}
+              >
+                {filterType.charAt(0).toUpperCase() + filterType.slice(1)} 
+                ({payments.filter(p => filterType === 'all' || p.status === filterType).length})
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Advanced Filters */}
+        {showAdvancedFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-black/20 rounded-lg border border-purple-500/20">
+            {/* Plan Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Plan</label>
+              <select
+                value={planFilter}
+                onChange={(e) => setPlanFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-black/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+              >
+                <option value="all">All Plans</option>
+                <option value="free">Free</option>
+                <option value="professional">Professional</option>
+                <option value="mastery">Mastery</option>
+                <option value="innovation">Innovation</option>
+              </select>
+            </div>
+
+            {/* Method Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Payment Method</label>
+              <select
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-black/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+              >
+                <option value="all">All Methods</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="binance">Binance</option>
+              </select>
+            </div>
+
+            {/* Amount Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Amount Range</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={amountMin}
+                  onChange={(e) => setAmountMin(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                />
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={amountMax}
+                  onChange={(e) => setAmountMax(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-black/20 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                />
+              </div>
+            </div>
+
+            {/* Date Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Date Range</label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-black/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-black/20 border border-purple-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Results Summary */}
+        <div className="mt-4 text-sm text-gray-400">
+          Showing {filteredPayments.length} of {payments.length} payments
+          {(searchTerm || planFilter !== 'all' || methodFilter !== 'all' || amountMin || amountMax || dateFrom || dateTo) && 
+            ' (filtered)'}
         </div>
       </div>
 

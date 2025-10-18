@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
       // Fallback to old system - use hardcoded pricing
       const PRICING_CONFIG = {
         'free': { monthly_price: 0, yearly_price: 0 },
-        'professional': { monthly_price: 19, yearly_price: 190 },
-        'mastery': { monthly_price: 39, yearly_price: 390 },
-        'innovation': { monthly_price: 79, yearly_price: 790 }
+        'professional': { monthly_price: 5.99, yearly_price: 59.99 },
+        'mastery': { monthly_price: 12.99, yearly_price: 129.99 },
+        'innovation': { monthly_price: 24.99, yearly_price: 249.99 }
       };
       
       const oldPlanData = PRICING_CONFIG[plan as keyof typeof PRICING_CONFIG];

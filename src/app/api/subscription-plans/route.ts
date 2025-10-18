@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
         {
           id: 'professional',
           name: 'professional',
-          monthly_price: 19,
-          yearly_price: 190,
+          monthly_price: 5.99,
+          yearly_price: 59.99,
           features: ['All quiz types', 'Live lectures', 'Study packs', 'Analytics'],
           daily_limit: 10,
           monthly_limit: 200
@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
         {
           id: 'mastery',
           name: 'mastery',
-          monthly_price: 39,
-          yearly_price: 390,
+          monthly_price: 12.99,
+          yearly_price: 129.99,
           features: ['All features', 'Custom quizzes', 'Priority support', 'API access'],
           daily_limit: 25,
           monthly_limit: 500
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
         {
           id: 'innovation',
           name: 'innovation',
-          monthly_price: 79,
-          yearly_price: 790,
+          monthly_price: 24.99,
+          yearly_price: 249.99,
           features: ['Unlimited everything', 'White-label', 'Custom integrations', 'Enterprise features'],
           daily_limit: -1, // Unlimited
           monthly_limit: -1 // Unlimited

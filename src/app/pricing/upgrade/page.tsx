@@ -154,6 +154,30 @@ function UpgradePageInner() {
 
                     if (uploadError) {
                         console.warn('File upload failed:', uploadError);
+                        // Try to create the bucket if it doesn't exist
+                        try {
+                            const { error: createBucketError } = await supabase.storage.createBucket('payments', {
+                                public: true,
+                                fileSizeLimit: 10485760, // 10MB
+                                allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf']
+                            });
+                            
+                            if (!createBucketError) {
+                                // Retry upload after creating bucket
+                                const { data: retryUploadData, error: retryUploadError } = await supabase.storage
+                                    .from('payments')
+                                    .upload(fileName, proofFile);
+                                
+                                if (!retryUploadError) {
+                                    const { data: { publicUrl } } = supabase.storage
+                                        .from('payments')
+                                        .getPublicUrl(fileName);
+                                    proofUrl = publicUrl;
+                                }
+                            }
+                        } catch (bucketError) {
+                            console.warn('Could not create bucket or retry upload:', bucketError);
+                        }
                         // Continue without proof - don't fail the entire payment
                     } else {
                         const { data: { publicUrl } } = supabase.storage

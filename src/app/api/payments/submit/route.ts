@@ -53,14 +53,41 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Get plan details from subscription_plans table
-    const { data: planData, error: planError } = await supabase
+    // Try to get plan details from subscription_plans table (new system)
+    let planData: { id: string; name: string; monthly_price: number; yearly_price: number } | null = null;
+    const { data: newPlanData, error: planError } = await supabase
       .from('subscription_plans')
       .select('id, name, monthly_price, yearly_price')
       .eq('name', plan)
       .single();
 
-    if (planError || !planData) {
+    if (planError || !newPlanData) {
+      // Fallback to old system - use hardcoded pricing
+      const PRICING_CONFIG = {
+        'free': { monthly_price: 0, yearly_price: 0 },
+        'professional': { monthly_price: 19, yearly_price: 190 },
+        'mastery': { monthly_price: 39, yearly_price: 390 },
+        'innovation': { monthly_price: 79, yearly_price: 790 }
+      };
+      
+      const oldPlanData = PRICING_CONFIG[plan as keyof typeof PRICING_CONFIG];
+      if (!oldPlanData) {
+        return NextResponse.json({ 
+          error: 'Invalid plan' 
+        }, { status: 400 });
+      }
+      
+      planData = {
+        id: plan, // Use plan name as ID for old system
+        name: plan,
+        monthly_price: oldPlanData.monthly_price,
+        yearly_price: oldPlanData.yearly_price
+      };
+    } else {
+      planData = newPlanData;
+    }
+
+    if (!planData) {
       return NextResponse.json({ 
         error: 'Invalid plan' 
       }, { status: 400 });
@@ -74,38 +101,70 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Prepare payment data for new structure
-    const paymentData = {
-      user_id: user.id,
-      plan_id: planData.id,
-      method: paymentMethod,
-      amount: amount,
-      currency,
-      transaction_reference: transactionId,
-      proof_url: proofUrl,
-      status: 'pending',
-      admin_note: notes || null
-    };
+    // Try to create payment in new user_payments table first
+    let payment: any = null;
+    
+    try {
+      const paymentData = {
+        user_id: user.id,
+        plan_id: planData.id,
+        method: paymentMethod,
+        amount: amount,
+        currency,
+        transaction_reference: transactionId,
+        proof_url: proofUrl,
+        status: 'pending',
+        admin_note: notes || null
+      };
 
-    // Create payment record in new user_payments table
-    const { data: payment, error: paymentError } = await supabase
-      .from('user_payments')
-      .insert(paymentData)
-      .select()
-      .single();
+      const { data: newPayment, error: newPaymentError } = await supabase
+        .from('user_payments')
+        .insert(paymentData)
+        .select()
+        .single();
 
-    if (paymentError) {
-      console.error('Error creating payment:', paymentError);
-      return NextResponse.json({ 
-        error: 'Failed to create payment record' 
-      }, { status: 500 });
+      if (newPaymentError) {
+        throw newPaymentError;
+      }
+      
+      payment = newPayment;
+    } catch (newSystemError) {
+      console.log('New payment system not available, falling back to old system:', newSystemError);
+      
+      // Fallback to old payments table
+      const oldPaymentData = {
+        user_id: user.id,
+        plan: plan,
+        method: paymentMethod,
+        amount_cents: Math.round(amount * 100),
+        currency: currency,
+        transaction_id: transactionId,
+        proof_url: proofUrl,
+        status: 'pending',
+        admin_note: notes || null
+      };
+
+      const { data: oldPayment, error: oldPaymentError } = await supabase
+        .from('payments')
+        .insert(oldPaymentData)
+        .select()
+        .single();
+
+      if (oldPaymentError) {
+        console.error('Error creating payment in old system:', oldPaymentError);
+        return NextResponse.json({ 
+          error: 'Failed to create payment record' 
+        }, { status: 500 });
+      }
+      
+      payment = oldPayment;
     }
 
-    console.log('Payment created:', payment.id);
+    console.log('Payment created:', payment?.id);
 
     return NextResponse.json({ 
       success: true,
-      paymentId: payment.id,
+      paymentId: payment?.id,
       message: 'Payment submitted successfully'
     });
 

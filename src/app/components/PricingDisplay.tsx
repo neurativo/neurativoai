@@ -162,7 +162,7 @@ export default function PricingDisplay({
             ) : isPending ? (
               <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-yellow-500/20 text-yellow-300 rounded-lg border border-yellow-500/30 text-sm sm:text-base">
                 <i className="fas fa-clock mr-1.5 sm:mr-2"></i>
-                Pending Approval
+                Pending Verification
               </div>
             ) : pricing.plan !== 'free' ? (
               <button

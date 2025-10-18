@@ -70,9 +70,27 @@ function PricingPageInner() {
             const detectedCurrency = CurrencyConverter.detectUserCurrency();
             setSelectedCurrency(detectedCurrency);
 
-            // Fetch pending payments
-            const { data: pays } = await supabase.from("payments").select("plan,status").eq("user_id", uid).eq("status", "pending");
-            setPendingPlans(new Set((pays ?? []).map(p => p.plan)));
+            // Fetch pending payments from new user_payments table
+            const { data: pendingPayments, error: pendingError } = await supabase
+                .from('user_payments')
+                .select(`
+                    status,
+                    subscription_plans!inner(name)
+                `)
+                .eq('user_id', uid)
+                .eq('status', 'pending');
+
+            if (pendingPayments) {
+                const pendingPlans = new Set(pendingPayments.map(p => {
+                    const plan = Array.isArray(p.subscription_plans) ? p.subscription_plans[0] : p.subscription_plans;
+                    return plan?.name?.toLowerCase() || 'unknown';
+                }));
+                setPendingPlans(pendingPlans);
+            } else {
+                // Fallback to old payments table if new table doesn't exist
+                const { data: pays } = await supabase.from("payments").select("plan,status").eq("user_id", uid).eq("status", "pending");
+                setPendingPlans(new Set((pays ?? []).map(p => p.plan)));
+            }
 
             // Note: Realtime updates are now handled by RealtimePlanUpdater component
         })();

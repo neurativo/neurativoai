@@ -57,34 +57,14 @@ function PricingPageInner() {
                 setCurrentPlan('free');
             }
 
-            // Fetch usage stats
-            try {
-                const response = await fetch(`/api/user/usage-limits?userId=${uid}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    setUsageStats(data);
-                } else {
-                    console.warn('Usage stats API returned:', response.status, response.statusText);
-                    // Set default usage stats if API fails
-                    setUsageStats({
-                        user: { id: uid, plan: 'free', pricing: {} },
-                        usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
-                        limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
-                        remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
-                        features: { canAccessLectures: false, canAccessStudyPacks: false, canExportData: false, canUseAdvancedFeatures: false, canCreateCustomQuizzes: false, canAccessAnalytics: false, canUseAIFeatures: true, canAccessPrioritySupport: false }
-                    });
-                }
-            } catch (error) {
-                console.error('Error fetching usage stats:', error);
-                // Set default usage stats if API fails
-                setUsageStats({
-                    user: { id: uid, plan: 'free', pricing: {} },
-                    usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
-                    limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
-                    remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
-                    features: { canAccessLectures: false, canAccessStudyPacks: false, canExportData: false, canUseAdvancedFeatures: false, canCreateCustomQuizzes: false, canAccessAnalytics: false, canUseAIFeatures: true, canAccessPrioritySupport: false }
-                });
-            }
+            // Set default usage stats (simplified for now)
+            setUsageStats({
+                user: { id: uid, plan: currentPlan, pricing: {} },
+                usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
+                limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
+                remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
+                features: { canAccessLectures: false, canAccessStudyPacks: false, canExportData: false, canUseAdvancedFeatures: false, canCreateCustomQuizzes: false, canAccessAnalytics: false, canUseAIFeatures: true, canAccessPrioritySupport: false }
+            });
 
             // Auto-detect user currency
             const detectedCurrency = CurrencyConverter.detectUserCurrency();
@@ -193,17 +173,11 @@ function PricingPageInner() {
         setCurrentPlan(newPlan);
         setPendingPlans(new Set()); // Clear all pending plans when plan is updated
         
-        // Refresh usage stats when plan changes
-        if (userId) {
-            fetch(`/api/user/usage-limits?userId=${userId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        setUsageStats(data);
-                    }
-                })
-                .catch(error => console.error('Error refreshing usage stats:', error));
-        }
+        // Update usage stats with new plan
+        setUsageStats(prev => ({
+            ...prev,
+            user: { ...prev?.user, plan: newPlan }
+        }));
     };
 
     // Manual refresh function
@@ -220,16 +194,11 @@ function PricingPageInner() {
                     setCurrentPlan(planName);
                     setPendingPlans(new Set());
                     
-                    // Also refresh usage stats
-                    try {
-                        const usageResponse = await fetch(`/api/user/usage-limits?userId=${userId}`);
-                        if (usageResponse.ok) {
-                            const usageData = await usageResponse.json();
-                            setUsageStats(usageData);
-                        }
-                    } catch (error) {
-                        console.error('Error updating usage stats:', error);
-                    }
+                    // Update usage stats with current plan
+                    setUsageStats(prev => ({
+                        ...prev,
+                        user: { ...prev?.user, plan: planName }
+                    }));
                     return;
                 }
             }

@@ -1,13 +1,13 @@
--- Quick check for recent payments
--- Check both old and new payment tables
+-- Simple payment check - run this first
+-- Check if tables exist and have data
 
 -- Check old payments table
 SELECT 
     'old_payments' as table_name,
     COUNT(*) as total_count,
     COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
-FROM payments
-UNION ALL
+FROM payments;
+
 -- Check new user_payments table  
 SELECT 
     'user_payments' as table_name,
@@ -15,8 +15,8 @@ SELECT
     COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
 FROM user_payments;
 
--- Show recent payments from both tables
-(SELECT 
+-- Show recent payments from old table
+SELECT 
     'old_payments' as source,
     id,
     user_id,
@@ -26,11 +26,10 @@ FROM user_payments;
     created_at
 FROM payments 
 ORDER BY created_at DESC 
-LIMIT 3)
+LIMIT 3;
 
-UNION ALL
-
-(SELECT 
+-- Show recent payments from new table
+SELECT 
     'user_payments' as source,
     id::text,
     user_id,
@@ -40,4 +39,4 @@ UNION ALL
     created_at
 FROM user_payments 
 ORDER BY created_at DESC 
-LIMIT 3);
+LIMIT 3;

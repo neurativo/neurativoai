@@ -10,34 +10,15 @@ export async function GET(request: NextRequest) {
     let payments: any[] = [];
     let error: any = null;
 
-    try {
-      const { data: newPayments, error: newError } = await supabase
-        .from('user_payments')
-        .select(`
-          *,
-          subscription_plans!inner(
-            id,
-            name,
-            monthly_price,
-            yearly_price,
-            features
-          )
-        `)
-        .order('created_at', { ascending: false });
+    // First check if user_payments table exists by trying a simple query
+    const { data: tableCheck, error: tableCheckError } = await supabase
+      .from('user_payments')
+      .select('id')
+      .limit(1);
 
-      if (newError) {
-        console.log('❌ New user_payments table error:', newError);
-        console.log('🔄 Falling back to old payments table...');
-        throw newError;
-      }
-
-      payments = newPayments || [];
-      console.log('✅ Successfully fetched from user_payments table:', payments.length, 'payments');
-      if (payments.length > 0) {
-        console.log('📄 Sample payment:', payments[0]);
-      }
-    } catch (newTableError) {
-      console.log('🔄 Falling back to old payments table due to:', newTableError.message);
+    if (tableCheckError || !tableCheck) {
+      console.log('❌ user_payments table not available:', tableCheckError?.message || 'No data');
+      console.log('🔄 Falling back to old payments table...');
       
       // Fallback to old payments table
       const { data: oldPayments, error: oldError } = await supabase
@@ -66,7 +47,67 @@ export async function GET(request: NextRequest) {
         }
       }));
 
-      console.log('Successfully fetched from old payments table:', payments.length, 'payments');
+      console.log('Successfully converted old payments:', payments.length, 'payments');
+    } else {
+      // user_payments table exists, try to fetch with join
+      try {
+        const { data: newPayments, error: newError } = await supabase
+          .from('user_payments')
+          .select(`
+            *,
+            subscription_plans!inner(
+              id,
+              name,
+              monthly_price,
+              yearly_price,
+              features
+            )
+          `)
+          .order('created_at', { ascending: false });
+
+        if (newError) {
+          console.log('❌ New user_payments table error:', newError);
+          console.log('🔄 Falling back to old payments table...');
+          throw newError;
+        }
+
+        payments = newPayments || [];
+        console.log('✅ Successfully fetched from user_payments table:', payments.length, 'payments');
+        if (payments.length > 0) {
+          console.log('📄 Sample payment:', payments[0]);
+        }
+      } catch (newTableError) {
+        console.log('🔄 Falling back to old payments table due to:', newTableError.message);
+        
+        // Fallback to old payments table
+        const { data: oldPayments, error: oldError } = await supabase
+          .from('payments')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (oldError) {
+          console.error('❌ Error fetching from old payments table:', oldError);
+          return NextResponse.json({ error: 'Failed to fetch payments from both tables' }, { status: 500 });
+        }
+        
+        console.log('✅ Successfully fetched from old payments table:', oldPayments?.length || 0, 'payments');
+
+        // Convert old payment format to new format
+        payments = (oldPayments || []).map(payment => ({
+          ...payment,
+          plan_id: null, // Old table doesn't have plan_id
+          amount: payment.amount_cents ? payment.amount_cents / 100 : 0, // Convert cents to dollars
+          subscription_plans: {
+            id: null,
+            name: payment.plan || 'Unknown',
+            monthly_price: 0,
+            yearly_price: 0,
+            features: []
+          }
+        }));
+
+        console.log('Successfully converted old payments:', payments.length, 'payments');
+      }
     }
 
     // Get user details for each payment

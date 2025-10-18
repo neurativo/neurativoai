@@ -205,6 +205,10 @@ CREATE TRIGGER update_user_subscriptions_updated_at
 
 -- 15. Migrate existing data (if any)
 -- This will help migrate from the old system to the new one
+-- Note: Run this only if you have existing data to migrate
+-- Uncomment and modify the following block if needed:
+
+/*
 DO $$
 DECLARE
   plan_record RECORD;
@@ -267,10 +271,12 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+*/
 
 -- 16. Clean up old tables (optional - uncomment if you want to remove old tables)
 -- DROP TABLE IF EXISTS payments CASCADE;
 -- DROP TABLE IF EXISTS subscriptions CASCADE;
+-- DROP TABLE IF EXISTS plans CASCADE;
 
 -- 17. Verify the new structure
 SELECT 'subscription_plans' as table_name, count(*) as record_count FROM subscription_plans

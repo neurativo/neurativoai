@@ -132,10 +132,12 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (newPaymentError) {
+        console.error('Error creating payment in new system:', newPaymentError);
         throw newPaymentError;
       }
       
       payment = newPayment;
+      console.log('Payment created successfully in new system:', payment.id);
     } catch (newSystemError) {
       console.log('New payment system not available, falling back to old system:', newSystemError);
       
@@ -161,11 +163,14 @@ export async function POST(request: NextRequest) {
       if (oldPaymentError) {
         console.error('Error creating payment in old system:', oldPaymentError);
         return NextResponse.json({ 
-          error: 'Failed to create payment record' 
+          error: 'Failed to create payment record',
+          details: oldPaymentError.message,
+          code: oldPaymentError.code
         }, { status: 500 });
       }
       
       payment = oldPayment;
+      console.log('Payment created successfully in old system:', payment.id);
     }
 
     console.log('Payment created:', payment?.id);

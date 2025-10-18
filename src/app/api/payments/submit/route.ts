@@ -344,7 +344,7 @@ Be extremely thorough in fraud detection analysis.
     const parsed = JSON.parse(content);
     
     // Calculate fraud score based on multiple factors
-    const fraudScore = calculateFraudScore(parsed, duplicateCheck, duplicateRef);
+    const fraudScore = calculateFraudScore(parsed, duplicateCheck || [], duplicateRef || [], payment);
     
     // Determine auto-approval based on confidence and fraud score
     const autoApproved = parsed.confidence > 0.85 && fraudScore < 0.3;
@@ -367,7 +367,7 @@ Be extremely thorough in fraud detection analysis.
       needsReview: needsReview,
       lowConfidence: lowConfidence,
       validationStatus: autoApproved ? 'valid' : (lowConfidence ? 'invalid' : 'unclear'),
-      recommendations: generateRecommendations(parsed, fraudScore, duplicateCheck, duplicateRef),
+      recommendations: generateRecommendations(parsed, fraudScore, duplicateCheck || [], duplicateRef || [], payment),
       imageHash: imageHash,
       analysis: parsed.analysis || ''
     };
@@ -375,6 +375,12 @@ Be extremely thorough in fraud detection analysis.
   } catch (error) {
     console.error('AI analysis error:', error);
     return {
+      transactionReference: undefined,
+      amount: undefined,
+      currency: undefined,
+      paymentMethod: undefined,
+      bankDetails: {},
+      binanceDetails: {},
       confidence: 0,
       fraudScore: 1.0,
       autoApproved: false,
@@ -402,7 +408,7 @@ async function calculateImageHash(imageUrl: string): Promise<string> {
 }
 
 // Calculate comprehensive fraud score
-function calculateFraudScore(aiAnalysis: any, duplicateCheck: any[], duplicateRef: any[]): number {
+function calculateFraudScore(aiAnalysis: any, duplicateCheck: any[], duplicateRef: any[], payment: any): number {
   let fraudScore = 0;
   
   // Base fraud indicators from AI
@@ -446,7 +452,7 @@ function calculateFraudScore(aiAnalysis: any, duplicateCheck: any[], duplicateRe
 }
 
 // Generate detailed recommendations
-function generateRecommendations(aiAnalysis: any, fraudScore: number, duplicateCheck: any[], duplicateRef: any[]): string[] {
+function generateRecommendations(aiAnalysis: any, fraudScore: number, duplicateCheck: any[], duplicateRef: any[], payment: any): string[] {
   const recommendations: string[] = [];
   
   if (fraudScore > 0.7) {

@@ -87,10 +87,12 @@ async function scanReceiptWithAI(receiptImageUrl: string, payment: any): Promise
     
     // Validate against submitted payment
     const validation = validatePayment(analysis, payment);
-    analysis.validationStatus = validation.status;
-    analysis.recommendations = validation.recommendations;
-
-    return analysis;
+    
+    return {
+      ...analysis,
+      validationStatus: validation.status,
+      recommendations: validation.recommendations
+    };
 
   } catch (error) {
     console.error('AI scanning error:', error);
@@ -213,10 +215,10 @@ Be very careful with amount matching - consider currency conversion if needed.
     
     // Fallback: try to extract basic info from text
     return {
-      transactionReference: null,
-      amount: null,
-      currency: null,
-      paymentMethod: null,
+      transactionReference: undefined,
+      amount: undefined,
+      currency: undefined,
+      paymentMethod: undefined,
       bankDetails: {},
       binanceDetails: {},
       confidence: 0.3,

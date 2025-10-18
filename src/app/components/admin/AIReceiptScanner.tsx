@@ -1,7 +1,39 @@
 "use client";
 
 import { useState } from 'react';
-import { Payment } from './PaymentManagement';
+
+interface Payment {
+  id: string;
+  user_id: string;
+  plan_id: number;
+  method: string;
+  amount: number;
+  currency: string;
+  transaction_reference: string | null;
+  proof_url: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+  user_email?: string;
+  user_name?: string;
+  plan_name?: string;
+  ai_analysis?: any;
+  ai_confidence?: number;
+  ai_status?: 'valid' | 'invalid' | 'unclear';
+  fraud_score?: number;
+  auto_approved?: boolean;
+  needs_review?: boolean;
+  low_confidence?: boolean;
+  image_hash?: string;
+  subscription_plans?: {
+    id: number;
+    name: string;
+    monthly_price: number;
+    yearly_price: number;
+    features: string[];
+  };
+}
 
 interface AIReceiptScannerProps {
   payment: Payment;

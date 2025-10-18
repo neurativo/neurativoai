@@ -260,43 +260,47 @@ function PricingPageInner() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                 {/* Header Section */}
-                <div className="text-center mb-16 sm:mb-20">
-                    <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-lg font-medium bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border border-purple-500/30 mb-6 sm:mb-8">
-                        <i className="fas fa-crown mr-2 sm:mr-3 text-lg sm:text-xl"></i>
-                        Choose Your Learning Journey
+                <div className="text-center mb-12 sm:mb-16 md:mb-20">
+                    <div className="inline-flex items-center px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-full text-xs sm:text-sm md:text-lg font-medium bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border border-purple-500/30 mb-4 sm:mb-6 md:mb-8">
+                        <i className="fas fa-crown mr-1.5 sm:mr-2 md:mr-3 text-sm sm:text-lg md:text-xl"></i>
+                        <span className="hidden xs:inline">Choose Your Learning Journey</span>
+                        <span className="xs:hidden">Learning Plans</span>
                     </div>
-                    <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
-                        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight">
                             Simple <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Pricing</span>
                         </h1>
                         {userId && (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={refreshPlan}
-                                    className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-300 hover:text-purple-200 transition-all text-sm"
-                                    title="Refresh plan status"
-                                >
-                                    🔄 Refresh
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            const response = await fetch(`/api/debug/current-plan?userId=${userId}`);
-                                            const data = await response.json();
-                                            console.log('Debug current plan data:', data);
-                                            alert(`Current Plan: ${data.currentPlan}\nActive Subscription: ${JSON.stringify(data.currentActiveSubscription, null, 2)}\nProfile: ${JSON.stringify(data.profile, null, 2)}`);
-                                        } catch (error) {
-                                            console.error('Debug error:', error);
-                                            alert('Debug failed: ' + error);
-                                        }
-                                    }}
-                                    className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all text-sm"
-                                    title="Debug current plan status"
-                                >
-                                    🐛 Debug
-                                </button>
-                                <div className="text-xs text-gray-400">
-                                    Current: {currentPlan} | Pending: {Array.from(pendingPlans).join(', ') || 'None'}
+                            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <button
+                                        onClick={refreshPlan}
+                                        className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-300 hover:text-purple-200 transition-all text-xs sm:text-sm"
+                                        title="Refresh plan status"
+                                    >
+                                        🔄 <span className="hidden sm:inline">Refresh</span>
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const response = await fetch(`/api/debug/current-plan?userId=${userId}`);
+                                                const data = await response.json();
+                                                console.log('Debug current plan data:', data);
+                                                alert(`Current Plan: ${data.currentPlan}\nActive Subscription: ${JSON.stringify(data.currentActiveSubscription, null, 2)}\nProfile: ${JSON.stringify(data.profile, null, 2)}`);
+                                            } catch (error) {
+                                                console.error('Debug error:', error);
+                                                alert('Debug failed: ' + error);
+                                            }
+                                        }}
+                                        className="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all text-xs sm:text-sm"
+                                        title="Debug current plan status"
+                                    >
+                                        🐛 <span className="hidden sm:inline">Debug</span>
+                                    </button>
+                                </div>
+                                <div className="text-xs text-gray-400 text-center sm:text-left">
+                                    <div>Current: {currentPlan}</div>
+                                    <div>Pending: {Array.from(pendingPlans).join(', ') || 'None'}</div>
                                 </div>
                                 <div className="text-xs text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded">
                                     Debug Mode
@@ -385,7 +389,7 @@ function PricingPageInner() {
                 </div>
 
                 {/* Pricing Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                     {Object.keys(pricingData).map((plan) => {
                         const pricing = pricingData[plan];
                         if (!pricing || !pricing.plan) return null;
@@ -405,20 +409,20 @@ function PricingPageInner() {
                 </div>
 
                 {/* FAQ Section */}
-                <div className="mt-24 text-center">
-                    <h2 className="text-3xl font-bold text-white mb-12">Frequently Asked Questions</h2>
-                    <div className="max-w-4xl mx-auto space-y-6">
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-                            <h3 className="text-xl font-semibold text-white mb-3">How does the currency conversion work?</h3>
-                            <p className="text-gray-300">We use real-time exchange rates to convert our USD pricing to your local currency. Rates are updated daily and you can switch currencies anytime.</p>
+                <div className="mt-16 sm:mt-20 lg:mt-24 text-center">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 sm:mb-12">Frequently Asked Questions</h2>
+                    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+                        <div className="bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-white/10">
+                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">How does the currency conversion work?</h3>
+                            <p className="text-gray-300 text-sm sm:text-base">We use real-time exchange rates to convert our USD pricing to your local currency. Rates are updated daily and you can switch currencies anytime.</p>
                         </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-                            <h3 className="text-xl font-semibold text-white mb-3">Can I change my plan anytime?</h3>
-                            <p className="text-gray-300">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately and we'll prorate any billing differences.</p>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-white/10">
+                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Can I change my plan anytime?</h3>
+                            <p className="text-gray-300 text-sm sm:text-base">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately and we'll prorate any billing differences.</p>
                         </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-                            <h3 className="text-xl font-semibold text-white mb-3">What happens if I exceed my limits?</h3>
-                            <p className="text-gray-300">We'll notify you when you're approaching your limits. You can upgrade your plan or wait for your usage to reset the next day/month.</p>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-white/10">
+                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">What happens if I exceed my limits?</h3>
+                            <p className="text-gray-300 text-sm sm:text-base">We'll notify you when you're approaching your limits. You can upgrade your plan or wait for your usage to reset the next day/month.</p>
                         </div>
                     </div>
                 </div>
@@ -426,9 +430,9 @@ function PricingPageInner() {
             </div>
             
             {/* Floating Currency Selector */}
-            <div className="fixed top-20 right-4 z-50">
-                <div className="bg-black/20 backdrop-blur-sm rounded-xl p-3 border border-white/10 shadow-2xl">
-                    <div className="text-xs text-gray-300 mb-2 text-center font-medium">
+            <div className="fixed top-16 sm:top-20 right-2 sm:right-4 z-50">
+                <div className="bg-black/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-3 border border-white/10 shadow-2xl">
+                    <div className="text-xs text-gray-300 mb-1 sm:mb-2 text-center font-medium">
                         Currency
                     </div>
                     <CurrencySelector

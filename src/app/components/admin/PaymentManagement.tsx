@@ -23,6 +23,11 @@ interface Payment {
   ai_analysis?: any;
   ai_confidence?: number;
   ai_status?: 'valid' | 'invalid' | 'unclear';
+  fraud_score?: number;
+  auto_approved?: boolean;
+  needs_review?: boolean;
+  low_confidence?: boolean;
+  image_hash?: string;
   subscription_plans?: {
     id: number;
     name: string;
@@ -252,6 +257,7 @@ export default function PaymentManagement() {
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [aiFilter, setAiFilter] = useState<'all' | 'auto-approved' | 'needs-review' | 'low-confidence' | 'high-fraud'>('all');
   
   // Enhanced search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -472,6 +478,13 @@ export default function PaymentManagement() {
     // Status filter
     const statusMatch = filter === 'all' || payment.status === filter;
     
+    // AI filter
+    const aiMatch = aiFilter === 'all' || 
+      (aiFilter === 'auto-approved' && payment.auto_approved) ||
+      (aiFilter === 'needs-review' && payment.needs_review) ||
+      (aiFilter === 'low-confidence' && payment.low_confidence) ||
+      (aiFilter === 'high-fraud' && payment.fraud_score && payment.fraud_score > 0.7);
+    
     // Search term filter (user email, name, or transaction reference)
     const searchMatch = !searchTerm || 
       payment.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -495,7 +508,7 @@ export default function PaymentManagement() {
     const dateMatch = (!dateFrom || paymentDate >= new Date(dateFrom)) && 
                      (!dateTo || paymentDate <= new Date(dateTo));
     
-    return statusMatch && searchMatch && planMatch && methodMatch && amountMatch && dateMatch;
+    return statusMatch && aiMatch && searchMatch && planMatch && methodMatch && amountMatch && dateMatch;
   });
 
   if (loading) {
@@ -628,6 +641,41 @@ export default function PaymentManagement() {
               >
                 {filterType.charAt(0).toUpperCase() + filterType.slice(1)} 
                 ({payments.filter(p => filterType === 'all' || p.status === filterType).length})
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Analysis Filter Pills */}
+        <div className="mb-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-gray-400 font-medium">AI Analysis:</span>
+            {([
+              { key: 'all', label: 'All', icon: '🔍' },
+              { key: 'auto-approved', label: 'Auto-Approved', icon: '🤖' },
+              { key: 'needs-review', label: 'Needs Review', icon: '👀' },
+              { key: 'low-confidence', label: 'Low Confidence', icon: '❌' },
+              { key: 'high-fraud', label: 'High Fraud Risk', icon: '🚨' }
+            ] as const).map((filterType) => (
+              <button
+                key={filterType.key}
+                onClick={() => setAiFilter(filterType.key as any)}
+                className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                  aiFilter === filterType.key
+                    ? 'bg-purple-600/30 border border-purple-500/50 text-purple-300'
+                    : 'bg-gray-600/20 border border-gray-500/30 text-gray-300 hover:bg-gray-600/30'
+                }`}
+              >
+                <span className="mr-1">{filterType.icon}</span>
+                {filterType.label}
+                ({payments.filter(p => {
+                  if (filterType.key === 'all') return true;
+                  if (filterType.key === 'auto-approved') return p.auto_approved;
+                  if (filterType.key === 'needs-review') return p.needs_review;
+                  if (filterType.key === 'low-confidence') return p.low_confidence;
+                  if (filterType.key === 'high-fraud') return p.fraud_score && p.fraud_score > 0.7;
+                  return false;
+                }).length})
               </button>
             ))}
           </div>
@@ -818,14 +866,40 @@ export default function PaymentManagement() {
                           {payment.status.toUpperCase()}
                         </span>
                         {payment.ai_status && (
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
-                            payment.ai_status === 'valid' ? 'bg-green-500/20 text-green-400' :
-                            payment.ai_status === 'invalid' ? 'bg-red-500/20 text-red-400' :
-                            'bg-yellow-500/20 text-yellow-400'
-                          }`}>
-                            AI: {payment.ai_status}
-                            {payment.ai_confidence && ` (${Math.round(payment.ai_confidence * 100)}%)`}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                              payment.ai_status === 'valid' ? 'bg-green-500/20 text-green-400' :
+                              payment.ai_status === 'invalid' ? 'bg-red-500/20 text-red-400' :
+                              'bg-yellow-500/20 text-yellow-400'
+                            }`}>
+                              AI: {payment.ai_status}
+                              {payment.ai_confidence && ` (${Math.round(payment.ai_confidence * 100)}%)`}
+                            </span>
+                            {payment.fraud_score !== undefined && (
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                payment.fraud_score > 0.7 ? 'bg-red-500/20 text-red-400' :
+                                payment.fraud_score > 0.4 ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-green-500/20 text-green-400'
+                              }`}>
+                                Fraud: {Math.round(payment.fraud_score * 100)}%
+                              </span>
+                            )}
+                            {payment.auto_approved && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/20 text-blue-400">
+                                🤖 Auto-Approved
+                              </span>
+                            )}
+                            {payment.needs_review && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/20 text-orange-400">
+                                👀 Needs Review
+                              </span>
+                            )}
+                            {payment.low_confidence && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-red-500/20 text-red-400">
+                                ❌ Low Confidence
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>

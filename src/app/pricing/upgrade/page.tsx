@@ -68,13 +68,33 @@ function UpgradePageInner() {
         setPlan(planParam);
         setBilling(billingParam as 'monthly' | 'yearly');
 
-        // Fetch pricing data
+        // Fetch pricing data from database
         const fetchPricing = async () => {
             try {
-                const pricingDataUSD = await getPricingInCurrency(planParam, 'USD');
-                const pricingDataLKR = await getPricingInCurrency(planParam, 'LKR');
-                setPricing(pricingDataUSD);
-                setLkrPricing(pricingDataLKR);
+                const response = await fetch('/api/subscription-plans');
+                if (response.ok) {
+                    const data = await response.json();
+                    const planData = data.plans.find((p: any) => p.name.toLowerCase() === planParam.toLowerCase());
+                    if (planData) {
+                        // Convert to expected format
+                        const pricingDataUSD = {
+                            monthlyPrice: planData.monthly_price,
+                            yearlyPrice: planData.yearly_price
+                        };
+                        const pricingDataLKR = {
+                            monthlyPrice: planData.monthly_price * 300, // Approximate LKR conversion
+                            yearlyPrice: planData.yearly_price * 300
+                        };
+                        setPricing(pricingDataUSD);
+                        setLkrPricing(pricingDataLKR);
+                    }
+                } else {
+                    // Fallback to old method
+                    const pricingDataUSD = await getPricingInCurrency(planParam, 'USD');
+                    const pricingDataLKR = await getPricingInCurrency(planParam, 'LKR');
+                    setPricing(pricingDataUSD);
+                    setLkrPricing(pricingDataLKR);
+                }
             } catch (error) {
                 console.error('Error fetching pricing:', error);
             }

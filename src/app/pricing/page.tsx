@@ -38,47 +38,24 @@ function PricingPageInner() {
             setUserId(uid);
             if (!uid) return;
 
-            // Fetch current subscription from subscriptions table (prioritize active subscriptions)
-            const { data: subRow, error: subError } = await supabase
-                .from("subscriptions")
-                .select("plan, status")
-                .eq("user_id", uid)
-                .eq("status", "active")
-                .order("created_at", { ascending: false })
-                .maybeSingle();
-            
-            
-            // Try to fetch from profiles table, but handle RLS errors gracefully
-            let profileRow: { plan: string } | null = null;
+            // Fetch current subscription from new user_subscriptions table
             try {
-                const { data: profileData, error: profileError } = await supabase
-                    .from("profiles")
-                    .select("plan")
-                    .eq("id", uid)
-                    .maybeSingle();
-                profileRow = profileData;
+                const response = await fetch(`/api/subscriptions?userId=${uid}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const planName = data.currentPlan?.name?.toLowerCase() || 'free';
+                        setCurrentPlan(planName);
+                    } else {
+                        setCurrentPlan('free');
+                    }
+                } else {
+                    setCurrentPlan('free');
+                }
             } catch (error) {
-                console.warn('Could not fetch profile data:', error);
-                // Continue without profile data
+                console.error('Error fetching subscription:', error);
+                setCurrentPlan('free');
             }
-            
-            // Use subscription plan if available and active, otherwise fall back to profile plan
-            let userPlan = 'free';
-            if (subRow?.plan && subRow?.status === 'active') {
-                userPlan = subRow.plan;
-            } else if (profileRow?.plan) {
-                userPlan = profileRow.plan;
-            }
-            
-            // Map old plan names to new plan structure
-            const planMapping: Record<string, string> = {
-                'special': 'innovation', // Map special plan to innovation plan
-                'premium': 'professional', // Map premium to professional if it exists
-                'basic': 'free', // Map basic to free if it exists
-            };
-            
-            userPlan = planMapping[userPlan] || userPlan;
-            setCurrentPlan(userPlan);
 
             // Fetch usage stats
             try {
@@ -90,7 +67,7 @@ function PricingPageInner() {
                     console.warn('Usage stats API returned:', response.status, response.statusText);
                     // Set default usage stats if API fails
                     setUsageStats({
-                        user: { id: uid, plan: userPlan, pricing: {} },
+                        user: { id: uid, plan: 'free', pricing: {} },
                         usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
                         limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
                         remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
@@ -101,7 +78,7 @@ function PricingPageInner() {
                 console.error('Error fetching usage stats:', error);
                 // Set default usage stats if API fails
                 setUsageStats({
-                    user: { id: uid, plan: userPlan, pricing: {} },
+                    user: { id: uid, plan: 'free', pricing: {} },
                     usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
                     limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
                     remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
@@ -161,15 +138,45 @@ function PricingPageInner() {
     // Calculate pricing when currency changes
     useEffect(() => {
         const calculatePricing = async () => {
-            const pricing: any = {};
-            for (const plan of Object.keys(PRICING_CONFIG)) {
-                try {
-                    pricing[plan] = await getPricingInCurrency(plan, selectedCurrency);
-                } catch (error) {
-                    console.error(`Error calculating pricing for ${plan}:`, error);
+            try {
+                // Fetch plans from database
+                const response = await fetch('/api/subscription-plans');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const pricing: any = {};
+                        for (const plan of data.plans) {
+                            const planKey = plan.name.toLowerCase();
+                            if (selectedCurrency === 'LKR') {
+                                pricing[planKey] = {
+                                    monthlyPrice: plan.monthly_price * 300, // Approximate LKR conversion
+                                    yearlyPrice: plan.yearly_price * 300
+                                };
+                            } else {
+                                pricing[planKey] = {
+                                    monthlyPrice: plan.monthly_price,
+                                    yearlyPrice: plan.yearly_price
+                                };
+                            }
+                        }
+                        setPricingData(pricing);
+                        return;
+                    }
                 }
+                
+                // Fallback to old method
+                const pricing: any = {};
+                for (const plan of Object.keys(PRICING_CONFIG)) {
+                    try {
+                        pricing[plan] = await getPricingInCurrency(plan, selectedCurrency);
+                    } catch (error) {
+                        console.error(`Error calculating pricing for ${plan}:`, error);
+                    }
+                }
+                setPricingData(pricing);
+            } catch (error) {
+                console.error('Error fetching plans:', error);
             }
-            setPricingData(pricing);
         };
         
         if (selectedCurrency) {
@@ -204,57 +211,49 @@ function PricingPageInner() {
         if (!userId) return;
         
         try {
-            const supabase = getSupabaseBrowser();
-            
-            // Check subscriptions table for active subscriptions
-            const { data: subscription, error: subError } = await supabase
-                .from('subscriptions')
-                .select('plan, status, created_at')
-                .eq('user_id', userId)
-                .eq('status', 'active')
-                .order('created_at', { ascending: false })
-                .maybeSingle();
-
-            if (subscription?.plan && subscription?.status === 'active') {
-                setCurrentPlan(subscription.plan);
-                setPendingPlans(new Set());
-                
-                // Also refresh usage stats
-                try {
-                    const response = await fetch(`/api/user/usage-limits?userId=${userId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setUsageStats(data);
+            // Fetch current subscription from new API
+            const response = await fetch(`/api/subscriptions?userId=${userId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    const planName = data.currentPlan?.name?.toLowerCase() || 'free';
+                    setCurrentPlan(planName);
+                    setPendingPlans(new Set());
+                    
+                    // Also refresh usage stats
+                    try {
+                        const usageResponse = await fetch(`/api/user/usage-limits?userId=${userId}`);
+                        if (usageResponse.ok) {
+                            const usageData = await usageResponse.json();
+                            setUsageStats(usageData);
+                        }
+                    } catch (error) {
+                        console.error('Error updating usage stats:', error);
                     }
-                } catch (error) {
-                    console.error('Error updating usage stats:', error);
+                    return;
                 }
-                return;
             }
 
-            // Check profiles table as fallback
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('plan')
-                .eq('id', userId)
-                .maybeSingle();
+            // Fallback to free plan
+            setCurrentPlan('free');
+            setPendingPlans(new Set());
 
-            if (profile?.plan) {
-                setCurrentPlan(profile.plan);
-                setPendingPlans(new Set());
-            } else {
-                setCurrentPlan('free');
-            }
-
-            // Also refresh pending payments
+            // Also refresh pending payments from new table
+            const supabase = getSupabaseBrowser();
             const { data: pendingPayments, error: pendingError } = await supabase
-                .from('payments')
-                .select('plan, status')
+                .from('user_payments')
+                .select(`
+                    status,
+                    subscription_plans!inner(name)
+                `)
                 .eq('user_id', userId)
                 .eq('status', 'pending');
 
             if (pendingPayments) {
-                const pendingPlans = new Set(pendingPayments.map(p => p.plan));
+                const pendingPlans = new Set(pendingPayments.map(p => {
+                    const plan = Array.isArray(p.subscription_plans) ? p.subscription_plans[0] : p.subscription_plans;
+                    return plan?.name?.toLowerCase() || 'unknown';
+                }));
                 setPendingPlans(pendingPlans);
             } else {
                 setPendingPlans(new Set());
@@ -397,7 +396,7 @@ function PricingPageInner() {
 
                 {/* Pricing Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8">
-                    {Object.keys(PRICING_CONFIG).map((plan) => {
+                    {Object.keys(pricingData).map((plan) => {
                         const pricing = pricingData[plan];
                         if (!pricing) return null;
                         

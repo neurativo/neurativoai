@@ -5,10 +5,19 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseServer();
     
-    // Fetch all payments using service role (bypasses RLS)
+    // Fetch all payments with plan details using service role (bypasses RLS)
     const { data: payments, error } = await supabase
-      .from('payments')
-      .select('*')
+      .from('user_payments')
+      .select(`
+        *,
+        subscription_plans!inner(
+          id,
+          name,
+          monthly_price,
+          yearly_price,
+          features
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -29,7 +38,7 @@ export async function GET(request: NextRequest) {
               ...payment,
               user_email: `User ${payment.user_id.slice(0, 8)}`,
               user_name: 'Unknown',
-              amount: payment.amount_cents / 100
+              plan_name: payment.subscription_plans.name
             };
           }
 
@@ -37,7 +46,7 @@ export async function GET(request: NextRequest) {
             ...payment,
             user_email: userData.user.email || 'Unknown',
             user_name: userData.user.user_metadata?.full_name || 'Unknown',
-            amount: payment.amount_cents / 100
+            plan_name: payment.subscription_plans.name
           };
         } catch (error) {
           console.warn(`Error fetching user details for ${payment.user_id}:`, error);
@@ -45,7 +54,7 @@ export async function GET(request: NextRequest) {
             ...payment,
             user_email: `User ${payment.user_id.slice(0, 8)}`,
             user_name: 'Unknown',
-            amount: payment.amount_cents / 100
+            plan_name: payment.subscription_plans.name
           };
         }
       })
@@ -76,10 +85,19 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = getSupabaseServer();
     
-    // First, check if payment exists
+    // First, get payment with plan details
     const { data: existingPayment, error: fetchError } = await supabase
-      .from('payments')
-      .select('id, user_id, plan, status')
+      .from('user_payments')
+      .select(`
+        id, 
+        user_id, 
+        plan_id, 
+        status,
+        subscription_plans!inner(
+          id,
+          name
+        )
+      `)
       .eq('id', paymentId)
       .single();
 
@@ -90,11 +108,11 @@ export async function PATCH(request: NextRequest) {
     
     // Update payment status
     const { error: updateError } = await supabase
-      .from('payments')
+      .from('user_payments')
       .update({ 
         status, 
         admin_note: adminNote || null,
-        updated_at: new Date().toISOString()
+        reviewed_by: null // TODO: Add admin user ID when implementing proper admin auth
       })
       .eq('id', paymentId);
 
@@ -106,49 +124,13 @@ export async function PATCH(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // If approved, update user's plan in both profiles and subscriptions tables
+    // If approved, create new active subscription
     if (status === 'approved') {
-      // Update or create profile
-      const { data: existingProfile, error: profileFetchError } = await supabase
-        .from('profiles')
-        .select('id, plan')
-        .eq('id', existingPayment.user_id)
-        .single();
-
-      if (profileFetchError) {
-        const { error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: existingPayment.user_id,
-            plan: existingPayment.plan,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (createError) {
-          console.error('Error creating user profile:', createError);
-        }
-      } else {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ 
-            plan: existingPayment.plan,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingPayment.user_id);
-
-        if (profileError) {
-          console.error('Error updating user profile:', profileError);
-        }
-      }
-
-      // Update or create subscription (this is what the frontend actually uses)
       // First, deactivate any existing active subscriptions
       const { error: deactivateError } = await supabase
-        .from('subscriptions')
+        .from('user_subscriptions')
         .update({
-          status: 'inactive',
-          updated_at: new Date().toISOString()
+          status: 'expired'
         })
         .eq('user_id', existingPayment.user_id)
         .eq('status', 'active');
@@ -157,20 +139,31 @@ export async function PATCH(request: NextRequest) {
         console.warn('Error deactivating existing subscriptions:', deactivateError);
       }
 
-      // Create new active subscription
+      // Create new active subscription with 30-day expiry
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 30); // 30 days from now
+
       const { error: subCreateError } = await supabase
-        .from('subscriptions')
+        .from('user_subscriptions')
         .insert({
           user_id: existingPayment.user_id,
-          plan: existingPayment.plan,
+          plan_id: existingPayment.plan_id,
           status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          start_date: new Date().toISOString(),
+          end_date: endDate.toISOString(),
+          payment_id: paymentId
         });
 
       if (subCreateError) {
         console.error('Error creating subscription:', subCreateError);
+        return NextResponse.json({ 
+          error: 'Failed to create subscription', 
+          details: subCreateError.message 
+        }, { status: 500 });
       }
+
+      const planName = (existingPayment.subscription_plans as any)?.name || 'Unknown';
+      console.log(`Subscription activated for user ${existingPayment.user_id} with plan ${planName}`);
     }
 
     return NextResponse.json({ 

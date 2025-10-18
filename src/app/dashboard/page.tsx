@@ -55,22 +55,44 @@ export default function DashboardPage() {
       }
       setEmail(user.email || null);
       setUserId(user.id);
-      // Call server API with service role to avoid PostgREST 400s
+      // Get current subscription
+      const subRes = await fetch(`/api/subscriptions?userId=${user.id}`);
+      let subData: any = null;
+      if (subRes.ok) {
+        subData = await subRes.json();
+        if (subData.success) {
+          const planName = subData.currentPlan?.name?.toLowerCase() || 'free';
+          setUsage({
+            plan: planName,
+            monthly_quiz_generations: subData.currentPlan?.monthly_limit || 50,
+            used: 0, // TODO: Get actual usage from usage tracking
+            daily_used: 0, // TODO: Get actual usage from usage tracking
+            daily_limit: subData.currentPlan?.daily_limit || 3,
+            max_questions_per_quiz: 10, // TODO: Get from plan features
+            source_usage: undefined,
+            source_limits: undefined,
+            daily_source_usage: undefined,
+            daily_source_limits: undefined,
+          });
+        }
+      }
+
+      // Also call the old usage API for compatibility
       const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
       const json = await res.json();
       if (json?.success && json?.data) {
-        setUsage({
-          plan: json.data.plan,
-          monthly_quiz_generations: json.data.monthly_quiz_generations,
+        setUsage(prev => ({
+          plan: prev?.plan || 'free',
+          monthly_quiz_generations: prev?.monthly_quiz_generations || 50,
           used: json.data.monthly_used,
           daily_used: json.data.daily_used,
-          daily_limit: json.data.daily_limit,
-          max_questions_per_quiz: json.data.max_questions_per_quiz,
+          daily_limit: prev?.daily_limit || 3,
+          max_questions_per_quiz: prev?.max_questions_per_quiz || 10,
           source_usage: json.data.source_usage,
           source_limits: json.data.source_limits,
           daily_source_usage: json.data.daily_source_usage,
           daily_source_limits: json.data.daily_source_limits,
-        });
+        }));
       }
 
       // Note: Real-time updates are now handled by EnhancedUsageTracker component

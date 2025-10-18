@@ -21,11 +21,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate plan
-    const validPlans = ['professional', 'mastery', 'innovation'];
-    if (!validPlans.includes(plan)) {
+    // Validate payment method
+    if (!['bank', 'binance'].includes(paymentMethod)) {
       return NextResponse.json({ 
-        error: 'Invalid plan' 
+        error: 'Invalid payment method. Must be "bank" or "binance"' 
       }, { status: 400 });
     }
 
@@ -33,13 +32,6 @@ export async function POST(request: NextRequest) {
     if (!['monthly', 'yearly'].includes(billing)) {
       return NextResponse.json({ 
         error: 'Invalid billing period' 
-      }, { status: 400 });
-    }
-
-    // Validate payment method
-    if (!['bank', 'binance'].includes(paymentMethod)) {
-      return NextResponse.json({ 
-        error: 'Invalid payment method. Must be "bank" or "binance"' 
       }, { status: 400 });
     }
 
@@ -61,27 +53,43 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Calculate amount in cents
-    const amountCents = Math.round(amount * 100);
+    // Get plan details from subscription_plans table
+    const { data: planData, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('id, name, monthly_price, yearly_price')
+      .eq('name', plan)
+      .single();
 
-    // Prepare payment data
+    if (planError || !planData) {
+      return NextResponse.json({ 
+        error: 'Invalid plan' 
+      }, { status: 400 });
+    }
+
+    // Validate amount matches plan pricing
+    const expectedAmount = billing === 'yearly' ? planData.yearly_price : planData.monthly_price;
+    if (Math.abs(amount - expectedAmount) > 0.01) { // Allow small floating point differences
+      return NextResponse.json({ 
+        error: `Amount mismatch. Expected ${currency} ${expectedAmount} for ${plan} ${billing}` 
+      }, { status: 400 });
+    }
+
+    // Prepare payment data for new structure
     const paymentData = {
       user_id: user.id,
-      plan,
+      plan_id: planData.id,
       method: paymentMethod,
-      amount_cents: amountCents,
+      amount: amount,
       currency,
       transaction_reference: transactionId,
       proof_url: proofUrl,
       status: 'pending',
-      admin_note: notes || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      admin_note: notes || null
     };
 
-    // Create payment record
+    // Create payment record in new user_payments table
     const { data: payment, error: paymentError } = await supabase
-      .from('payments')
+      .from('user_payments')
       .insert(paymentData)
       .select()
       .single();
@@ -93,14 +101,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Send confirmation email (optional)
-    try {
-      // TODO: Implement email notification
-      console.log('Payment created:', payment.id);
-    } catch (emailError) {
-      console.warn('Email notification failed:', emailError);
-      // Don't fail the request if email fails
-    }
+    console.log('Payment created:', payment.id);
 
     return NextResponse.json({ 
       success: true,

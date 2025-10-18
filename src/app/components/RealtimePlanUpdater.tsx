@@ -28,35 +28,21 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
     // Initial plan fetch
     const fetchCurrentPlan = async () => {
       try {
-        // Try to get from subscriptions table first (what the frontend uses)
-        const { data: subscription, error: subError } = await supabase
-          .from('subscriptions')
-          .select('plan, status, created_at')
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .maybeSingle();
-
-        if (subscription?.plan && subscription?.status === 'active') {
-          setCurrentPlan(subscription.plan);
-          onPlanUpdate(subscription.plan);
-          return;
+        // Use the new subscriptions API
+        const response = await fetch(`/api/subscriptions?userId=${userId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.currentPlan) {
+            const planName = data.currentPlan.name.toLowerCase();
+            setCurrentPlan(planName);
+            onPlanUpdate(planName);
+            return;
+          }
         }
-
-        // Fallback to profiles table
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('plan')
-          .eq('id', userId)
-          .maybeSingle();
-
-        if (profile?.plan) {
-          setCurrentPlan(profile.plan);
-          onPlanUpdate(profile.plan);
-        } else {
-          setCurrentPlan('free');
-          onPlanUpdate('free');
-        }
+        
+        // Fallback to free plan
+        setCurrentPlan('free');
+        onPlanUpdate('free');
       } catch (error) {
         console.error('Error fetching current plan:', error);
         // Set to free as fallback
@@ -72,7 +58,7 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
       channelRef.current.unsubscribe();
     }
 
-    // Set up realtime subscription for subscriptions table
+    // Set up realtime subscription for user_subscriptions table
     const subscriptionChannel = supabase
       .channel(`subscription-changes-${userId}-${Date.now()}`)
       .on(
@@ -80,36 +66,31 @@ export default function RealtimePlanUpdater({ userId, onPlanUpdate, children }: 
         {
           event: '*',
           schema: 'public',
-          table: 'subscriptions',
+          table: 'user_subscriptions',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
+        async (payload) => {
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-            const newPlan = payload.new?.plan;
             const newStatus = payload.new?.status;
             
-            // Only update if it's an active subscription and the plan is different
-            if (newPlan && newStatus === 'active' && newPlan !== currentPlan) {
-              setCurrentPlan(newPlan);
-              onPlanUpdate(newPlan);
-            }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${userId}`
-        },
-        (payload) => {
-          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-            const newPlan = payload.new?.plan;
-            if (newPlan && newPlan !== currentPlan) {
-              setCurrentPlan(newPlan);
-              onPlanUpdate(newPlan);
+            // Only update if it's an active subscription
+            if (newStatus === 'active') {
+              // Fetch the updated plan details
+              try {
+                const response = await fetch(`/api/subscriptions?userId=${userId}`);
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.success && data.currentPlan) {
+                    const planName = data.currentPlan.name.toLowerCase();
+                    if (planName !== currentPlan) {
+                      setCurrentPlan(planName);
+                      onPlanUpdate(planName);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching updated plan:', error);
+              }
             }
           }
         }

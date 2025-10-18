@@ -6,9 +6,9 @@ import { getSupabaseBrowser } from '@/lib/supabase';
 interface Payment {
   id: string;
   user_id: string;
-  plan: string;
+  plan_id: number;
   method: string;
-  amount_cents: number;
+  amount: number;
   currency: string;
   transaction_reference: string | null;
   proof_url: string | null;
@@ -18,6 +18,14 @@ interface Payment {
   updated_at: string;
   user_email?: string;
   user_name?: string;
+  plan_name?: string;
+  subscription_plans?: {
+    id: number;
+    name: string;
+    monthly_price: number;
+    yearly_price: number;
+    features: string[];
+  };
 }
 
 interface PaymentDetailsModalProps {
@@ -44,7 +52,7 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
     setRejectionNote('');
   };
 
-  const amount = payment.amount_cents / 100;
+  const amount = payment.amount;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -82,12 +90,12 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
                   <div>
                     <label className="text-sm text-gray-400">Plan</label>
                     <span className={`block px-3 py-1 text-xs font-semibold rounded-full ${
-                      payment.plan === 'mastery' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white' :
-                      payment.plan === 'professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white' :
-                      payment.plan === 'innovation' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' :
+                      (payment.plan_name || payment.subscription_plans?.name) === 'Mastery' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white' :
+                      (payment.plan_name || payment.subscription_plans?.name) === 'Professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white' :
+                      (payment.plan_name || payment.subscription_plans?.name) === 'Innovation' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' :
                       'bg-gray-600 text-white'
                     }`}>
-                      {payment.plan}
+                      {payment.plan_name || payment.subscription_plans?.name || 'Unknown'}
                     </span>
                   </div>
                   
@@ -466,13 +474,13 @@ export default function PaymentManagement() {
       payment.id.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Plan filter
-    const planMatch = planFilter === 'all' || payment.plan === planFilter;
+    const planMatch = planFilter === 'all' || (payment.plan_name || payment.subscription_plans?.name) === planFilter;
     
     // Method filter
     const methodMatch = methodFilter === 'all' || payment.method === methodFilter;
     
     // Amount range filter
-    const amount = payment.amount_cents / 100;
+    const amount = payment.amount;
     const amountMatch = (!amountMin || amount >= parseFloat(amountMin)) && 
                        (!amountMax || amount <= parseFloat(amountMax));
     
@@ -769,16 +777,16 @@ export default function PaymentManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        payment.plan === 'mastery' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white' :
-                        payment.plan === 'professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white' :
-                        payment.plan === 'innovation' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' :
+                        (payment.plan_name || payment.subscription_plans?.name) === 'Mastery' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white' :
+                        (payment.plan_name || payment.subscription_plans?.name) === 'Professional' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white' :
+                        (payment.plan_name || payment.subscription_plans?.name) === 'Innovation' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' :
                         'bg-gray-600 text-white'
                       }`}>
-                        {payment.plan}
+                        {payment.plan_name || payment.subscription_plans?.name || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 group-hover:text-white transition-colors">
-                      {payment.currency} {(payment.amount_cents / 100).toFixed(2)}
+                      {payment.currency} {payment.amount.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-600 text-white">

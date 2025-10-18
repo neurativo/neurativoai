@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         method: paymentMethod,
         amount_cents: Math.round(amount * 100),
         currency: currency,
-        transaction_id: transactionId,
+        transaction_reference: transactionId, // Fixed: use transaction_reference instead of transaction_id
         proof_url: proofUrl,
         status: 'pending',
         admin_note: notes || null

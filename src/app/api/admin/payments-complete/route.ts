@@ -5,24 +5,61 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseServer();
     
-    // Fetch all payments with plan details using service role (bypasses RLS)
-    const { data: payments, error } = await supabase
-      .from('user_payments')
-      .select(`
-        *,
-        subscription_plans!inner(
-          id,
-          name,
-          monthly_price,
-          yearly_price,
-          features
-        )
-      `)
-      .order('created_at', { ascending: false });
+    // Try to fetch from new user_payments table first
+    let payments: any[] = [];
+    let error: any = null;
 
-    if (error) {
-      console.error('Error fetching payments:', error);
-      return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 });
+    try {
+      const { data: newPayments, error: newError } = await supabase
+        .from('user_payments')
+        .select(`
+          *,
+          subscription_plans!inner(
+            id,
+            name,
+            monthly_price,
+            yearly_price,
+            features
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (newError) {
+        console.log('New user_payments table not available, trying old table:', newError);
+        throw newError;
+      }
+
+      payments = newPayments || [];
+      console.log('Successfully fetched from user_payments table:', payments.length, 'payments');
+    } catch (newTableError) {
+      console.log('Falling back to old payments table');
+      
+      // Fallback to old payments table
+      const { data: oldPayments, error: oldError } = await supabase
+        .from('payments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (oldError) {
+        console.error('Error fetching from old payments table:', oldError);
+        return NextResponse.json({ error: 'Failed to fetch payments from both tables' }, { status: 500 });
+      }
+
+      // Convert old payment format to new format
+      payments = (oldPayments || []).map(payment => ({
+        ...payment,
+        plan_id: null, // Old table doesn't have plan_id
+        amount: payment.amount_cents ? payment.amount_cents / 100 : 0, // Convert cents to dollars
+        subscription_plans: {
+          id: null,
+          name: payment.plan || 'Unknown',
+          monthly_price: 0,
+          yearly_price: 0,
+          features: []
+        }
+      }));
+
+      console.log('Successfully fetched from old payments table:', payments.length, 'payments');
     }
 
     // Get user details for each payment
@@ -60,10 +97,24 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({ payments: paymentsWithUsers });
+    console.log('Returning payments to admin panel:', paymentsWithUsers.length, 'payments');
+    
+    return NextResponse.json({ 
+      success: true,
+      payments: paymentsWithUsers,
+      total: paymentsWithUsers.length,
+      source: payments.length > 0 ? (payments[0].amount_cents ? 'old_payments_table' : 'user_payments_table') : 'no_data'
+    });
   } catch (error) {
     console.error('Error in payments API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      debug: {
+        message: 'Check if user_payments or payments table exists and has data',
+        suggestion: 'Run debug-admin-payments.sql to diagnose the issue'
+      }
+    }, { status: 500 });
   }
 }
 

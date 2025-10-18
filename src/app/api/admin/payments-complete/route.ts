@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
           console.log('📄 Sample payment:', payments[0]);
         }
       } catch (newTableError) {
-        console.log('🔄 Falling back to old payments table due to:', newTableError.message);
+        console.log('🔄 Falling back to old payments table due to:', newTableError instanceof Error ? newTableError.message : 'Unknown error');
         
         // Fallback to old payments table
         const { data: oldPayments, error: oldError } = await supabase

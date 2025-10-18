@@ -81,14 +81,20 @@ function PricingPageInner() {
                 .eq('status', 'pending');
 
             if (pendingPayments) {
+                console.log('Pending payments from user_payments:', pendingPayments);
                 const pendingPlans = new Set(pendingPayments.map(p => {
                     const plan = Array.isArray(p.subscription_plans) ? p.subscription_plans[0] : p.subscription_plans;
-                    return plan?.name?.toLowerCase() || 'unknown';
+                    const planName = plan?.name?.toLowerCase() || 'unknown';
+                    console.log('Mapped plan name:', planName, 'from plan object:', plan);
+                    return planName;
                 }));
+                console.log('Final pending plans set:', Array.from(pendingPlans));
                 setPendingPlans(pendingPlans);
             } else {
+                console.log('No pending payments from user_payments, trying old table...');
                 // Fallback to old payments table if new table doesn't exist
                 const { data: pays } = await supabase.from("payments").select("plan,status").eq("user_id", uid).eq("status", "pending");
+                console.log('Pending payments from old payments table:', pays);
                 setPendingPlans(new Set((pays ?? []).map(p => p.plan)));
             }
 
@@ -258,12 +264,17 @@ function PricingPageInner() {
                 .eq('status', 'pending');
 
             if (pendingPayments) {
+                console.log('Refresh: Pending payments from user_payments:', pendingPayments);
                 const pendingPlans = new Set(pendingPayments.map(p => {
                     const plan = Array.isArray(p.subscription_plans) ? p.subscription_plans[0] : p.subscription_plans;
-                    return plan?.name?.toLowerCase() || 'unknown';
+                    const planName = plan?.name?.toLowerCase() || 'unknown';
+                    console.log('Refresh: Mapped plan name:', planName, 'from plan object:', plan);
+                    return planName;
                 }));
+                console.log('Refresh: Final pending plans set:', Array.from(pendingPlans));
                 setPendingPlans(pendingPlans);
             } else {
+                console.log('Refresh: No pending payments found');
                 setPendingPlans(new Set());
             }
         } catch (error) {

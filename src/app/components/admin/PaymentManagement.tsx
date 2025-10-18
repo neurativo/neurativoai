@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSupabaseBrowser } from '@/lib/supabase';
+import AIReceiptScanner from './AIReceiptScanner';
 
 interface Payment {
   id: string;
@@ -19,6 +20,9 @@ interface Payment {
   user_email?: string;
   user_name?: string;
   plan_name?: string;
+  ai_analysis?: any;
+  ai_confidence?: number;
+  ai_status?: 'valid' | 'invalid' | 'unclear';
   subscription_plans?: {
     id: number;
     name: string;
@@ -244,6 +248,8 @@ export default function PaymentManagement() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showAIScanner, setShowAIScanner] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   
@@ -803,13 +809,25 @@ export default function PaymentManagement() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        payment.status === 'approved' ? 'bg-green-600 text-white' :
-                        payment.status === 'pending' ? 'bg-yellow-600 text-white' :
-                        'bg-red-600 text-white'
-                      }`}>
-                        {payment.status.toUpperCase()}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                          payment.status === 'approved' ? 'bg-green-600 text-white' :
+                          payment.status === 'pending' ? 'bg-yellow-600 text-white' :
+                          'bg-red-600 text-white'
+                        }`}>
+                          {payment.status.toUpperCase()}
+                        </span>
+                        {payment.ai_status && (
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            payment.ai_status === 'valid' ? 'bg-green-500/20 text-green-400' :
+                            payment.ai_status === 'invalid' ? 'bg-red-500/20 text-red-400' :
+                            'bg-yellow-500/20 text-yellow-400'
+                          }`}>
+                            AI: {payment.ai_status}
+                            {payment.ai_confidence && ` (${Math.round(payment.ai_confidence * 100)}%)`}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 group-hover:text-white transition-colors">
                       {new Date(payment.created_at).toLocaleDateString()}
@@ -822,6 +840,18 @@ export default function PaymentManagement() {
                         >
                           👁️ Details
                         </button>
+                        {payment.proof_url && (
+                          <button
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setShowAIScanner(true);
+                            }}
+                            className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded text-purple-300 hover:text-purple-200 transition-all"
+                            title="AI Receipt Scanner"
+                          >
+                            🤖 AI Scan
+                          </button>
+                        )}
                         {payment.proof_url && (
                           <a
                             href={payment.proof_url}
@@ -930,6 +960,26 @@ export default function PaymentManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Receipt Scanner Modal */}
+      {showAIScanner && selectedPayment && (
+        <AIReceiptScanner
+          payment={selectedPayment}
+          onScanComplete={(result) => {
+            setAiAnalysis(result);
+            // You can add logic here to auto-approve/reject based on AI confidence
+            if (result.confidence > 0.8 && result.validationStatus === 'valid') {
+              // Auto-approve high-confidence valid payments
+              console.log('AI recommends auto-approval');
+            }
+          }}
+          onClose={() => {
+            setShowAIScanner(false);
+            setSelectedPayment(null);
+            setAiAnalysis(null);
+          }}
+        />
       )}
     </div>
   );

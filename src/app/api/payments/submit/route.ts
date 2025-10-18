@@ -94,10 +94,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate amount matches plan pricing
+    // Note: The frontend already handles currency conversion, so we validate against the base USD price
     const expectedAmount = billing === 'yearly' ? planData.yearly_price : planData.monthly_price;
-    if (Math.abs(amount - expectedAmount) > 0.01) { // Allow small floating point differences
+    
+    // For LKR, the frontend sends the converted amount, so we need to convert our expected amount
+    let expectedAmountInCurrency = expectedAmount;
+    if (currency === 'LKR') {
+      expectedAmountInCurrency = Math.round(expectedAmount * 300);
+    }
+    
+    if (Math.abs(amount - expectedAmountInCurrency) > 0.01) { // Allow small floating point differences
       return NextResponse.json({ 
-        error: `Amount mismatch. Expected ${currency} ${expectedAmount} for ${plan} ${billing}` 
+        error: `Amount mismatch. Expected ${currency} ${expectedAmountInCurrency} for ${plan} ${billing}` 
       }, { status: 400 });
     }
 

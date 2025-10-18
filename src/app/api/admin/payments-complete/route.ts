@@ -3,6 +3,7 @@ import { getSupabaseServer } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 Admin payments API called');
     const supabase = getSupabaseServer();
     
     // Try to fetch from new user_payments table first
@@ -25,14 +26,18 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false });
 
       if (newError) {
-        console.log('New user_payments table not available, trying old table:', newError);
+        console.log('❌ New user_payments table error:', newError);
+        console.log('🔄 Falling back to old payments table...');
         throw newError;
       }
 
       payments = newPayments || [];
-      console.log('Successfully fetched from user_payments table:', payments.length, 'payments');
+      console.log('✅ Successfully fetched from user_payments table:', payments.length, 'payments');
+      if (payments.length > 0) {
+        console.log('📄 Sample payment:', payments[0]);
+      }
     } catch (newTableError) {
-      console.log('Falling back to old payments table');
+      console.log('🔄 Falling back to old payments table due to:', newTableError.message);
       
       // Fallback to old payments table
       const { data: oldPayments, error: oldError } = await supabase
@@ -41,9 +46,11 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false });
 
       if (oldError) {
-        console.error('Error fetching from old payments table:', oldError);
+        console.error('❌ Error fetching from old payments table:', oldError);
         return NextResponse.json({ error: 'Failed to fetch payments from both tables' }, { status: 500 });
       }
+      
+      console.log('✅ Successfully fetched from old payments table:', oldPayments?.length || 0, 'payments');
 
       // Convert old payment format to new format
       payments = (oldPayments || []).map(payment => ({
@@ -97,14 +104,21 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    console.log('Returning payments to admin panel:', paymentsWithUsers.length, 'payments');
-    
-    return NextResponse.json({ 
-      success: true,
-      payments: paymentsWithUsers,
-      total: paymentsWithUsers.length,
-      source: payments.length > 0 ? (payments[0].amount_cents ? 'old_payments_table' : 'user_payments_table') : 'no_data'
-    });
+        console.log('📊 Final result - Returning payments to admin panel:', paymentsWithUsers.length, 'payments');
+        console.log('📋 Payment details:', paymentsWithUsers.map(p => ({
+          id: p.id,
+          user_email: p.user_email,
+          plan_name: p.plan_name,
+          status: p.status,
+          amount: p.amount
+        })));
+        
+        return NextResponse.json({ 
+          success: true,
+          payments: paymentsWithUsers,
+          total: paymentsWithUsers.length,
+          source: payments.length > 0 ? (payments[0].amount_cents ? 'old_payments_table' : 'user_payments_table') : 'no_data'
+        });
   } catch (error) {
     console.error('Error in payments API:', error);
     return NextResponse.json({ 

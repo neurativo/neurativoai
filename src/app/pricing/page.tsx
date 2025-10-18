@@ -129,13 +129,21 @@ function PricingPageInner() {
                             const planKey = plan.name.toLowerCase();
                             if (selectedCurrency === 'LKR') {
                                 pricing[planKey] = {
+                                    plan: planKey,
                                     monthlyPrice: plan.monthly_price * 300, // Approximate LKR conversion
-                                    yearlyPrice: plan.yearly_price * 300
+                                    yearlyPrice: plan.yearly_price * 300,
+                                    monthlyPriceFormatted: `LKR ${Math.round(plan.monthly_price * 300)}`,
+                                    yearlyPriceFormatted: `LKR ${Math.round(plan.yearly_price * 300)}`,
+                                    currency: 'LKR'
                                 };
                             } else {
                                 pricing[planKey] = {
+                                    plan: planKey,
                                     monthlyPrice: plan.monthly_price,
-                                    yearlyPrice: plan.yearly_price
+                                    yearlyPrice: plan.yearly_price,
+                                    monthlyPriceFormatted: `$${plan.monthly_price}`,
+                                    yearlyPriceFormatted: `$${plan.yearly_price}`,
+                                    currency: 'USD'
                                 };
                             }
                         }
@@ -148,9 +156,22 @@ function PricingPageInner() {
                 const pricing: any = {};
                 for (const plan of Object.keys(PRICING_CONFIG)) {
                     try {
-                        pricing[plan] = await getPricingInCurrency(plan, selectedCurrency);
+                        const planPricing = await getPricingInCurrency(plan, selectedCurrency);
+                        pricing[plan] = {
+                            ...planPricing,
+                            plan: plan
+                        };
                     } catch (error) {
                         console.error(`Error calculating pricing for ${plan}:`, error);
+                        // Add fallback pricing structure
+                        pricing[plan] = {
+                            plan: plan,
+                            monthlyPrice: 0,
+                            yearlyPrice: 0,
+                            monthlyPriceFormatted: '$0',
+                            yearlyPriceFormatted: '$0',
+                            currency: selectedCurrency
+                        };
                     }
                 }
                 setPricingData(pricing);
@@ -367,7 +388,7 @@ function PricingPageInner() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8">
                     {Object.keys(pricingData).map((plan) => {
                         const pricing = pricingData[plan];
-                        if (!pricing) return null;
+                        if (!pricing || !pricing.plan) return null;
                         
                         return (
                             <PricingDisplay

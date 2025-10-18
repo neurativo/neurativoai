@@ -20,9 +20,14 @@ export default function PricingDisplay({
   isPending = false,
   onUpgrade
 }: PricingDisplayProps) {
-  const price = isYearly ? pricing.yearlyPrice : pricing.monthlyPrice;
-  const priceFormatted = isYearly ? pricing.yearlyPriceFormatted : pricing.monthlyPriceFormatted;
-  const monthlyEquivalent = isYearly ? pricing.yearlyPrice / 12 : pricing.monthlyPrice;
+  // Safety checks for pricing object
+  if (!pricing || !pricing.plan) {
+    return null;
+  }
+
+  const price = isYearly ? (pricing.yearlyPrice || 0) : (pricing.monthlyPrice || 0);
+  const priceFormatted = isYearly ? (pricing.yearlyPriceFormatted || '$0') : (pricing.monthlyPriceFormatted || '$0');
+  const monthlyEquivalent = isYearly ? (pricing.yearlyPrice || 0) / 12 : (pricing.monthlyPrice || 0);
   const limits = USAGE_LIMITS[pricing.plan] || USAGE_LIMITS.free;
 
   const getPlanFeatures = (plan: string) => {

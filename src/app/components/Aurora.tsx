@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Renderer, Program, Mesh, Color, Triangle } from "ogl";
 
 type AuroraProps = {
@@ -122,12 +122,14 @@ export default function Aurora(props: AuroraProps) {
 	const propsRef = useRef<AuroraProps>(props);
 	propsRef.current = props;
 	const ctnDom = useRef<HTMLDivElement | null>(null);
+	const [hasError, setHasError] = useState(false);
 
 	useEffect(() => {
 		const ctn = ctnDom.current;
 		if (!ctn) return;
 
-		const renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: true });
+		try {
+			const renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: true });
 		const gl = renderer.gl as WebGL2RenderingContext;
 		gl.clearColor(0, 0, 0, 0);
 		gl.enable(gl.BLEND);
@@ -199,7 +201,15 @@ export default function Aurora(props: AuroraProps) {
 			(gl as any).getExtension?.("WEBGL_lose_context")?.loseContext?.();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
+		} catch (error) {
+			console.warn('Aurora component failed to initialize:', error);
+			setHasError(true);
+		}
 	}, [amplitude]);
+
+	if (hasError) {
+		return null; // Don't render anything if WebGL fails
+	}
 
 	return <div ref={ctnDom} className="aurora-container" />;
 }

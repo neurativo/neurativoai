@@ -3,7 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import Aurora from "./components/Aurora";
+import ConditionalAurora from "./components/ConditionalAurora";
 import PerformanceOptimizer from "./components/PerformanceOptimizer";
 import Chatbot from "./components/Chatbot";
 
@@ -241,7 +241,7 @@ export default function RootLayout({
 		>
 			<PerformanceOptimizer />
 			<Navbar />
-			<Aurora colorStops={["#D946EF", "#8B5CF6", "#3B82F6"]} amplitude={1.3} blend={0.65} speed={0.5} />
+			<ConditionalAurora colorStops={["#D946EF", "#8B5CF6", "#3B82F6"]} amplitude={1.3} blend={0.65} speed={0.5} />
 			<main className="relative z-30 pt-16 md:pt-16 pb-20 md:pb-0">
 				{children}
 			</main>

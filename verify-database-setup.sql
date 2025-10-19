@@ -76,3 +76,4 @@ SELECT
         THEN '✅ DATABASE SETUP COMPLETE' 
         ELSE '❌ SETUP INCOMPLETE - CHECK ABOVE' 
     END as result;
+

@@ -311,22 +311,82 @@ export async function PATCH(request: NextRequest) {
     if (status === 'approved') {
       // If we don't have plan_id (from old table), get it from subscription_plans
       if (planId === null) {
-        const { data: planData, error: planError } = await supabase
+        console.log(`Looking up plan_id for plan name: "${planName}"`);
+        
+        // First try exact match
+        let { data: planData, error: planError } = await supabase
           .from('subscription_plans')
-          .select('id')
+          .select('id, name')
           .eq('name', planName)
           .single();
 
+        // If exact match fails, try case-insensitive match
         if (planError) {
+          console.log('Exact match failed, trying case-insensitive match');
+          const { data: caseInsensitiveData, error: caseInsensitiveError } = await supabase
+            .from('subscription_plans')
+            .select('id, name')
+            .ilike('name', planName)
+            .single();
+          
+          if (caseInsensitiveError) {
+            console.log('Case-insensitive match failed, trying partial match');
+            
+            // Try partial match with common plan name variations
+            const planVariations = [
+              planName.toLowerCase(),
+              planName.toLowerCase().replace(/\s+/g, ''),
+              planName.toLowerCase().replace(/\s+/g, '-'),
+              planName.toLowerCase().replace(/\s+/g, '_')
+            ];
+            
+            let foundPlan: any = null;
+            for (const variation of planVariations) {
+              const { data: variationData, error: variationError } = await supabase
+                .from('subscription_plans')
+                .select('id, name')
+                .ilike('name', `%${variation}%`)
+                .single();
+              
+              if (!variationError && variationData) {
+                foundPlan = variationData;
+                break;
+              }
+            }
+            
+            if (foundPlan) {
+              planData = foundPlan;
+              planError = null;
+            } else {
+              // List all available plans for debugging
+              const { data: allPlans } = await supabase
+                .from('subscription_plans')
+                .select('id, name');
+              
+              console.error('Available plans:', allPlans);
+              console.error('Failed to find plan:', planError);
+              return NextResponse.json({ 
+                error: 'Failed to find plan details', 
+                details: `Plan "${planName}" not found. Available plans: ${allPlans?.map(p => p.name).join(', ') || 'None'}`,
+                availablePlans: allPlans
+              }, { status: 500 });
+            }
+          } else {
+            planData = caseInsensitiveData;
+            planError = null;
+          }
+        }
+
+        if (planError || !planData) {
           console.error('Error finding plan:', planError);
           return NextResponse.json({ 
             error: 'Failed to find plan details', 
-            details: planError.message 
+            details: String(planError || 'Plan data is null')
           }, { status: 500 });
         }
 
         planId = planData.id;
-        console.log(`Found plan_id ${planId} for plan name ${planName}`);
+        console.log(`✅ Found plan_id ${planId} for plan name "${planName}" (matched: "${planData.name}")`);
       }
 
       // First, deactivate any existing active subscriptions

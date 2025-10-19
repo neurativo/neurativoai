@@ -1,6 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase';
 
+// Helper function to send user notifications
+async function sendUserNotification(
+  userId: string, 
+  type: string, 
+  title: string, 
+  message: string, 
+  data?: any
+) {
+  try {
+    const supabase = getSupabaseServer();
+    
+    const { error } = await supabase
+      .from('user_notifications')
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        message,
+        data: data || null,
+        read: false
+      });
+
+    if (error) {
+      console.error('Error sending notification:', error);
+    } else {
+      console.log(`✅ Notification sent to user ${userId}: ${title}`);
+    }
+  } catch (error) {
+    console.error('Error in sendUserNotification:', error);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Admin payments API called');
@@ -211,9 +243,9 @@ export async function PATCH(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!['approved', 'rejected'].includes(status)) {
+    if (!['approved', 'rejected', 'refunded'].includes(status)) {
       return NextResponse.json({ 
-        error: 'Invalid status. Must be "approved" or "rejected"' 
+        error: 'Invalid status. Must be "approved", "rejected", or "refunded"' 
       }, { status: 400 });
     }
 
@@ -432,13 +464,97 @@ export async function PATCH(request: NextRequest) {
       }
 
       console.log(`✅ Subscription activated for user ${existingPayment.user_id} with plan ${planName} (ID: ${planId})`);
+      
+      // Send notification to user
+      await sendUserNotification(
+        existingPayment.user_id,
+        'payment_approved',
+        'Payment Approved! 🎉',
+        `Your payment for ${planName} has been approved! Your subscription is now active.`,
+        { plan_name: planName, payment_id: paymentId }
+      );
+    }
+
+    // Handle refund logic
+    if (status === 'refunded') {
+      // Deactivate any active subscriptions for this user
+      const { error: deactivateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          status: 'refunded'
+        })
+        .eq('user_id', existingPayment.user_id)
+        .eq('status', 'active');
+
+      if (deactivateError) {
+        console.warn('Error deactivating subscriptions for refund:', deactivateError);
+      } else {
+        console.log(`✅ Subscriptions deactivated for refunded user ${existingPayment.user_id}`);
+      }
+
+      // Reset user's usage limits to free tier
+      const { error: resetUsageError } = await supabase
+        .from('user_usage')
+        .update({
+          monthly_lectures: 0,
+          monthly_quizzes: 0,
+          monthly_documents: 0,
+          monthly_notes: 0,
+          monthly_flashcards: 0
+        })
+        .eq('user_id', existingPayment.user_id);
+
+      if (resetUsageError) {
+        console.warn('Error resetting usage for refunded user:', resetUsageError);
+      } else {
+        console.log(`✅ Usage limits reset for refunded user ${existingPayment.user_id}`);
+      }
+      
+      // Send notification to user
+      await sendUserNotification(
+        existingPayment.user_id,
+        'payment_refunded',
+        'Payment Refunded 💰',
+        `Your payment for ${planName} has been refunded. Your subscription has been deactivated and usage limits reset.`,
+        { plan_name: planName, payment_id: paymentId }
+      );
+    }
+
+    // Handle rejection logic
+    if (status === 'rejected') {
+      // Deactivate any active subscriptions for this user
+      const { error: deactivateError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          status: 'rejected'
+        })
+        .eq('user_id', existingPayment.user_id)
+        .eq('status', 'active');
+
+      if (deactivateError) {
+        console.warn('Error deactivating subscriptions for rejected payment:', deactivateError);
+      } else {
+        console.log(`✅ Subscriptions deactivated for rejected payment user ${existingPayment.user_id}`);
+      }
+      
+      // Send notification to user
+      await sendUserNotification(
+        existingPayment.user_id,
+        'payment_rejected',
+        'Payment Rejected ❌',
+        `Your payment for ${planName} has been rejected. Please contact support if you have questions.`,
+        { plan_name: planName, payment_id: paymentId }
+      );
     }
 
     return NextResponse.json({ 
       success: true, 
       message: `Payment ${status} successfully`,
       paymentId,
-      status 
+      status,
+      action: status === 'approved' ? 'subscription_activated' : 
+              status === 'refunded' ? 'subscription_deactivated_and_usage_reset' :
+              status === 'rejected' ? 'subscription_deactivated' : 'unknown'
     });
   } catch (error) {
     console.error('Error in payment update API:', error);

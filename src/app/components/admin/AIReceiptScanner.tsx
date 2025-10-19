@@ -11,7 +11,7 @@ interface Payment {
   currency: string;
   transaction_reference: string | null;
   proof_url: string | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'refunded';
   admin_note: string | null;
   created_at: string;
   updated_at: string;

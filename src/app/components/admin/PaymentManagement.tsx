@@ -13,7 +13,7 @@ interface Payment {
   currency: string;
   transaction_reference: string | null;
   proof_url: string | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'refunded';
   admin_note: string | null;
   created_at: string;
   updated_at: string;
@@ -41,13 +41,14 @@ interface PaymentDetailsModalProps {
   payment: Payment | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdateStatus: (paymentId: string, status: 'approved' | 'rejected', note?: string) => void;
+  onUpdateStatus: (paymentId: string, status: 'approved' | 'rejected' | 'refunded', note?: string) => void;
   updating: string | null;
 }
 
 function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updating }: PaymentDetailsModalProps) {
   const [rejectionNote, setRejectionNote] = useState('');
   const [approvalNote, setApprovalNote] = useState('');
+  const [refundNote, setRefundNote] = useState('');
 
   if (!isOpen || !payment) return null;
 
@@ -59,6 +60,11 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
   const handleReject = () => {
     onUpdateStatus(payment.id, 'rejected', rejectionNote || undefined);
     setRejectionNote('');
+  };
+
+  const handleRefund = () => {
+    onUpdateStatus(payment.id, 'refunded', refundNote || undefined);
+    setRefundNote('');
   };
 
   const amount = payment.amount;
@@ -127,6 +133,7 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
                     <span className={`block px-3 py-1 text-xs font-semibold rounded-full ${
                       payment.status === 'approved' ? 'bg-green-600 text-white' :
                       payment.status === 'pending' ? 'bg-yellow-600 text-white' :
+                      payment.status === 'refunded' ? 'bg-orange-600 text-white' :
                       'bg-red-600 text-white'
                     }`}>
                       {payment.status.toUpperCase()}
@@ -221,6 +228,17 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
                     />
                   </div>
                   
+                  <div>
+                    <label className="text-sm text-gray-400">Refund Reason (Optional)</label>
+                    <textarea
+                      value={refundNote}
+                      onChange={(e) => setRefundNote(e.target.value)}
+                      placeholder="Reason for refund..."
+                      className="w-full mt-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                      rows={2}
+                    />
+                  </div>
+                  
                   <div className="flex gap-3">
                     <button
                       onClick={handleApprove}
@@ -235,6 +253,13 @@ function PaymentDetailsModal({ payment, isOpen, onClose, onUpdateStatus, updatin
                       className="flex-1 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-red-300 hover:text-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {updating === payment.id ? 'Processing...' : '❌ Reject Payment'}
+                    </button>
+                    <button
+                      onClick={handleRefund}
+                      disabled={updating === payment.id}
+                      className="flex-1 px-4 py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg text-orange-300 hover:text-orange-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updating === payment.id ? 'Processing...' : '💰 Refund Payment'}
                     </button>
                   </div>
                 </div>
@@ -256,7 +281,7 @@ export default function PaymentManagement() {
   const [showAIScanner, setShowAIScanner] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'refunded'>('all');
   const [aiFilter, setAiFilter] = useState<'all' | 'auto-approved' | 'needs-review' | 'low-confidence' | 'high-fraud'>('all');
   
   // Enhanced search and filter states
@@ -271,7 +296,7 @@ export default function PaymentManagement() {
   
   // Bulk operations states
   const [selectedPayments, setSelectedPayments] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | 'refund' | null>(null);
   const [bulkNote, setBulkNote] = useState('');
   const [showBulkModal, setShowBulkModal] = useState(false);
 
@@ -303,7 +328,7 @@ export default function PaymentManagement() {
     }
   };
 
-  const updatePaymentStatus = async (paymentId: string, status: 'approved' | 'rejected', note?: string) => {
+  const updatePaymentStatus = async (paymentId: string, status: 'approved' | 'rejected' | 'refunded', note?: string) => {
     setUpdating(paymentId);
     try {
       const response = await fetch('/api/admin/payments-complete', {
@@ -418,7 +443,7 @@ export default function PaymentManagement() {
     }
   };
 
-  const handleBulkAction = (action: 'approve' | 'reject') => {
+  const handleBulkAction = (action: 'approve' | 'reject' | 'refund') => {
     if (selectedPayments.size === 0) return;
     setBulkAction(action);
     setBulkNote('');
@@ -551,6 +576,13 @@ export default function PaymentManagement() {
                   ❌ Reject ({selectedPayments.size})
                 </button>
                 <button
+                  onClick={() => handleBulkAction('refund')}
+                  disabled={updating === 'bulk'}
+                  className="px-4 py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg text-orange-300 hover:text-orange-200 transition-all duration-200 hover:border-orange-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  💰 Refund ({selectedPayments.size})
+                </button>
+                <button
                   onClick={() => setSelectedPayments(new Set())}
                   className="px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 rounded-lg text-gray-300 hover:text-gray-200 transition-all duration-200"
                 >
@@ -629,7 +661,7 @@ export default function PaymentManagement() {
         {/* Status Filter Pills */}
         <div className="mb-4">
           <div className="flex gap-3 flex-wrap">
-            {(['all', 'pending', 'approved', 'rejected'] as const).map((filterType) => (
+            {(['all', 'pending', 'approved', 'rejected', 'refunded'] as const).map((filterType) => (
               <button
                 key={filterType}
                 onClick={() => setFilter(filterType)}
@@ -861,6 +893,7 @@ export default function PaymentManagement() {
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                           payment.status === 'approved' ? 'bg-green-600 text-white' :
                           payment.status === 'pending' ? 'bg-yellow-600 text-white' :
+                          payment.status === 'refunded' ? 'bg-orange-600 text-white' :
                           'bg-red-600 text-white'
                         }`}>
                           {payment.status.toUpperCase()}
@@ -973,7 +1006,7 @@ export default function PaymentManagement() {
             <div className="p-6">
               <div className="flex justify-between items-start mb-6">
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                  Bulk {bulkAction === 'approve' ? 'Approve' : 'Reject'} Payments
+                  Bulk {bulkAction === 'approve' ? 'Approve' : bulkAction === 'reject' ? 'Reject' : 'Refund'} Payments
                 </h2>
                 <button
                   onClick={() => {
@@ -996,12 +1029,16 @@ export default function PaymentManagement() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {bulkAction === 'approve' ? 'Approval Note (Optional)' : 'Rejection Reason (Optional)'}
+                    {bulkAction === 'approve' ? 'Approval Note (Optional)' : 
+                     bulkAction === 'reject' ? 'Rejection Reason (Optional)' : 
+                     'Refund Reason (Optional)'}
                   </label>
                   <textarea
                     value={bulkNote}
                     onChange={(e) => setBulkNote(e.target.value)}
-                    placeholder={bulkAction === 'approve' ? 'Add a note for the users...' : 'Reason for rejection...'}
+                    placeholder={bulkAction === 'approve' ? 'Add a note for the users...' : 
+                                bulkAction === 'reject' ? 'Reason for rejection...' :
+                                'Reason for refund...'}
                     className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
                     rows={3}
                   />
@@ -1024,10 +1061,14 @@ export default function PaymentManagement() {
                     className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       bulkAction === 'approve'
                         ? 'bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-300 hover:text-green-200'
-                        : 'bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 hover:text-red-200'
+                        : bulkAction === 'reject'
+                        ? 'bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 hover:text-red-200'
+                        : 'bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-300 hover:text-orange-200'
                     }`}
                   >
-                    {updating === 'bulk' ? 'Processing...' : `${bulkAction === 'approve' ? '✅' : '❌'} ${bulkAction.charAt(0).toUpperCase() + bulkAction.slice(1)} ${selectedPayments.size} Payment${selectedPayments.size > 1 ? 's' : ''}`}
+                    {updating === 'bulk' ? 'Processing...' : 
+                     `${bulkAction === 'approve' ? '✅' : 
+                       bulkAction === 'reject' ? '❌' : '💰'} ${bulkAction.charAt(0).toUpperCase() + bulkAction.slice(1)} ${selectedPayments.size} Payment${selectedPayments.size > 1 ? 's' : ''}`}
                   </button>
                 </div>
               </div>

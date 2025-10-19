@@ -171,18 +171,32 @@ export default function AIReceiptScanner({ payment, onScanComplete, onClose }: A
                   <div className="text-center py-8">
                     <div className="text-6xl mb-4">📄</div>
                     <div className="text-white text-lg mb-2">PDF Document Detected</div>
-                    <div className="text-gray-400 text-sm mb-4">
-                      AI analysis will attempt to process the PDF content
+                    <div className="text-yellow-400 text-sm mb-4">
+                      ⚠️ PDF format is not supported by AI analysis
                     </div>
-                    <a
-                      href={payment.proof_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all"
-                    >
-                      <i className="fas fa-external-link-alt mr-2"></i>
-                      Open PDF
-                    </a>
+                    <div className="text-gray-400 text-xs mb-4 max-w-md mx-auto">
+                      AI analysis works best with image formats (PNG, JPEG, GIF, WebP). 
+                      For PDFs, please convert to image format or take a screenshot.
+                    </div>
+                    <div className="flex gap-2 justify-center">
+                      <a
+                        href={payment.proof_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all"
+                      >
+                        <i className="fas fa-external-link-alt mr-2"></i>
+                        Open PDF
+                      </a>
+                      <button
+                        onClick={handleScan}
+                        disabled={isScanning}
+                        className="inline-flex items-center px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/30 rounded-lg text-yellow-300 hover:text-yellow-200 transition-all disabled:opacity-50"
+                      >
+                        <i className="fas fa-robot mr-2"></i>
+                        Try AI Scan Anyway
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <img

@@ -79,24 +79,36 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.error('❌ OpenAI PDF analysis failed:', error);
         
+        // Check if it's a format error
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const isFormatError = errorMessage.includes('unsupported image') || errorMessage.includes('format');
+        
         // Fallback for PDF analysis failure
         const fallbackAnalysis = {
-          transactionReference: 'PDF-ANALYSIS-FAILED',
+          transactionReference: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED',
           amount: 0,
           currency: 'LKR',
           paymentMethod: 'bank',
           bankDetails: {
-            accountNumber: 'PDF-ANALYSIS-FAILED',
-            bankName: 'PDF-ANALYSIS-FAILED'
+            accountNumber: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED',
+            bankName: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED'
           },
           merchantDetails: {
-            name: 'PDF-ANALYSIS-FAILED',
-            address: 'PDF-ANALYSIS-FAILED'
+            name: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED',
+            address: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED'
           },
           validationStatus: 'unclear',
           confidence: 0.1,
-          extractedText: 'PDF analysis failed - manual review required',
-          recommendations: [
+          extractedText: isFormatError 
+            ? 'PDF format not supported by OpenAI Vision API. Please convert to image format (PNG, JPEG, GIF, WebP) for AI analysis.'
+            : 'PDF analysis failed - manual review required',
+          recommendations: isFormatError ? [
+            'PDF format is not supported by AI analysis',
+            'Please convert PDF to image format (PNG, JPEG, GIF, WebP)',
+            'Take a screenshot of the PDF and upload as image',
+            'Use online PDF to image converter tools',
+            'Manual review required for PDF receipts'
+          ] : [
             'PDF file could not be processed by AI',
             'Manual review required for PDF receipts',
             'Consider converting PDF to image format'
@@ -105,7 +117,8 @@ export async function POST(request: NextRequest) {
           metadata: {
             fileType: 'PDF',
             analysisMethod: 'openai_failed',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: errorMessage,
+            isFormatError: isFormatError
           }
         };
 

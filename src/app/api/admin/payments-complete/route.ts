@@ -406,16 +406,30 @@ export async function PATCH(request: NextRequest) {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 30); // 30 days from now
 
+      // Prepare subscription data
+      const subscriptionData: any = {
+        user_id: existingPayment.user_id,
+        plan_id: planId,
+        status: 'active',
+        start_date: new Date().toISOString(),
+        end_date: endDate.toISOString()
+      };
+
+      // Only add payment_id if we're working with the old payments table
+      // The foreign key constraint expects payment_id to reference the 'payments' table
+      if (existingPayment.plan) {
+        // This is from the old payments table, so payment_id should reference the payments table
+        subscriptionData.payment_id = paymentId;
+        console.log(`Adding payment_id ${paymentId} for old payments table`);
+      } else {
+        // This is from the new user_payments table, don't include payment_id
+        // as it would violate the foreign key constraint
+        console.log(`Skipping payment_id for new user_payments table`);
+      }
+
       const { error: subCreateError } = await supabase
         .from('user_subscriptions')
-        .insert({
-          user_id: existingPayment.user_id,
-          plan_id: planId,
-          status: 'active',
-          start_date: new Date().toISOString(),
-          end_date: endDate.toISOString(),
-          payment_id: paymentId
-        });
+        .insert(subscriptionData);
 
       if (subCreateError) {
         console.error('Error creating subscription:', subCreateError);

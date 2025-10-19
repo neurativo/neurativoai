@@ -237,10 +237,10 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
   const monthlyPercentage = getUsagePercentage(usage.used, usage.monthly_quiz_generations);
 
   return (
-    <div className="bg-black/20 backdrop-blur-sm rounded-xl p-8 border border-purple-500/20 shadow-2xl">
+    <div className="bg-black/20 backdrop-blur-sm rounded-xl p-4 sm:p-6 lg:p-8 border border-purple-500/20 shadow-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">Usage Overview</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-white">Usage Overview</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchUsage}
@@ -250,7 +250,7 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
             🔄 Refresh
           </button>
           {lastUpdated && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 hidden sm:inline">
               Updated: {lastUpdated.toLocaleTimeString()}
             </span>
           )}
@@ -258,61 +258,61 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
       </div>
 
       {/* Plan Status */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className={`text-lg font-semibold ${getPlanColor(usage.plan)}`}>
+      <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className={`text-base sm:text-lg font-semibold ${getPlanColor(usage.plan)}`}>
               {usage.plan?.toUpperCase() || 'FREE'} Plan
             </div>
-            <div className="text-sm text-gray-400">
+            <div className="text-xs sm:text-sm text-gray-400">
               Max {usage.max_questions_per_quiz} questions per quiz
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-white">
+          <div className="text-left sm:text-right">
+            <div className="text-xl sm:text-2xl font-bold text-white">
               {usage.daily_used}/{usage.daily_limit}
             </div>
-            <div className="text-sm text-gray-400">Today's Quizzes</div>
+            <div className="text-xs sm:text-sm text-gray-400">Today's Quizzes</div>
           </div>
         </div>
       </div>
 
       {/* Usage Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         {/* Daily Usage */}
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">Daily Usage</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-white">Daily Usage</h3>
             <span className={`text-sm font-medium ${getUsageColor(dailyPercentage)}`}>
               {usage.daily_used}/{usage.daily_limit}
             </span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-3">
+          <div className="w-full bg-gray-700 rounded-full h-2 sm:h-3">
             <div 
-              className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(dailyPercentage)}`}
+              className={`h-2 sm:h-3 rounded-full transition-all duration-500 ${getProgressColor(dailyPercentage)}`}
               style={{ width: `${dailyPercentage}%` }}
             ></div>
           </div>
-          <div className="text-sm text-gray-400">
+          <div className="text-xs sm:text-sm text-gray-400">
             {usage.daily_limit - usage.daily_used} quizzes remaining today
           </div>
         </div>
 
         {/* Monthly Usage */}
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">Monthly Usage</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-white">Monthly Usage</h3>
             <span className={`text-sm font-medium ${getUsageColor(monthlyPercentage)}`}>
               {usage.used}/{usage.monthly_quiz_generations}
             </span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-3">
+          <div className="w-full bg-gray-700 rounded-full h-2 sm:h-3">
             <div 
-              className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(monthlyPercentage)}`}
+              className={`h-2 sm:h-3 rounded-full transition-all duration-500 ${getProgressColor(monthlyPercentage)}`}
               style={{ width: `${monthlyPercentage}%` }}
             ></div>
           </div>
-          <div className="text-sm text-gray-400">
+          <div className="text-xs sm:text-sm text-gray-400">
             {usage.monthly_quiz_generations - usage.used} quizzes remaining this month
           </div>
         </div>
@@ -320,16 +320,16 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
 
       {/* Source-Specific Usage */}
       {usage.source_usage && usage.source_limits && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white">Source-Specific Usage</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-base sm:text-lg font-semibold text-white">Source-Specific Usage</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* URL Quizzes */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="flex items-center gap-2 mb-3">
-                <i className="fas fa-link text-blue-400"></i>
-                <span className="font-semibold text-white">URL Quizzes</span>
+            <div className="bg-white/5 rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <i className="fas fa-link text-blue-400 text-sm sm:text-base"></i>
+                <span className="font-semibold text-white text-sm sm:text-base">URL Quizzes</span>
               </div>
-              <div className="text-2xl font-bold mb-2 text-blue-400">
+              <div className="text-xl sm:text-2xl font-bold mb-2 text-blue-400">
                 {usage.source_usage.url}/{usage.source_limits.url}
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
@@ -338,18 +338,18 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
                   style={{ width: `${Math.min(100, (usage.source_usage.url / usage.source_limits.url) * 100)}%` }}
                 ></div>
               </div>
-              <div className="text-sm text-gray-400">
+              <div className="text-xs sm:text-sm text-gray-400">
                 {usage.daily_source_usage?.url || 0}/{usage.daily_source_limits?.url || 5} today
               </div>
             </div>
 
             {/* Text Quizzes */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="flex items-center gap-2 mb-3">
-                <i className="fas fa-file-text text-green-400"></i>
-                <span className="font-semibold text-white">Text Quizzes</span>
+            <div className="bg-white/5 rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <i className="fas fa-file-text text-green-400 text-sm sm:text-base"></i>
+                <span className="font-semibold text-white text-sm sm:text-base">Text Quizzes</span>
               </div>
-              <div className="text-2xl font-bold mb-2 text-green-400">
+              <div className="text-xl sm:text-2xl font-bold mb-2 text-green-400">
                 {usage.source_usage.text}/{usage.source_limits.text}
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
@@ -358,18 +358,18 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
                   style={{ width: `${Math.min(100, (usage.source_usage.text / usage.source_limits.text) * 100)}%` }}
                 ></div>
               </div>
-              <div className="text-sm text-gray-400">
+              <div className="text-xs sm:text-sm text-gray-400">
                 {usage.daily_source_usage?.text || 0}/{usage.daily_source_limits?.text || 5} today
               </div>
             </div>
 
             {/* Document Quizzes */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="flex items-center gap-2 mb-3">
-                <i className="fas fa-file-pdf text-purple-400"></i>
-                <span className="font-semibold text-white">Document Quizzes</span>
+            <div className="bg-white/5 rounded-lg p-3 sm:p-4 border border-white/10">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <i className="fas fa-file-pdf text-purple-400 text-sm sm:text-base"></i>
+                <span className="font-semibold text-white text-sm sm:text-base">Document Quizzes</span>
               </div>
-              <div className="text-2xl font-bold mb-2 text-purple-400">
+              <div className="text-xl sm:text-2xl font-bold mb-2 text-purple-400">
                 {usage.source_usage.document}/{usage.source_limits.document}
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
@@ -378,7 +378,7 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
                   style={{ width: `${Math.min(100, (usage.source_usage.document / usage.source_limits.document) * 100)}%` }}
                 ></div>
               </div>
-              <div className="text-sm text-gray-400">
+              <div className="text-xs sm:text-sm text-gray-400">
                 {usage.daily_source_usage?.document || 0}/{usage.daily_source_limits?.document || 5} today
               </div>
             </div>
@@ -388,16 +388,16 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
 
       {/* Usage Warnings */}
       {(dailyPercentage >= 80 || monthlyPercentage >= 80) && (
-        <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-lg">
+        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
-            <i className="fas fa-exclamation-triangle"></i>
-            <span className="font-semibold">Usage Alert</span>
+            <i className="fas fa-exclamation-triangle text-sm sm:text-base"></i>
+            <span className="font-semibold text-sm sm:text-base">Usage Alert</span>
           </div>
           {dailyPercentage >= 80 && (
-            <div>You're approaching your daily limit ({usage.daily_used}/{usage.daily_limit})</div>
+            <div className="text-sm sm:text-base">You're approaching your daily limit ({usage.daily_used}/{usage.daily_limit})</div>
           )}
           {monthlyPercentage >= 80 && (
-            <div>You're approaching your monthly limit ({usage.used}/{usage.monthly_quiz_generations})</div>
+            <div className="text-sm sm:text-base">You're approaching your monthly limit ({usage.used}/{usage.monthly_quiz_generations})</div>
           )}
         </div>
       )}

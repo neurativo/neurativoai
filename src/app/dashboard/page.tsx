@@ -135,14 +135,15 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
-          <div className="flex items-center gap-3">
-            <p className="text-gray-300">{email}</p>
+    <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 text-white">
+      {/* Header - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome back</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <p className="text-gray-300 text-sm sm:text-base truncate">{email}</p>
             {currentPlan && (
-              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+              <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full w-fit ${
                 currentPlan === 'free' ? 'bg-gray-600 text-white' :
                 currentPlan === 'professional' ? 'bg-blue-600 text-white' :
                 currentPlan === 'mastery' ? 'bg-purple-600 text-white' :
@@ -155,47 +156,60 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={() => setShowNotifications(true)}
             className="relative p-2 text-gray-300 hover:text-white transition-colors"
             title="Notifications"
           >
-            🔔
+            <span className="text-lg sm:text-xl">🔔</span>
             {unreadNotifications > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center">
                 {unreadNotifications}
               </span>
             )}
           </button>
           
-          <button className="secondary-button" onClick={() => {
-            const supabase = getSupabaseBrowser();
-            supabase.auth.getSession().then(({ data: { session } }) => {
-              if (!session?.access_token) return;
-              fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
-                .then(r => r.json())
-                .then(json => {
-                  if (json?.success && json?.data) {
-                    setUsage({
-                      plan: json.data.plan,
-                      monthly_quiz_generations: json.data.monthly_quiz_generations,
-                      used: json.data.monthly_used,
-                      daily_used: json.data.daily_used,
-                      daily_limit: json.data.daily_limit,
-                      max_questions_per_quiz: json.data.max_questions_per_quiz,
-                    });
-                  }
-                });
-            });
-          }}>Refresh</button>
+          <button 
+            className="px-3 sm:px-4 py-2 bg-white/10 backdrop-blur-sm text-white font-medium rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 text-sm sm:text-base whitespace-nowrap" 
+            onClick={() => {
+              const supabase = getSupabaseBrowser();
+              supabase.auth.getSession().then(({ data: { session } }) => {
+                if (!session?.access_token) return;
+                fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
+                  .then(r => r.json())
+                  .then(json => {
+                    if (json?.success && json?.data) {
+                      setUsage({
+                        plan: json.data.plan,
+                        monthly_quiz_generations: json.data.monthly_quiz_generations,
+                        used: json.data.monthly_used,
+                        daily_used: json.data.daily_used,
+                        daily_limit: json.data.daily_limit,
+                        max_questions_per_quiz: json.data.max_questions_per_quiz,
+                      });
+                    }
+                  });
+              });
+            }}
+          >
+            🔄 Refresh
+          </button>
         </div>
       </div>
 
       {(nearingDaily || nearingMonthly) && (
-        <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-xl p-3">
-          {nearingDaily && (<div>Heads up: You are approaching your daily limit ({usage?.daily_used}/{usage?.daily_limit}).</div>)}
-          {nearingMonthly && (<div>Heads up: You are approaching your monthly limit ({usage?.used}/{usage?.monthly_quiz_generations}).</div>)}
+        <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-xl p-3 sm:p-4">
+          {nearingDaily && (
+            <div className="text-sm sm:text-base">
+              ⚠️ Heads up: You are approaching your daily limit ({usage?.daily_used}/{usage?.daily_limit}).
+            </div>
+          )}
+          {nearingMonthly && (
+            <div className="text-sm sm:text-base">
+              ⚠️ Heads up: You are approaching your monthly limit ({usage?.used}/{usage?.monthly_quiz_generations}).
+            </div>
+          )}
         </div>
       )}
 
@@ -222,19 +236,44 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="feature-card text-left">
-          <h2 className="text-xl font-semibold mb-2">Quick actions</h2>
-          <div className="flex gap-3 mt-3">
-            <Link href="/quiz" className="cta-button">Create quiz</Link>
-            <Link href="/pricing" className="secondary-button">Upgrade</Link>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/10 hover:border-white/20 transition-all duration-200">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-white">Quick Actions</h2>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <Link 
+              href="/quiz" 
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 text-center text-sm sm:text-base"
+            >
+              🚀 Create Quiz
+            </Link>
+            <Link 
+              href="/pricing" 
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 text-center text-sm sm:text-base"
+            >
+              💎 Upgrade Plan
+            </Link>
           </div>
         </div>
-        <div className="feature-card text-left">
-          <h2 className="text-xl font-semibold mb-2">Account</h2>
-          <ul className="space-y-2 text-gray-300">
-            <li><Link href="/profile" className="footer-link">Edit profile</Link></li>
-            <li><Link href="/settings" className="footer-link">Settings</Link></li>
+        
+        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/10 hover:border-white/20 transition-all duration-200">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-white">Account</h2>
+          <ul className="space-y-2 sm:space-y-3">
+            <li>
+              <Link 
+                href="/profile" 
+                className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-sm sm:text-base"
+              >
+                👤 Edit Profile
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/settings" 
+                className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-sm sm:text-base"
+              >
+                ⚙️ Settings
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

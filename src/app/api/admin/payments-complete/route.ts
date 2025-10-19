@@ -415,17 +415,9 @@ export async function PATCH(request: NextRequest) {
         end_date: endDate.toISOString()
       };
 
-      // Only add payment_id if we're working with the old payments table
-      // The foreign key constraint expects payment_id to reference the 'payments' table
-      if (existingPayment.plan) {
-        // This is from the old payments table, so payment_id should reference the payments table
-        subscriptionData.payment_id = paymentId;
-        console.log(`Adding payment_id ${paymentId} for old payments table`);
-      } else {
-        // This is from the new user_payments table, don't include payment_id
-        // as it would violate the foreign key constraint
-        console.log(`Skipping payment_id for new user_payments table`);
-      }
+      // Skip payment_id entirely to avoid foreign key constraint issues
+      // The user_subscriptions table can work without payment_id
+      console.log(`Creating subscription without payment_id to avoid foreign key constraint`);
 
       const { error: subCreateError } = await supabase
         .from('user_subscriptions')

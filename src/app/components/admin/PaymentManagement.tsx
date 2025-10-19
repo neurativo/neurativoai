@@ -289,8 +289,8 @@ export default function PaymentManagement() {
       console.log('Payments API response:', { status: response.status, data });
       
       if (response.ok) {
-        setPayments(data.payments || []);
-        console.log('Payments loaded successfully:', data.payments?.length || 0);
+        setPayments(data.data || []);
+        console.log('Payments loaded successfully:', data.data?.length || 0);
       } else {
         console.error('Failed to load payments:', data.error);
         setError(data.error || 'Failed to load payments');

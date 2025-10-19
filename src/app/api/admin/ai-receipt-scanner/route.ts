@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase';
 import OpenAI from 'openai';
+import { PDFConverter } from '@/lib/pdf-converter';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,102 +24,54 @@ export async function POST(request: NextRequest) {
 
     // Check if it's a PDF file
     const isPdf = receiptImageUrl.toLowerCase().includes('.pdf');
+    let imageUrl = receiptImageUrl;
     
     if (isPdf) {
-      console.log('📄 PDF detected, attempting to process with OpenAI Vision...');
+      console.log('📄 PDF detected, converting to image...');
       
       try {
-        // For PDFs, we'll try to process them directly with OpenAI Vision
-        // OpenAI Vision can handle some PDFs, but for better results, convert to image first
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Analyze this payment receipt and extract the following information:
-                  1. Transaction reference/ID
-                  2. Amount paid
-                  3. Currency
-                  4. Payment method (bank transfer, etc.)
-                  5. Bank details (account number, bank name)
-                  6. Merchant details
-                  7. Date of transaction
-                  8. Any suspicious patterns or fraud indicators
-                  
-                  Please provide a detailed analysis with confidence scores. If this is a PDF and you cannot read it properly, indicate that manual review is needed.`
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: receiptImageUrl
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 1000
-        });
-
-        const analysisText = response.choices[0]?.message?.content || 'No analysis available';
-        console.log('🤖 OpenAI analysis result:', analysisText);
-
-        // Parse the analysis and create structured data
-        const analysis = parseOpenAIResponse(analysisText, isPdf);
+        // Convert PDF to image
+        const conversionResult = await PDFConverter.convertPDFToImage(receiptImageUrl);
         
-        // Update the payment record with AI analysis
-        await updatePaymentWithAnalysis(paymentId, analysis);
+        if (!conversionResult.success) {
+          throw new Error(conversionResult.error || 'PDF conversion failed');
+        }
         
-        return NextResponse.json({
-          success: true,
-          analysis: analysis
-        });
-
-      } catch (error) {
-        console.error('❌ OpenAI PDF analysis failed:', error);
+        imageUrl = conversionResult.imageUrl!;
+        console.log('✅ PDF converted to image:', imageUrl);
         
-        // Check if it's a format error
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        const isFormatError = errorMessage.includes('unsupported image') || errorMessage.includes('format');
+      } catch (conversionError) {
+        console.error('❌ PDF conversion failed:', conversionError);
         
-        // Fallback for PDF analysis failure
+        // Fallback for PDF conversion failure
         const fallbackAnalysis = {
-          transactionReference: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED',
+          transactionReference: 'PDF-CONVERSION-FAILED',
           amount: 0,
           currency: 'LKR',
           paymentMethod: 'bank',
           bankDetails: {
-            accountNumber: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED',
-            bankName: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED'
+            accountNumber: 'PDF-CONVERSION-FAILED',
+            bankName: 'PDF-CONVERSION-FAILED'
           },
           merchantDetails: {
-            name: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED',
-            address: isFormatError ? 'PDF-FORMAT-UNSUPPORTED' : 'PDF-ANALYSIS-FAILED'
+            name: 'PDF-CONVERSION-FAILED',
+            address: 'PDF-CONVERSION-FAILED'
           },
           validationStatus: 'unclear',
           confidence: 0.1,
-          extractedText: isFormatError 
-            ? 'PDF format not supported by OpenAI Vision API. Please convert to image format (PNG, JPEG, GIF, WebP) for AI analysis.'
-            : 'PDF analysis failed - manual review required',
-          recommendations: isFormatError ? [
-            'PDF format is not supported by AI analysis',
-            'Please convert PDF to image format (PNG, JPEG, GIF, WebP)',
+          extractedText: 'PDF conversion failed - manual review required',
+          recommendations: [
+            'PDF conversion to image failed',
+            'Please convert PDF to image format manually (PNG, JPEG, GIF, WebP)',
             'Take a screenshot of the PDF and upload as image',
             'Use online PDF to image converter tools',
             'Manual review required for PDF receipts'
-          ] : [
-            'PDF file could not be processed by AI',
-            'Manual review required for PDF receipts',
-            'Consider converting PDF to image format'
           ],
           fraudIndicators: [],
           metadata: {
             fileType: 'PDF',
-            analysisMethod: 'openai_failed',
-            error: errorMessage,
-            isFormatError: isFormatError
+            analysisMethod: 'conversion_failed',
+            error: conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'
           }
         };
 
@@ -131,8 +84,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // For image files, proceed with AI analysis
-    console.log('🖼️ Image file detected, proceeding with OpenAI Vision analysis...');
+    // For image files (or converted PDFs), proceed with AI analysis
+    console.log('🖼️ Processing image for AI analysis:', imageUrl);
     
     try {
       const response = await openai.chat.completions.create({
@@ -158,7 +111,7 @@ export async function POST(request: NextRequest) {
               {
                 type: "image_url",
                 image_url: {
-                  url: receiptImageUrl
+                  url: imageUrl
                 }
               }
             ]
@@ -171,7 +124,7 @@ export async function POST(request: NextRequest) {
       console.log('🤖 OpenAI analysis result:', analysisText);
 
       // Parse the analysis and create structured data
-      const analysis = parseOpenAIResponse(analysisText, false);
+      const analysis = parseOpenAIResponse(analysisText, isPdf, imageUrl !== receiptImageUrl);
       
       // Update the payment record with AI analysis
       await updatePaymentWithAnalysis(paymentId, analysis);
@@ -232,7 +185,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to parse OpenAI response into structured data
-function parseOpenAIResponse(analysisText: string, isPdf: boolean) {
+function parseOpenAIResponse(analysisText: string, isPdf: boolean, wasConverted: boolean = false) {
   console.log('🔍 Parsing OpenAI response...');
   
   // Extract key information using regex patterns
@@ -276,6 +229,7 @@ function parseOpenAIResponse(analysisText: string, isPdf: boolean) {
     confidence: Math.min(confidence, 1.0),
     extractedText: analysisText,
     recommendations: [
+      isPdf && wasConverted ? 'PDF converted to image and analyzed' : 
       isPdf ? 'PDF analysis completed' : 'Image analysis completed',
       confidence > 0.7 ? 'High confidence analysis' : 'Low confidence analysis',
       fraudIndicators.length > 0 ? 'Fraud indicators detected' : 'No fraud indicators'
@@ -285,7 +239,8 @@ function parseOpenAIResponse(analysisText: string, isPdf: boolean) {
       fileType: isPdf ? 'PDF' : 'IMAGE',
       analysisMethod: 'openai_vision',
       timestamp: new Date().toISOString(),
-      rawResponse: analysisText
+      rawResponse: analysisText,
+      wasConverted: wasConverted
     }
   };
 }

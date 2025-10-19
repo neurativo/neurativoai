@@ -171,12 +171,12 @@ export default function AIReceiptScanner({ payment, onScanComplete, onClose }: A
                   <div className="text-center py-8">
                     <div className="text-6xl mb-4">📄</div>
                     <div className="text-white text-lg mb-2">PDF Document Detected</div>
-                    <div className="text-yellow-400 text-sm mb-4">
-                      ⚠️ PDF format is not supported by AI analysis
+                    <div className="text-green-400 text-sm mb-4">
+                      ✅ PDF will be automatically converted to image for AI analysis
                     </div>
                     <div className="text-gray-400 text-xs mb-4 max-w-md mx-auto">
-                      AI analysis works best with image formats (PNG, JPEG, GIF, WebP). 
-                      For PDFs, please convert to image format or take a screenshot.
+                      The PDF will be converted to PNG format and then analyzed by AI. 
+                      This may take a few moments.
                     </div>
                     <div className="flex gap-2 justify-center">
                       <a
@@ -191,10 +191,10 @@ export default function AIReceiptScanner({ payment, onScanComplete, onClose }: A
                       <button
                         onClick={handleScan}
                         disabled={isScanning}
-                        className="inline-flex items-center px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/30 rounded-lg text-yellow-300 hover:text-yellow-200 transition-all disabled:opacity-50"
+                        className="inline-flex items-center px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-lg text-green-300 hover:text-green-200 transition-all disabled:opacity-50"
                       >
                         <i className="fas fa-robot mr-2"></i>
-                        Try AI Scan Anyway
+                        {isScanning ? 'Converting PDF...' : 'Convert & Analyze PDF'}
                       </button>
                     </div>
                   </div>

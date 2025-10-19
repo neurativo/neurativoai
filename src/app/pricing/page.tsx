@@ -280,43 +280,6 @@ function PricingPageInner() {
                         <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight">
                             Simple <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Pricing</span>
                         </h1>
-                        {userId && (
-                            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
-                                <div className="flex items-center gap-1.5 sm:gap-2">
-                                    <button
-                                        onClick={refreshPlan}
-                                        className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg text-purple-300 hover:text-purple-200 transition-all text-xs sm:text-sm"
-                                        title="Refresh plan status"
-                                    >
-                                        🔄 <span className="hidden sm:inline">Refresh</span>
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                const response = await fetch(`/api/debug/current-plan?userId=${userId}`);
-                                                const data = await response.json();
-                                                console.log('Debug current plan data:', data);
-                                                alert(`Current Plan: ${data.currentPlan}\nActive Subscription: ${JSON.stringify(data.currentActiveSubscription, null, 2)}\nProfile: ${JSON.stringify(data.profile, null, 2)}`);
-                                            } catch (error) {
-                                                console.error('Debug error:', error);
-                                                alert('Debug failed: ' + error);
-                                            }
-                                        }}
-                                        className="px-2 sm:px-3 py-1.5 sm:py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all text-xs sm:text-sm"
-                                        title="Debug current plan status"
-                                    >
-                                        🐛 <span className="hidden sm:inline">Debug</span>
-                                    </button>
-                                </div>
-                                <div className="text-xs text-gray-400 text-center sm:text-left">
-                                    <div>Current: {currentPlan}</div>
-                                    <div>Pending: {Array.from(pendingPlans).join(', ') || 'None'}</div>
-                                </div>
-                                <div className="text-xs text-yellow-400 bg-yellow-900/20 px-2 py-1 rounded">
-                                    Debug Mode
-                                </div>
-                            </div>
-                        )}
                     </div>
                     <p className="text-lg sm:text-xl md:text-2xl text-gray-300 max-w-5xl mx-auto leading-relaxed mb-8 sm:mb-12">
                         Start free and upgrade as you grow. All plans include our core AI features with no hidden fees.

@@ -208,7 +208,9 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
     return (
       <div className="bg-red-900/20 backdrop-blur-sm rounded-xl p-8 border border-red-500/20 shadow-2xl">
         <div className="text-center">
-          <div className="text-red-400 text-xl mb-2">⚠️</div>
+          <svg className="w-6 h-6 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
           <h3 className="text-red-300 font-semibold mb-2">Error Loading Usage Data</h3>
           <p className="text-red-200 text-sm mb-4">{error}</p>
           <button
@@ -226,7 +228,9 @@ export default function EnhancedUsageTracker({ userId, onUsageUpdate }: Enhanced
     return (
       <div className="bg-gray-900/20 backdrop-blur-sm rounded-xl p-8 border border-gray-500/20 shadow-2xl">
         <div className="text-center text-gray-400">
-          <div className="text-4xl mb-2">📊</div>
+          <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
           <p>No usage data available</p>
         </div>
       </div>

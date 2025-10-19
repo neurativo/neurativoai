@@ -156,48 +156,25 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center">
           <button 
             onClick={() => setShowNotifications(true)}
-            className="relative p-2 text-gray-300 hover:text-white transition-colors"
+            className="relative p-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-200 group"
             title="Notifications"
           >
-            <span className="text-lg sm:text-xl">🔔</span>
+            <svg 
+              className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {unreadNotifications > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold shadow-lg">
                 {unreadNotifications}
               </span>
             )}
-          </button>
-          
-          <button 
-            className="px-3 sm:px-4 py-2 bg-white/10 backdrop-blur-sm text-white font-medium rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 text-sm sm:text-base whitespace-nowrap" 
-            onClick={() => {
-              const supabase = getSupabaseBrowser();
-              supabase.auth.getSession().then(({ data: { session } }) => {
-                if (!session?.access_token) return;
-                fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
-                  .then(r => r.json())
-                  .then(json => {
-                    if (json?.success && json?.data) {
-                      setUsage(prev => ({
-                        plan: prev?.plan || json.data.plan, // Keep current plan
-                        monthly_quiz_generations: prev?.monthly_quiz_generations || json.data.monthly_quiz_generations, // Keep current limits
-                        used: json.data.monthly_used,
-                        daily_used: json.data.daily_used,
-                        daily_limit: prev?.daily_limit || json.data.daily_limit, // Keep current limits
-                        max_questions_per_quiz: prev?.max_questions_per_quiz || json.data.max_questions_per_quiz, // Keep current limits
-                        source_usage: json.data.source_usage,
-                        source_limits: json.data.source_limits,
-                        daily_source_usage: json.data.daily_source_usage,
-                        daily_source_limits: json.data.daily_source_limits,
-                      }));
-                    }
-                  });
-              });
-            }}
-          >
-            🔄 Refresh
           </button>
         </div>
       </div>
@@ -205,13 +182,19 @@ export default function DashboardPage() {
       {(nearingDaily || nearingMonthly) && (
         <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 rounded-xl p-3 sm:p-4">
           {nearingDaily && (
-            <div className="text-sm sm:text-base">
-              ⚠️ Heads up: You are approaching your daily limit ({usage?.daily_used}/{usage?.daily_limit}).
+            <div className="flex items-center gap-2 text-sm sm:text-base">
+              <svg className="w-4 h-4 text-yellow-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Heads up: You are approaching your daily limit ({usage?.daily_used}/{usage?.daily_limit}).
             </div>
           )}
           {nearingMonthly && (
-            <div className="text-sm sm:text-base">
-              ⚠️ Heads up: You are approaching your monthly limit ({usage?.used}/{usage?.monthly_quiz_generations}).
+            <div className="flex items-center gap-2 text-sm sm:text-base">
+              <svg className="w-4 h-4 text-yellow-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Heads up: You are approaching your monthly limit ({usage?.used}/{usage?.monthly_quiz_generations}).
             </div>
           )}
         </div>
@@ -246,15 +229,21 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Link 
               href="/quiz" 
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 text-center text-sm sm:text-base"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 text-center text-sm sm:text-base"
             >
-              🚀 Create Quiz
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Create Quiz
             </Link>
             <Link 
               href="/pricing" 
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 text-center text-sm sm:text-base"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 text-center text-sm sm:text-base"
             >
-              💎 Upgrade Plan
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              Upgrade Plan
             </Link>
           </div>
         </div>
@@ -267,7 +256,10 @@ export default function DashboardPage() {
                 href="/profile" 
                 className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-sm sm:text-base"
               >
-                👤 Edit Profile
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Edit Profile
               </Link>
             </li>
             <li>
@@ -275,7 +267,11 @@ export default function DashboardPage() {
                 href="/settings" 
                 className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-sm sm:text-base"
               >
-                ⚙️ Settings
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Settings
               </Link>
             </li>
           </ul>

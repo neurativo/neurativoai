@@ -219,36 +219,85 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = getSupabaseServer();
     
-    // First, get payment with plan details
-    const { data: existingPayment, error: fetchError } = await supabase
-      .from('user_payments')
-      .select(`
-        id, 
-        user_id, 
-        plan_id, 
-        status,
-        subscription_plans!inner(
-          id,
-          name
-        )
-      `)
-      .eq('id', paymentId)
-      .single();
+    // First, try to get payment from new table, fallback to old table
+    let existingPayment: any = null;
+    let planName = 'Unknown';
+    let planId = null;
+    
+    try {
+      // Try new user_payments table first
+      const { data: newPayment, error: newError } = await supabase
+        .from('user_payments')
+        .select(`
+          id, 
+          user_id, 
+          plan_id, 
+          status,
+          subscription_plans!inner(
+            id,
+            name
+          )
+        `)
+        .eq('id', paymentId)
+        .single();
 
-    if (fetchError) {
-      console.error('Error fetching payment:', fetchError);
-      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+      if (newError) {
+        throw newError;
+      }
+
+      existingPayment = newPayment;
+      planName = (newPayment.subscription_plans as any)?.name || 'Unknown';
+      planId = newPayment.plan_id;
+      console.log('✅ Found payment in new user_payments table');
+      
+    } catch (newTableError) {
+      console.log('🔄 Falling back to old payments table for payment approval');
+      
+      // Fallback to old payments table
+      const { data: oldPayment, error: oldError } = await supabase
+        .from('payments')
+        .select('id, user_id, plan, status')
+        .eq('id', paymentId)
+        .single();
+
+      if (oldError) {
+        console.error('Error fetching payment from both tables:', oldError);
+        return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+      }
+
+      existingPayment = oldPayment;
+      planName = oldPayment.plan || 'Unknown';
+      planId = null; // Old table doesn't have plan_id
+      console.log('✅ Found payment in old payments table');
     }
     
-    // Update payment status
-    const { error: updateError } = await supabase
-      .from('user_payments')
-      .update({ 
-        status, 
-        admin_note: adminNote || null,
-        reviewed_by: null // TODO: Add admin user ID when implementing proper admin auth
-      })
-      .eq('id', paymentId);
+    // Update payment status in the appropriate table
+    let updateError: any = null;
+    
+    if (planId !== null) {
+      // Update in new user_payments table
+      const { error } = await supabase
+        .from('user_payments')
+        .update({ 
+          status, 
+          admin_note: adminNote || null,
+          reviewed_by: null // TODO: Add admin user ID when implementing proper admin auth
+        })
+        .eq('id', paymentId);
+      
+      updateError = error;
+    } else {
+      // Update in old payments table
+      const { error } = await supabase
+        .from('payments')
+        .update({ 
+          status, 
+          admin_note: adminNote || null
+        })
+        .eq('id', paymentId);
+      
+      updateError = error;
+    }
 
     if (updateError) {
       console.error('Error updating payment:', updateError);
@@ -260,6 +309,26 @@ export async function PATCH(request: NextRequest) {
 
     // If approved, create new active subscription
     if (status === 'approved') {
+      // If we don't have plan_id (from old table), get it from subscription_plans
+      if (planId === null) {
+        const { data: planData, error: planError } = await supabase
+          .from('subscription_plans')
+          .select('id')
+          .eq('name', planName)
+          .single();
+
+        if (planError) {
+          console.error('Error finding plan:', planError);
+          return NextResponse.json({ 
+            error: 'Failed to find plan details', 
+            details: planError.message 
+          }, { status: 500 });
+        }
+
+        planId = planData.id;
+        console.log(`Found plan_id ${planId} for plan name ${planName}`);
+      }
+
       // First, deactivate any existing active subscriptions
       const { error: deactivateError } = await supabase
         .from('user_subscriptions')
@@ -281,7 +350,7 @@ export async function PATCH(request: NextRequest) {
         .from('user_subscriptions')
         .insert({
           user_id: existingPayment.user_id,
-          plan_id: existingPayment.plan_id,
+          plan_id: planId,
           status: 'active',
           start_date: new Date().toISOString(),
           end_date: endDate.toISOString(),
@@ -296,8 +365,7 @@ export async function PATCH(request: NextRequest) {
         }, { status: 500 });
       }
 
-      const planName = (existingPayment.subscription_plans as any)?.name || 'Unknown';
-      console.log(`Subscription activated for user ${existingPayment.user_id} with plan ${planName}`);
+      console.log(`✅ Subscription activated for user ${existingPayment.user_id} with plan ${planName} (ID: ${planId})`);
     }
 
     return NextResponse.json({ 

@@ -77,3 +77,4 @@ SELECT
         ELSE '❌ SETUP INCOMPLETE - CHECK ABOVE' 
     END as result;
 
+

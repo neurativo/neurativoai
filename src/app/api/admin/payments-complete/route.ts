@@ -16,8 +16,14 @@ export async function GET(request: NextRequest) {
       .select('id')
       .limit(1);
 
-    if (tableCheckError || !tableCheck) {
-      console.log('❌ user_payments table not available:', tableCheckError?.message || 'No data');
+    console.log('📊 user_payments table check:', { 
+      hasData: !!tableCheck, 
+      dataLength: tableCheck?.length || 0,
+      error: tableCheckError?.message || 'none'
+    });
+
+    if (tableCheckError || !tableCheck || tableCheck.length === 0) {
+      console.log('❌ user_payments table not available or empty:', tableCheckError?.message || 'No data');
       console.log('🔄 Falling back to old payments table...');
       
       // Fallback to old payments table
@@ -25,6 +31,13 @@ export async function GET(request: NextRequest) {
         .from('payments')
         .select('*')
         .order('created_at', { ascending: false });
+
+      console.log('📊 Old payments table check:', {
+        hasData: !!oldPayments,
+        dataLength: oldPayments?.length || 0,
+        error: oldError?.message || 'none',
+        sampleData: oldPayments?.[0] || 'none'
+      });
 
       if (oldError) {
         console.error('❌ Error fetching from old payments table:', oldError);
@@ -154,9 +167,15 @@ export async function GET(request: NextRequest) {
           amount: p.amount
         })));
         
+        console.log('📊 Final response:', {
+          totalPayments: paymentsWithUsers.length,
+          source: payments.length > 0 ? (payments[0].amount_cents ? 'old_payments_table' : 'user_payments_table') : 'no_data',
+          samplePayment: paymentsWithUsers[0] || 'none'
+        });
+
         return NextResponse.json({ 
-          success: true,
-          payments: paymentsWithUsers,
+          status: 200,
+          data: paymentsWithUsers,
           total: paymentsWithUsers.length,
           source: payments.length > 0 ? (payments[0].amount_cents ? 'old_payments_table' : 'user_payments_table') : 'no_data'
         });

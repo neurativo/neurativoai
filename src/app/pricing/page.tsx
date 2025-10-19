@@ -25,7 +25,6 @@ function PricingPageInner() {
     const [currentPlan, setCurrentPlan] = useState<string | null>(null);
     const [pendingPlans, setPendingPlans] = useState<Set<string>>(new Set());
     const [showCongrats, setShowCongrats] = useState<string | null>(null);
-    const [usageStats, setUsageStats] = useState<any>(null);
     const [selectedCurrency, setSelectedCurrency] = useState<string>('USD');
     const [pricingData, setPricingData] = useState<any>({});
     const [isYearly, setIsYearly] = useState(false);
@@ -57,14 +56,6 @@ function PricingPageInner() {
                 setCurrentPlan('free');
             }
 
-            // Set default usage stats (simplified for now)
-            setUsageStats({
-                user: { id: uid, plan: currentPlan, pricing: {} },
-                usage: { dailyQuizzes: 0, monthlyQuizzes: 0, dailyFileUploads: 0, monthlyFileUploads: 0 },
-                limits: { dailyQuizzes: 3, monthlyQuizzes: 50, maxFileUploads: 5, quizTypes: ['mcq', 'true_false'], maxQuestionsPerQuiz: 10, maxQuizDuration: 30 },
-                remaining: { dailyQuizzes: 3, monthlyQuizzes: 50, fileUploads: 5 },
-                features: { canAccessLectures: false, canAccessStudyPacks: false, canExportData: false, canUseAdvancedFeatures: false, canCreateCustomQuizzes: false, canAccessAnalytics: false, canUseAIFeatures: true, canAccessPrioritySupport: false }
-            });
 
             // Auto-detect user currency
             const detectedCurrency = CurrencyConverter.detectUserCurrency();
@@ -218,11 +209,6 @@ function PricingPageInner() {
         setCurrentPlan(newPlan);
         setPendingPlans(new Set()); // Clear all pending plans when plan is updated
         
-        // Update usage stats with new plan
-        setUsageStats(prev => ({
-            ...prev,
-            user: { ...prev?.user, plan: newPlan }
-        }));
     };
 
     // Manual refresh function
@@ -239,11 +225,6 @@ function PricingPageInner() {
                     setCurrentPlan(planName);
                     setPendingPlans(new Set());
                     
-                    // Update usage stats with current plan
-                    setUsageStats(prev => ({
-                        ...prev,
-                        user: { ...prev?.user, plan: planName }
-                    }));
                     return;
                 }
             }
@@ -356,37 +337,6 @@ function PricingPageInner() {
                     )}
                     
                     
-                    {/* Current Usage Display */}
-                    {usageStats && (
-                        <div className="max-w-5xl mx-auto mb-12">
-                            <div className="bg-black/20 backdrop-blur-sm rounded-xl p-8 border border-purple-500/20 shadow-2xl">
-                                <h2 className="text-2xl font-bold text-white mb-6 text-center">Your Current Usage</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="text-center">
-                                        <div className="text-3xl font-bold text-purple-400">{usageStats.usage?.dailyQuizzes || 0}</div>
-                                        <div className="text-gray-300">Quizzes Today</div>
-                                        <div className="text-sm text-gray-400">
-                                            {usageStats.remaining?.dailyQuizzes === -1 ? 'Unlimited' : `${usageStats.remaining?.dailyQuizzes || 0} remaining`}
-                                        </div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-3xl font-bold text-blue-400">{usageStats.usage?.monthlyQuizzes || 0}</div>
-                                        <div className="text-gray-300">Quizzes This Month</div>
-                                        <div className="text-sm text-gray-400">
-                                            {usageStats.remaining?.monthlyQuizzes === -1 ? 'Unlimited' : `${usageStats.remaining?.monthlyQuizzes || 0} remaining`}
-                                        </div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-3xl font-bold text-green-400 capitalize">{usageStats.user?.plan || 'free'}</div>
-                                        <div className="text-gray-300">Current Plan</div>
-                                        <div className="text-sm text-gray-400">
-                                            {usageStats.limits?.quizTypes?.length || 0} quiz types available
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     
                     {/* Billing Toggle */}
                     <div className="flex items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16">

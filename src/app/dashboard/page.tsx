@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import Link from "next/link";
 import EnhancedUsageTracker from "@/app/components/EnhancedUsageTracker";
+import NotificationCenter from "@/app/components/NotificationCenter";
 
 type Usage = {
   plan: string;
@@ -38,6 +39,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowser();
@@ -55,6 +59,7 @@ export default function DashboardPage() {
       }
       setEmail(user.email || null);
       setUserId(user.id);
+      
       // Get current subscription
       const subRes = await fetch(`/api/subscriptions?userId=${user.id}`);
       let subData: any = null;
@@ -62,6 +67,7 @@ export default function DashboardPage() {
         subData = await subRes.json();
         if (subData.success) {
           const planName = subData.currentPlan?.name?.toLowerCase() || 'free';
+          setCurrentPlan(planName);
           setUsage({
             plan: planName,
             monthly_quiz_generations: subData.currentPlan?.monthly_limit || 50,
@@ -74,6 +80,16 @@ export default function DashboardPage() {
             daily_source_usage: undefined,
             daily_source_limits: undefined,
           });
+        }
+      }
+      
+      // Fetch notifications
+      const notifRes = await fetch('/api/user/notifications');
+      if (notifRes.ok) {
+        const notifData = await notifRes.json();
+        if (notifData.success) {
+          const unreadCount = notifData.notifications.filter((n: any) => !n.read).length;
+          setUnreadNotifications(unreadCount);
         }
       }
 
@@ -120,29 +136,60 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
-      <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
-      <div className="flex items-center gap-3 mb-4">
-        <p className="text-gray-300">{email}</p>
-        <button className="secondary-button" onClick={() => {
-          const supabase = getSupabaseBrowser();
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session?.access_token) return;
-            fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
-              .then(r => r.json())
-              .then(json => {
-                if (json?.success && json?.data) {
-                  setUsage({
-                    plan: json.data.plan,
-                    monthly_quiz_generations: json.data.monthly_quiz_generations,
-                    used: json.data.monthly_used,
-                    daily_used: json.data.daily_used,
-                    daily_limit: json.data.daily_limit,
-                    max_questions_per_quiz: json.data.max_questions_per_quiz,
-                  });
-                }
-              });
-          });
-        }}>Refresh</button>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
+          <div className="flex items-center gap-3">
+            <p className="text-gray-300">{email}</p>
+            {currentPlan && (
+              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                currentPlan === 'free' ? 'bg-gray-600 text-white' :
+                currentPlan === 'professional' ? 'bg-blue-600 text-white' :
+                currentPlan === 'mastery' ? 'bg-purple-600 text-white' :
+                currentPlan === 'innovation' ? 'bg-yellow-600 text-white' :
+                'bg-gray-600 text-white'
+              }`}>
+                {currentPlan.toUpperCase()} PLAN
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowNotifications(true)}
+            className="relative p-2 text-gray-300 hover:text-white transition-colors"
+            title="Notifications"
+          >
+            🔔
+            {unreadNotifications > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {unreadNotifications}
+              </span>
+            )}
+          </button>
+          
+          <button className="secondary-button" onClick={() => {
+            const supabase = getSupabaseBrowser();
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (!session?.access_token) return;
+              fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } })
+                .then(r => r.json())
+                .then(json => {
+                  if (json?.success && json?.data) {
+                    setUsage({
+                      plan: json.data.plan,
+                      monthly_quiz_generations: json.data.monthly_quiz_generations,
+                      used: json.data.monthly_used,
+                      daily_used: json.data.daily_used,
+                      daily_limit: json.data.daily_limit,
+                      max_questions_per_quiz: json.data.max_questions_per_quiz,
+                    });
+                  }
+                });
+            });
+          }}>Refresh</button>
+        </div>
       </div>
 
       {(nearingDaily || nearingMonthly) && (
@@ -191,6 +238,12 @@ export default function DashboardPage() {
           </ul>
         </div>
       </div>
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        isOpen={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+      />
     </div>
   );
 }

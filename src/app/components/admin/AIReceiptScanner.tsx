@@ -75,6 +75,9 @@ export default function AIReceiptScanner({ payment, onScanComplete, onClose }: A
     setError(null);
 
     try {
+      console.log('🤖 Starting AI scan for payment:', payment.id);
+      console.log('📄 Receipt URL:', payment.proof_url);
+
       const response = await fetch('/api/admin/ai-receipt-scanner', {
         method: 'POST',
         headers: {
@@ -87,16 +90,19 @@ export default function AIReceiptScanner({ payment, onScanComplete, onClose }: A
       });
 
       const data = await response.json();
+      console.log('🤖 AI scan response:', data);
 
       if (data.success) {
         setAnalysis(data.analysis);
         onScanComplete(data.analysis);
+        console.log('✅ AI scan completed successfully');
       } else {
         setError(data.error || 'AI scanning failed');
+        console.error('❌ AI scan failed:', data.error);
       }
     } catch (err) {
-      setError('Failed to scan receipt');
-      console.error('AI scanning error:', err);
+      setError('Failed to scan receipt - please try again');
+      console.error('❌ AI scanning error:', err);
     } finally {
       setIsScanning(false);
     }
@@ -159,14 +165,33 @@ export default function AIReceiptScanner({ payment, onScanComplete, onClose }: A
           {/* Receipt Image */}
           {payment.proof_url && (
             <div className="mb-6">
-              <h3 className="text-lg font-medium text-white mb-3">Receipt Image</h3>
+              <h3 className="text-lg font-medium text-white mb-3">Receipt Document</h3>
               <div className="bg-gray-800 rounded-lg p-4">
-                <img
-                  src={payment.proof_url}
-                  alt="Payment receipt"
-                  className="max-w-full h-auto rounded border border-gray-600"
-                  style={{ maxHeight: '300px' }}
-                />
+                {payment.proof_url.toLowerCase().includes('.pdf') ? (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📄</div>
+                    <div className="text-white text-lg mb-2">PDF Document Detected</div>
+                    <div className="text-gray-400 text-sm mb-4">
+                      AI analysis will attempt to process the PDF content
+                    </div>
+                    <a
+                      href={payment.proof_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-blue-300 hover:text-blue-200 transition-all"
+                    >
+                      <i className="fas fa-external-link-alt mr-2"></i>
+                      Open PDF
+                    </a>
+                  </div>
+                ) : (
+                  <img
+                    src={payment.proof_url}
+                    alt="Payment receipt"
+                    className="max-w-full h-auto rounded border border-gray-600"
+                    style={{ maxHeight: '300px' }}
+                  />
+                )}
               </div>
             </div>
           )}

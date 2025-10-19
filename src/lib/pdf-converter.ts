@@ -1,5 +1,5 @@
 import { createWriteStream, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { promisify } from 'util';
 import { exec } from 'child_process';
 
@@ -20,7 +20,9 @@ export class PDFConverter {
     }
     
     const buffer = await response.arrayBuffer();
-    const tempDir = join(process.cwd(), 'temp', 'pdfs');
+    
+    // Use /tmp directory for serverless environments
+    const tempDir = process.env.VERCEL ? '/tmp' : join(process.cwd(), 'temp', 'pdfs');
     
     if (!existsSync(tempDir)) {
       mkdirSync(tempDir, { recursive: true });
@@ -34,7 +36,8 @@ export class PDFConverter {
   }
 
   private static async convertPDFToImageFile(pdfPath: string): Promise<string> {
-    const outputDir = join(process.cwd(), 'temp', 'images');
+    // Use /tmp directory for serverless environments
+    const outputDir = process.env.VERCEL ? '/tmp' : join(process.cwd(), 'temp', 'images');
     
     if (!existsSync(outputDir)) {
       mkdirSync(outputDir, { recursive: true });
@@ -137,6 +140,22 @@ export class PDFConverter {
         }
       } catch (error) {
         console.warn(`Failed to cleanup file ${file}:`, error);
+      }
+    }
+    
+    // Clean up temp directories if empty
+    const tempDirs = new Set(tempFiles.map(f => dirname(f)));
+    
+    for (const dir of tempDirs) {
+      try {
+        if (existsSync(dir) && dir !== process.cwd()) {
+          const files = await fs.promises.readdir(dir);
+          if (files.length === 0) {
+            await fs.promises.rmdir(dir);
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup directory ${dir}:`, error);
       }
     }
   }

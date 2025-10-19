@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase';
 import OpenAI from 'openai';
-import { PDFConverter } from '@/lib/pdf-converter';
+import { PDFConverterV2 } from '@/lib/pdf-converter-v2';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
       console.log('📄 PDF detected, converting to image...');
       
       try {
-        // Convert PDF to image
-        const conversionResult = await PDFConverter.convertPDFToImage(receiptImageUrl);
+        // Convert PDF to image using improved converter
+        const conversionResult = await PDFConverterV2.convertPDFToImage(receiptImageUrl);
         
         if (!conversionResult.success) {
           throw new Error(conversionResult.error || 'PDF conversion failed');

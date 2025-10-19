@@ -57,7 +57,16 @@ export async function GET(request: NextRequest) {
           monthly_price: 0,
           yearly_price: 0,
           features: []
-        }
+        },
+        // Add AI analysis fields (they might not exist in old table, so set defaults)
+        ai_analysis: payment.ai_analysis || null,
+        ai_confidence: payment.ai_confidence || null,
+        ai_status: payment.ai_status || null,
+        fraud_score: payment.fraud_score || null,
+        auto_approved: payment.auto_approved || false,
+        needs_review: payment.needs_review || false,
+        low_confidence: payment.low_confidence || false,
+        image_hash: payment.image_hash || null
       }));
 
       console.log('Successfully converted old payments:', payments.length, 'payments');

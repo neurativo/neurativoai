@@ -239,7 +239,7 @@ function parseOpenAIResponse(analysisText: string, isPdf: boolean) {
   else if (confidence < 0.4) validationStatus = 'invalid';
   
   // Extract fraud indicators
-  const fraudIndicators = [];
+  const fraudIndicators: string[] = [];
   if (analysisText.toLowerCase().includes('suspicious') || 
       analysisText.toLowerCase().includes('fraud') ||
       analysisText.toLowerCase().includes('unusual')) {

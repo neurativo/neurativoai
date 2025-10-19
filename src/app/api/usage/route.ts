@@ -22,16 +22,27 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: "Invalid authentication token" }, { status: 401 });
     }
 
-    // Current plan
+    // Current plan from user_subscriptions
     const { data: subscription } = await supabase
-      .from("subscriptions").select("plan").eq("user_id", user.id).eq("status", "active").maybeSingle();
-    const currentPlan = subscription?.plan || "free";
+      .from("user_subscriptions")
+      .select(`
+        subscription_plans!inner(
+          name
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    const currentPlan = subscription?.subscription_plans?.name?.toLowerCase() || "free";
 
-    // Comprehensive plan limits
+    // Get plan limits from subscription_plans
     const { data: planData } = await supabase
-      .from("plans")
-      .select("monthly_quiz_generations, max_questions_per_quiz, url_quiz_limit, text_quiz_limit, document_quiz_limit, daily_quiz_generations")
-      .eq("key", currentPlan)
+      .from("subscription_plans")
+      .select("monthly_limit, daily_limit, features")
+      .eq("name", currentPlan)
       .maybeSingle();
 
     // Period start (YYYY-MM-01)
@@ -48,7 +59,7 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     const monthly_used = uu?.used_count ?? 0;
-    const monthly_limit = planData?.monthly_quiz_generations ?? 20;
+    const monthly_limit = planData?.monthly_limit ?? 20;
 
     // Read source-specific usage from user_source_usage
     const { data: sourceUsageData } = await supabase
@@ -63,10 +74,11 @@ export async function GET(req: Request) {
       document: sourceUsageData?.find(s => s.source_type === 'document')?.used_count ?? 0
     };
 
+    // For now, use default source limits since subscription_plans doesn't have these fields
     const sourceLimits = {
-      url: planData?.url_quiz_limit ?? 5,
-      text: planData?.text_quiz_limit ?? 10,
-      document: planData?.document_quiz_limit ?? 5
+      url: 5,
+      text: 10,
+      document: 5
     };
 
     // Read daily usage from user_daily_usage
@@ -78,7 +90,7 @@ export async function GET(req: Request) {
       .eq('day', today)
       .maybeSingle();
     const daily_used = du?.used_count ?? 0;
-    const daily_limit = planData?.daily_quiz_generations ?? 5;
+    const daily_limit = planData?.daily_limit ?? 5;
 
     // Read daily source-specific usage
     const { data: dailySourceUsageData } = await supabase
@@ -97,8 +109,8 @@ export async function GET(req: Request) {
       success: true,
       data: {
         plan: currentPlan,
-        monthly_quiz_generations: planData?.monthly_quiz_generations ?? 20,
-        max_questions_per_quiz: planData?.max_questions_per_quiz ?? 8,
+        monthly_quiz_generations: monthly_limit,
+        max_questions_per_quiz: 8, // Default for now
         monthly_used,
         monthly_limit,
         daily_used,
@@ -107,9 +119,9 @@ export async function GET(req: Request) {
         source_limits: sourceLimits,
         daily_source_usage: dailySourceUsage,
         daily_source_limits: {
-          url: planData?.daily_quiz_generations ?? 5,
-          text: planData?.daily_quiz_generations ?? 5,
-          document: planData?.daily_quiz_generations ?? 5
+          url: 5, // Default for now
+          text: 5, // Default for now
+          document: 5 // Default for now
         }
       }
     });

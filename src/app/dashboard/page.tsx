@@ -98,12 +98,12 @@ export default function DashboardPage() {
       const json = await res.json();
       if (json?.success && json?.data) {
         setUsage(prev => ({
-          plan: prev?.plan || 'free',
-          monthly_quiz_generations: prev?.monthly_quiz_generations || 50,
+          plan: prev?.plan || 'free', // Keep the plan from subscription API
+          monthly_quiz_generations: prev?.monthly_quiz_generations || 50, // Keep from subscription API
           used: json.data.monthly_used,
           daily_used: json.data.daily_used,
-          daily_limit: prev?.daily_limit || 3,
-          max_questions_per_quiz: prev?.max_questions_per_quiz || 10,
+          daily_limit: prev?.daily_limit || 3, // Keep from subscription API
+          max_questions_per_quiz: prev?.max_questions_per_quiz || 10, // Keep from subscription API
           source_usage: json.data.source_usage,
           source_limits: json.data.source_limits,
           daily_source_usage: json.data.daily_source_usage,
@@ -180,14 +180,18 @@ export default function DashboardPage() {
                   .then(r => r.json())
                   .then(json => {
                     if (json?.success && json?.data) {
-                      setUsage({
-                        plan: json.data.plan,
-                        monthly_quiz_generations: json.data.monthly_quiz_generations,
+                      setUsage(prev => ({
+                        plan: prev?.plan || json.data.plan, // Keep current plan
+                        monthly_quiz_generations: prev?.monthly_quiz_generations || json.data.monthly_quiz_generations, // Keep current limits
                         used: json.data.monthly_used,
                         daily_used: json.data.daily_used,
-                        daily_limit: json.data.daily_limit,
-                        max_questions_per_quiz: json.data.max_questions_per_quiz,
-                      });
+                        daily_limit: prev?.daily_limit || json.data.daily_limit, // Keep current limits
+                        max_questions_per_quiz: prev?.max_questions_per_quiz || json.data.max_questions_per_quiz, // Keep current limits
+                        source_usage: json.data.source_usage,
+                        source_limits: json.data.source_limits,
+                        daily_source_usage: json.data.daily_source_usage,
+                        daily_source_limits: json.data.daily_source_limits,
+                      }));
                     }
                   });
               });

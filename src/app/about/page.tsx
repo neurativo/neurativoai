@@ -157,42 +157,6 @@ export default function AboutPage() {
 				</div>
 			</section>
 
-			{/* FAQ Section */}
-			<section className="py-20 bg-gradient-to-b from-black/20 to-black/40">
-				<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="text-center mb-16">
-						<h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 sm:mb-8">
-							Frequently Asked <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Questions</span>
-						</h2>
-					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-						<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-							<h3 className="text-xl font-bold text-white mb-3">Can I change plans anytime?</h3>
-							<p className="text-gray-300">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
-						</div>
-						<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-							<h3 className="text-xl font-bold text-white mb-3">What payment methods do you accept?</h3>
-							<p className="text-gray-300">We accept all major credit cards, PayPal, and cryptocurrency payments for maximum flexibility.</p>
-						</div>
-						<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-							<h3 className="text-xl font-bold text-white mb-3">Is there a free trial?</h3>
-							<p className="text-gray-300">Yes! Our Essential plan gives you full access to core features with generous usage limits to get started.</p>
-						</div>
-						<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-							<h3 className="text-xl font-bold text-white mb-3">Can I cancel anytime?</h3>
-							<p className="text-gray-300">Absolutely! Cancel anytime with no questions asked. Your data remains accessible until your billing period ends.</p>
-						</div>
-						<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-							<h3 className="text-xl font-bold text-white mb-3">How does the AI work?</h3>
-							<p className="text-gray-300">Our AI uses advanced natural language processing to understand content and generate relevant, personalized learning materials.</p>
-						</div>
-						<div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 text-left">
-							<h3 className="text-xl font-bold text-white mb-3">Is my data secure?</h3>
-							<p className="text-gray-300">Yes! We use enterprise-grade security measures and encryption to protect your data and privacy.</p>
-						</div>
-					</div>
-				</div>
-			</section>
 		</>
 	);
 }

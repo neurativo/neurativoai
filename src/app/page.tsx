@@ -132,65 +132,6 @@ export default function Home() {
 				</div>
 			</section>
 
-			{/* Stats Section */}
-			<section className="py-24 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="text-center mb-16">
-						<h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Trusted by Learners Worldwide</h2>
-						<p className="text-xl text-gray-300">Join thousands of students who are already transforming their learning experience</p>
-					</div>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-						<div className="text-center group">
-							<div className="relative inline-block">
-								<div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-users text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-									<i className="fas fa-plus text-white text-sm"></i>
-								</div>
-							</div>
-							<div className="text-4xl md:text-5xl font-bold text-white mb-2">10K+</div>
-							<div className="text-gray-300 font-medium">Active Learners</div>
-						</div>
-						<div className="text-center group">
-							<div className="relative inline-block">
-								<div className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-question-circle text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-									<i className="fas fa-plus text-white text-sm"></i>
-								</div>
-							</div>
-							<div className="text-4xl md:text-5xl font-bold text-white mb-2">50K+</div>
-							<div className="text-gray-300 font-medium">Quizzes Created</div>
-						</div>
-						<div className="text-center group">
-							<div className="relative inline-block">
-								<div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-trophy text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-									<i className="fas fa-star text-white text-sm"></i>
-								</div>
-							</div>
-							<div className="text-4xl md:text-5xl font-bold text-white mb-2">95%</div>
-							<div className="text-gray-300 font-medium">Success Rate</div>
-						</div>
-						<div className="text-center group">
-							<div className="relative inline-block">
-								<div className="w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300">
-									<i className="fas fa-robot text-3xl text-white"></i>
-								</div>
-								<div className="absolute -top-2 -right-2 w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-									<i className="fas fa-clock text-white text-sm"></i>
-								</div>
-							</div>
-							<div className="text-4xl md:text-5xl font-bold text-white mb-2">24/7</div>
-							<div className="text-gray-300 font-medium">AI Support</div>
-						</div>
-					</div>
-				</div>
-			</section>
 
 			{/* How It Works Section */}
 			<section className="py-24 bg-gradient-to-b from-black/20 to-black/40">

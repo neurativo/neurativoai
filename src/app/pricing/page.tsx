@@ -387,24 +387,6 @@ function PricingPageInner() {
                     })}
                 </div>
 
-                {/* FAQ Section */}
-                <div className="mt-16 sm:mt-20 lg:mt-24 text-center">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 sm:mb-12">Frequently Asked Questions</h2>
-                    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-                        <div className="bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-white/10">
-                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">How does the currency conversion work?</h3>
-                            <p className="text-gray-300 text-sm sm:text-base">We use real-time exchange rates to convert our USD pricing to your local currency. Rates are updated daily and you can switch currencies anytime.</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-white/10">
-                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Can I change my plan anytime?</h3>
-                            <p className="text-gray-300 text-sm sm:text-base">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately and we'll prorate any billing differences.</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 border border-white/10">
-                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">What happens if I exceed my limits?</h3>
-                            <p className="text-gray-300 text-sm sm:text-base">We'll notify you when you're approaching your limits. You can upgrade your plan or wait for your usage to reset the next day/month.</p>
-                        </div>
-                    </div>
-                </div>
 
             </div>
             

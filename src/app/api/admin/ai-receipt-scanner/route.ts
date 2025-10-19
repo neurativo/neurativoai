@@ -3,7 +3,19 @@ import { getSupabaseServer } from '@/lib/supabase';
 import OpenAI from 'openai';
 import { PDFConverterV2 } from '@/lib/pdf-converter-v2';
 
+export async function GET() {
+  return NextResponse.json({ 
+    message: 'AI Receipt Scanner API is working',
+    methods: ['POST'],
+    timestamp: new Date().toISOString()
+  });
+}
+
 export async function POST(request: NextRequest) {
+  console.log('🚀 AI Receipt Scanner POST endpoint called');
+  console.log('Request method:', request.method);
+  console.log('Request URL:', request.url);
+  
   try {
     const { paymentId, receiptImageUrl } = await request.json();
 

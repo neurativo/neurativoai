@@ -592,128 +592,119 @@ export default function QuizPage() {
 
 									{sourceTab === "study-pack" && (
 										<div className="md:col-span-2">
-											<label className="text-white font-semibold mb-2 block">Upload Document for Study Pack</label>
+											<div className="mb-6">
+												<h2 className="text-2xl font-bold text-white mb-2">AI Study Pack Generator</h2>
+												<p className="text-gray-400">Upload documents to generate comprehensive study materials including notes, flashcards, and quizzes</p>
+											</div>
 											
 											{!studyPack ? (
 												<div className="space-y-6">
-													<div 
-														className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
-														onClick={() => document.getElementById('study-pack-upload')?.click()}
-													>
-														<input
-															type="file"
-															accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.tiff"
-															onChange={async (e) => {
-																const file = e.target.files?.[0];
-																if (file) {
-																	console.log('File selected for study pack:', file.name);
-																	setSourceFile(file);
-																	setError(null);
-																	await processStudyPack(file);
-																}
-															}}
-															className="hidden"
-															id="study-pack-upload"
-														/>
-														<div className="text-6xl mb-4">📚</div>
-														<h3 className="text-xl font-semibold mb-2">Create AI Study Pack</h3>
-														<p className="text-gray-400 mb-4">
-															Upload your syllabus, textbook, or tutorial materials to generate comprehensive study materials
-														</p>
-														<button 
-															type="button" 
-															className="btn btn-primary btn-lg"
-															onClick={(e) => {
-																e.stopPropagation();
-																document.getElementById('study-pack-upload')?.click();
-															}}
+													{/* File Upload Section */}
+													<div className="bg-white/5 rounded-xl p-6 border border-white/10">
+														<h3 className="text-lg font-semibold text-white mb-4">Upload Document</h3>
+														<div 
+															className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
+															onClick={() => document.getElementById('study-pack-upload')?.click()}
 														>
-															Choose Document
-														</button>
-													</div>
-													
-													{sourceFile && (
-														<div className="p-4 bg-white/5 rounded-lg">
-															<div className="flex items-center justify-between">
-																<div>
-																	<p className="text-white font-medium">{sourceFile.name}</p>
-																	<p className="text-gray-400 text-sm">
-																		{(sourceFile.size / 1024 / 1024).toFixed(2)} MB • {sourceFile.type}
-																	</p>
+															<input
+																type="file"
+																accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.tiff"
+																onChange={async (e) => {
+																	const file = e.target.files?.[0];
+																	if (file) {
+																		console.log('File selected for study pack:', file.name);
+																		setSourceFile(file);
+																		setError(null);
+																		await processStudyPack(file);
+																	}
+																}}
+																className="hidden"
+																id="study-pack-upload"
+															/>
+															<div className="text-6xl mb-4">📚</div>
+															<h4 className="text-xl font-semibold mb-2 text-white">Choose Your Document</h4>
+															<p className="text-gray-400 mb-4">
+																Upload PDF, DOCX, TXT, MD, or image files to generate study materials
+															</p>
+															<button 
+																type="button" 
+																className="btn btn-primary btn-lg"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	document.getElementById('study-pack-upload')?.click();
+																}}
+															>
+																Select File
+															</button>
+														</div>
+														
+														{sourceFile && (
+															<div className="mt-4 p-4 bg-white/5 rounded-lg">
+																<div className="flex items-center justify-between">
+																	<div>
+																		<p className="text-white font-medium">{sourceFile.name}</p>
+																		<p className="text-gray-400 text-sm">
+																			{(sourceFile.size / 1024 / 1024).toFixed(2)} MB • {sourceFile.type}
+																		</p>
+																	</div>
+																	<button
+																		type="button"
+																		onClick={() => {
+																			setSourceFile(null);
+																			setStudyPack(null);
+																		}}
+																		className="btn btn-sm btn-ghost text-red-400"
+																	>
+																		Remove
+																	</button>
 																</div>
-																<button
-																	type="button"
-																	onClick={() => {
-																		setSourceFile(null);
-																		setStudyPack(null);
-																	}}
-																	className="btn btn-sm btn-ghost text-red-400"
-																>
-																	Remove
-																</button>
 															</div>
-														</div>
-													)}
-													
-													{documentProcessing && (
-														<div className="p-4 bg-blue-500/20 rounded-lg">
-															<div className="flex items-center space-x-3">
-																<span className="loading loading-spinner loading-sm"></span>
-																<span className="text-blue-300">Processing document and generating study pack...</span>
-															</div>
-														</div>
-													)}
-													
-													<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-														<div className="text-center p-4 bg-white/5 rounded-lg">
-															<div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
-																<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-																</svg>
-															</div>
-															<h4 className="font-semibold text-white">Detailed Notes</h4>
-															<p className="text-sm text-gray-400">Structured summaries with key concepts</p>
-														</div>
+														)}
 														
-														<div className="text-center p-4 bg-white/5 rounded-lg">
-															<div className="w-12 h-12 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-3">
-																<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-																</svg>
+														{documentProcessing && (
+															<div className="mt-4 p-4 bg-blue-500/20 rounded-lg">
+																<div className="flex items-center space-x-3">
+																	<span className="loading loading-spinner loading-sm"></span>
+																	<span className="text-blue-300">Processing document and generating study pack...</span>
+																</div>
 															</div>
-															<h4 className="font-semibold text-white">Flashcards</h4>
-															<p className="text-sm text-gray-400">Q&A cards for active recall</p>
-														</div>
-														
-														<div className="text-center p-4 bg-white/5 rounded-lg">
-															<div className="w-12 h-12 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-3">
-																<svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-																</svg>
-															</div>
-															<h4 className="font-semibold text-white">Quiz Packs</h4>
-															<p className="text-sm text-gray-400">Multiple choice questions with explanations</p>
-														</div>
+														)}
 													</div>
 													
-													<div className="mt-4 text-center">
-														<button
-															type="button"
-															onClick={() => {
-																console.log('Test button clicked');
-																const input = document.getElementById('study-pack-upload') as HTMLInputElement;
-																console.log('Input element:', input);
-																if (input) {
-																	input.click();
-																	console.log('Input clicked');
-																} else {
-																	console.error('Input element not found');
-																}
-															}}
-															className="btn btn-sm btn-outline text-gray-400"
-														>
-															Test File Input
-														</button>
+													{/* Features Preview */}
+													<div className="bg-white/5 rounded-xl p-6 border border-white/10">
+														<h3 className="text-lg font-semibold text-white mb-4">What You'll Get</h3>
+														<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+															<div className="text-center p-4 bg-white/5 rounded-lg">
+																<div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
+																	<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+																	</svg>
+																</div>
+																<h4 className="font-semibold text-white">Detailed Notes</h4>
+																<p className="text-sm text-gray-400">Structured summaries with key concepts and formulas</p>
+															</div>
+															
+															<div className="text-center p-4 bg-white/5 rounded-lg">
+																<div className="w-12 h-12 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-3">
+																	<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+																	</svg>
+																</div>
+																<h4 className="font-semibold text-white">Flashcards</h4>
+																<p className="text-sm text-gray-400">Q&A cards, cloze deletions, and concept cards</p>
+															</div>
+															
+															<div className="text-center p-4 bg-white/5 rounded-lg">
+																<div className="w-12 h-12 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-3">
+																	<svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+																	</svg>
+																</div>
+																<h4 className="font-semibold text-white">Quiz Packs</h4>
+																<p className="text-sm text-gray-400">Multiple choice questions with rationales</p>
+															</div>
+														</div>
 													</div>
 												</div>
 											) : (
@@ -1036,7 +1027,133 @@ export default function QuizPage() {
 														</div>
 													)}
 												</div>
-											)}
+												
+												{/* Quiz Generation Section */}
+												{studyPack && (
+													<div className="mt-8 bg-white/5 rounded-xl p-6 border border-white/10">
+														<h3 className="text-lg font-semibold text-white mb-4">Generate Quiz from Study Pack</h3>
+														<p className="text-gray-400 mb-6">Create a custom quiz based on your study pack content</p>
+														
+														<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+															<div>
+																<label className="text-white font-medium mb-2 block">Number of Questions</label>
+																<select 
+																	value={aiCount} 
+																	onChange={(e) => setAiCount(Number(e.target.value))} 
+																	className="select select-bordered w-full bg-white/5 text-white"
+																>
+																	{Array.from({ length: getMaxQuestionsForPlan(userPlan) }, (_, i) => i + 1).map(num => (
+																		<option key={num} value={num}>
+																			{num} Question{num !== 1 ? 's' : ''}
+																			{num > 10 && userPlan === 'free' && ' (Upgrade for more)'}
+																		</option>
+																	))}
+																</select>
+																{userPlan === 'free' && (
+																	<p className="text-yellow-300 text-xs mt-1">
+																		Free plan limited to {getMaxQuestionsForPlan(userPlan)} questions. 
+																		<a href="/pricing" className="underline ml-1">Upgrade for more</a>
+																	</p>
+																)}
+															</div>
+															
+															<div>
+																<label className="text-white font-medium mb-2 block">Difficulty Level</label>
+																<select 
+																	value={aiDifficulty} 
+																	onChange={(e) => setAiDifficulty(e.target.value)} 
+																	className="select select-bordered w-full bg-white/5 text-white"
+																>
+																	<option value="easy">Easy</option>
+																	<option value="medium">Medium</option>
+																	<option value="hard">Hard</option>
+																</select>
+															</div>
+														</div>
+														
+														<div className="mb-6">
+															<label className="text-white font-medium mb-2 block">Question Types</label>
+															<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+																{[
+																	{ type: "multiple_choice", label: "Multiple Choice", available: true },
+																	{ type: "true_false", label: "True/False", available: true },
+																	{ type: "short_answer", label: "Short Answer", available: userPlan !== 'free' },
+																	{ type: "fill_blank", label: "Fill in the Blank", available: userPlan !== 'free' }
+																].map(({ type, label, available }) => (
+																	<label 
+																		key={type}
+																		className={`flex items-center p-3 rounded-lg border transition-colors ${
+																			available 
+																				? 'bg-white/5 border-white/10 hover:bg-white/10' 
+																				: 'bg-gray-500/10 border-gray-500/20 opacity-60 cursor-not-allowed'
+																		}`}
+																	>
+																		<input 
+																			type="checkbox" 
+																			className="checkbox checkbox-sm mr-3" 
+																			checked={aiTypes.includes(type)} 
+																			onChange={() => available && toggleType(type)}
+																			disabled={!available}
+																		/>
+																		<div className="flex items-center gap-2">
+																			<span className={`text-sm font-medium ${available ? 'text-white' : 'text-gray-400'}`}>
+																				{label}
+																			</span>
+																			{!available && (
+																				<span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">
+																					Pro
+																				</span>
+																			)}
+																		</div>
+																	</label>
+																))}
+															</div>
+															{userPlan === 'free' && (
+																<div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+																	<p className="text-yellow-300 text-sm">
+																		💡 Free users can only use Multiple Choice and True/False questions. 
+																		<a href="/pricing" className="underline ml-1">Upgrade to Professional</a> for all question types.
+																	</p>
+																</div>
+															)}
+														</div>
+														
+														<button 
+															disabled={loading || limits?.blocked} 
+															onClick={async () => {
+																await generateQuiz();
+															}} 
+															className="btn btn-primary w-full"
+														>
+															<i className="fas fa-magic mr-2"></i>
+															{loading ? (
+																"Generating quiz from study pack..."
+															) : (
+																limits?.blocked ? "Limit reached" : "Generate Quiz from Study Pack"
+															)}
+														</button>
+														
+														{limits && (
+															<div className="text-gray-300 text-sm mt-3 text-center space-y-1">
+																{limits.plan && (
+																	<div className="text-purple-300 font-medium">
+																		{limits.plan.charAt(0).toUpperCase() + limits.plan.slice(1)} Plan
+																	</div>
+																)}
+																{typeof limits.dailyUsed === 'number' && typeof limits.dailyLimit === 'number' && (
+																	<div>
+																		Today: {limits.dailyUsed}/{limits.dailyLimit === -1 ? '∞' : limits.dailyLimit}
+																	</div>
+																)}
+																{typeof limits.monthlyUsed === 'number' && typeof limits.monthlyLimit === 'number' && (
+																	<div>
+																		This month: {limits.monthlyUsed}/{limits.monthlyLimit === -1 ? '∞' : limits.monthlyLimit}
+																	</div>
+																)}
+															</div>
+														)}
+													</div>
+												)}
 										</div>
 									)}
 

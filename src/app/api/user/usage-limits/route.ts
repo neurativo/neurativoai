@@ -1,76 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UsageTracker } from '@/lib/usage-tracker';
-import { getUserLimits, getPricing } from '@/lib/usage-limits';
+import { getSupabaseServer } from '@/lib/supabase';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
+    const supabase = getSupabaseServer();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's current usage and limits
-    const usage = await UsageTracker.getUserUsage(userId);
-    if (!usage) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Get user's current subscription
+    const { data: subscription, error: subError } = await supabase
+      .from('user_subscriptions')
+      .select(`
+        id,
+        status,
+        created_at,
+        subscription_plans!inner(
+          id,
+          name,
+          monthly_limit,
+          daily_limit,
+          features
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (subError) {
+      console.error('Error fetching subscription:', subError);
+      return NextResponse.json({ error: 'Failed to fetch subscription' }, { status: 500 });
     }
 
-    const limits = getUserLimits(usage.plan);
-    const pricing = getPricing(usage.plan);
+    // Get current usage
+    const { data: usage, error: usageError } = await supabase
+      .from('user_usage')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
 
-    // Calculate remaining quotas
-    const dailyRemaining = limits.dailyQuizzes === -1 
-      ? -1 
-      : Math.max(0, limits.dailyQuizzes - usage.dailyQuizzes);
-      
-    const monthlyRemaining = limits.monthlyQuizzes === -1 
-      ? -1 
-      : Math.max(0, limits.monthlyQuizzes - usage.monthlyQuizzes);
+    if (usageError && usageError.code !== 'PGRST116') {
+      console.error('Error fetching usage:', usageError);
+      return NextResponse.json({ error: 'Failed to fetch usage' }, { status: 500 });
+    }
 
-    const fileUploadsRemaining = limits.maxFileUploads === -1 
-      ? -1 
-      : Math.max(0, limits.maxFileUploads - usage.monthlyFileUploads);
+    // Determine current plan
+    const currentPlan = subscription?.subscription_plans?.name?.toLowerCase() || 'free';
+    
+    // Get plan limits
+    let planLimits = {
+      monthly_limit: 5,
+      daily_limit: 2,
+      max_questions_per_quiz: 8,
+      max_file_size: 5 * 1024 * 1024, // 5MB
+      can_access_study_packs: false,
+      features: []
+    };
+
+    if (subscription?.subscription_plans) {
+      const plan = subscription.subscription_plans;
+      planLimits = {
+        monthly_limit: plan.monthly_limit || 5,
+        daily_limit: plan.daily_limit || 2,
+        max_questions_per_quiz: plan.features?.max_questions_per_quiz || 8,
+        max_file_size: currentPlan === 'free' ? 5 * 1024 * 1024 :
+                      currentPlan === 'professional' ? 25 * 1024 * 1024 :
+                      currentPlan === 'mastery' ? 50 * 1024 * 1024 :
+                      100 * 1024 * 1024, // innovation
+        can_access_study_packs: currentPlan !== 'free',
+        features: plan.features || []
+      };
+    }
 
     return NextResponse.json({
-      user: {
-        id: usage.userId,
-        plan: usage.plan,
-        pricing: pricing,
-      },
-      usage: {
-        dailyQuizzes: usage.dailyQuizzes,
-        monthlyQuizzes: usage.monthlyQuizzes,
-        dailyFileUploads: usage.dailyFileUploads,
-        monthlyFileUploads: usage.monthlyFileUploads,
-      },
-      limits: {
-        dailyQuizzes: limits.dailyQuizzes,
-        monthlyQuizzes: limits.monthlyQuizzes,
-        maxFileUploads: limits.maxFileUploads,
-        quizTypes: limits.quizTypes,
-        maxQuestionsPerQuiz: limits.maxQuestionsPerQuiz,
-        maxQuizDuration: limits.maxQuizDuration,
-      },
-      remaining: {
-        dailyQuizzes: dailyRemaining,
-        monthlyQuizzes: monthlyRemaining,
-        fileUploads: fileUploadsRemaining,
-      },
-      features: {
-        canAccessLectures: limits.canAccessLectures,
-        canAccessStudyPacks: limits.canAccessStudyPacks,
-        canExportData: limits.canExportData,
-        canUseAdvancedFeatures: limits.canUseAdvancedFeatures,
-        canCreateCustomQuizzes: limits.canCreateCustomQuizzes,
-        canAccessAnalytics: limits.canAccessAnalytics,
-        canUseAIFeatures: limits.canUseAIFeatures,
-        canAccessPrioritySupport: limits.canAccessPrioritySupport,
-      },
+      success: true,
+      data: {
+        currentPlan,
+        planLimits,
+        usage: usage || {
+          monthly_quiz_generations: 0,
+          daily_quiz_generations: 0,
+          study_pack_generations: 0
+        },
+        subscription
+      }
     });
+
   } catch (error) {
-    console.error('Usage limits error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in usage-limits API:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }

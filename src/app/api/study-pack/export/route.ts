@@ -46,7 +46,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Failed to export study pack PDF:', error);
-    return NextResponse.json({ error: 'Failed to export study pack' }, { status: 500 });
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Stack trace:', error instanceof Error ? error.stack : '');
+    return NextResponse.json({ 
+      error: 'Failed to export study pack',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
 

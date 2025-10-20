@@ -1027,10 +1027,11 @@ export default function QuizPage() {
 														</div>
 													)}
 												</div>
-												
-												{/* Quiz Generation Section */}
-												{studyPack && (
-													<div className="mt-8 bg-white/5 rounded-xl p-6 border border-white/10">
+											)}
+											
+											{/* Quiz Generation Section */}
+											{studyPack && (
+												<div className="mt-8 bg-white/5 rounded-xl p-6 border border-white/10">
 														<h3 className="text-lg font-semibold text-white mb-4">Generate Quiz from Study Pack</h3>
 														<p className="text-gray-400 mb-6">Create a custom quiz based on your study pack content</p>
 														

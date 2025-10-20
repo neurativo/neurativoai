@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine current plan
-    const currentPlan = subscription?.subscription_plans?.name?.toLowerCase() || 'free';
+    const currentPlan = ((subscription?.subscription_plans as any)?.name || 'free').toLowerCase();
     
     // Get plan limits
     let planLimits = {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (subscription?.subscription_plans) {
-      const plan = subscription.subscription_plans;
+      const plan = subscription.subscription_plans as any;
       planLimits = {
         monthly_limit: plan.monthly_limit || 5,
         daily_limit: plan.daily_limit || 2,

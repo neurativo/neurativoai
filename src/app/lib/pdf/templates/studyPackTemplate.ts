@@ -1,4 +1,4 @@
-import { PDFDocument, PDFPage, PDFFont, rgb, PDFText, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFPage, PDFFont, rgb, StandardFonts } from 'pdf-lib';
 
 export interface BuildOptions {
   appName?: string;
@@ -196,7 +196,6 @@ export class StudyPackTemplate {
         size: 10,
         font: this.italicFont,
         color: rgb(0.7, 0.7, 0.7),
-        rotate: { type: 'degrees', angle: -45 },
       });
     }
 

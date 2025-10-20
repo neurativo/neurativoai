@@ -204,12 +204,14 @@ export class AIStudyPackGenerator {
     
     return {
       id: `note_${section.id}`,
+      title: section.title,
       topic: section.title,
       content,
       level: this.determineDifficultyLevel(section.content),
       highlights,
       examples,
-      relatedTopics: topics
+      relatedTopics: topics,
+      tags: this.extractTags(section.content)
     };
   }
 
@@ -305,6 +307,32 @@ export class AIStudyPackGenerator {
     return topics.slice(0, 5);
   }
 
+  private extractTags(content: string): string[] {
+    // Extract tags from content
+    const tags: string[] = [];
+    
+    // Look for common academic tags
+    const tagPatterns = [
+      /\b(formula|equation|theorem|principle|definition|concept|theory|law|rule|method|technique|algorithm|process|procedure|strategy|approach|model|framework|paradigm|methodology)\b/gi,
+      /\b(important|key|critical|essential|crucial|fundamental|basic|advanced|complex|simple|easy|difficult|challenging)\b/gi,
+      /\b(example|case study|application|use case|scenario|instance|illustration|demonstration)\b/gi
+    ];
+    
+    for (const pattern of tagPatterns) {
+      const matches = content.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          const tag = match.toLowerCase().trim();
+          if (tag && !tags.includes(tag)) {
+            tags.push(tag);
+          }
+        }
+      }
+    }
+    
+    return tags.slice(0, 8); // Limit to 8 tags
+  }
+
   private determineDifficultyLevel(content: string): 'basic' | 'intermediate' | 'advanced' {
     const advancedKeywords = ['complex', 'advanced', 'sophisticated', 'intricate', 'comprehensive'];
     const basicKeywords = ['simple', 'basic', 'fundamental', 'introductory', 'elementary'];
@@ -364,6 +392,7 @@ export class AIStudyPackGenerator {
         back: qa.answer,
         difficulty: this.mapDifficultyLevel(this.determineDifficultyLevel(section.content)),
         topic: section.title,
+        type: 'qa',
         tags: section.topics
       });
     }
@@ -398,15 +427,15 @@ export class AIStudyPackGenerator {
     return qaPairs;
   }
 
-  private async generateQuizPacks(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<QuizPack[]> {
+  private async generateQuizPacks(sections: DocumentSection[], detectedChapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<QuizPack[]> {
     console.log('Generating quiz packs...');
     
     const quizPacks: QuizPack[] = [];
     
     // Group sections by chapter (level 1)
-    const chapters = sections.filter(s => s.level === 1);
+    const chapterSections = sections.filter(s => s.level === 1);
     
-    for (const chapter of chapters) {
+    for (const chapter of chapterSections) {
       try {
         const quizPack = await this.createQuizPackForChapter(chapter, sections);
         quizPacks.push(quizPack);
@@ -442,7 +471,8 @@ export class AIStudyPackGenerator {
       questions,
       totalQuestions: questions.length,
       estimatedTime: questions.length * 2, // 2 minutes per question
-      difficulty: this.mapDifficultyLevel(this.determineDifficultyLevel(chapter.content))
+      difficulty: this.mapDifficultyLevel(this.determineDifficultyLevel(chapter.content)),
+      totalTime: questions.length * 2 // Same as estimatedTime for now
     };
   }
 
@@ -468,8 +498,10 @@ export class AIStudyPackGenerator {
       options: shuffledOptions,
       correctAnswer,
       explanation: `The correct answer is ${qa.answer}. This is based on the content from the chapter.`,
+      rationale: `This question tests understanding of the key concepts covered in this chapter. The correct answer ${qa.answer} is directly supported by the material.`,
       difficulty: 'medium',
       topic: qa.question.split(' ')[0],
+      timeEstimate: 2, // 2 minutes per question
       tags: []
     };
   }

@@ -80,35 +80,67 @@ export interface Chapter {
   pageEnd: number;
 }
 
-export interface StudyNote {
+export interface StudyExample {
+  id: string;
   title: string;
+  description: string;
+  code?: string;
+  diagram?: string;
+  explanation: string;
+}
+
+export interface StudyNote {
+  id: string;
+  title: string;
+  topic: string;
   content: string;
+  level: 'basic' | 'intermediate' | 'advanced';
   chapter?: string;
-  tags?: string[];
+  pageReference?: string;
+  highlights: {
+    keyFormulas: string[];
+    examTips: string[];
+    conceptChecks: string[];
+  };
+  examples: StudyExample[];
+  relatedTopics: string[];
+  tags: string[];
 }
 
 export interface Flashcard {
+  id: string;
   front: string;
   back: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  topic: string;
   chapter?: string;
-  topic?: string;
   type: 'concept' | 'qa' | 'cloze';
+  tags: string[];
 }
 
 export interface QuizQuestion {
+  id: string;
   question: string;
   options: string[];
   correctAnswer: number;
+  explanation: string;
   rationale: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  topic: string;
+  chapter?: string;
   timeEstimate: number; // minutes
+  tags: string[];
 }
 
 export interface QuizPack {
+  id: string;
   title: string;
   questions: QuizQuestion[];
+  totalQuestions: number;
+  estimatedTime: number; // in minutes
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
   chapter?: string;
-  totalTime: number;
+  totalTime: number; // total time for all questions
 }
 
 export class StudyPackTemplate {
@@ -451,7 +483,7 @@ export class StudyPackTemplate {
       let y = height - 120;
 
       // Quiz info
-      page.drawText(`Total Questions: ${quizPack.questions.length}`, {
+      page.drawText(`Total Questions: ${quizPack.totalQuestions || quizPack.questions.length}`, {
         x: 50,
         y,
         size: 12,
@@ -460,7 +492,7 @@ export class StudyPackTemplate {
       });
       y -= 20;
 
-      page.drawText(`Estimated Time: ${quizPack.totalTime} minutes`, {
+      page.drawText(`Estimated Time: ${quizPack.totalTime || quizPack.estimatedTime || 30} minutes`, {
         x: 50,
         y,
         size: 12,
@@ -506,7 +538,7 @@ export class StudyPackTemplate {
         }
 
         // Rationale
-        page.drawText(`Rationale: ${question.rationale}`, {
+        page.drawText(`Rationale: ${question.rationale || question.explanation || 'No rationale provided'}`, {
           x: 50,
           y,
           size: 10,
@@ -516,7 +548,7 @@ export class StudyPackTemplate {
         y -= 25;
 
         // Difficulty and time
-        page.drawText(`Difficulty: ${question.difficulty} | Time: ${question.timeEstimate}min`, {
+        page.drawText(`Difficulty: ${question.difficulty} | Time: ${question.timeEstimate || 2}min`, {
           x: 50,
           y,
           size: 9,

@@ -36,7 +36,7 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
     
-    const currentPlan = subscription?.subscription_plans?.name?.toLowerCase() || "free";
+    const currentPlan = (subscription?.subscription_plans as any)?.name?.toLowerCase() || "free";
 
     // Get plan limits from subscription_plans
     const { data: planData } = await supabase

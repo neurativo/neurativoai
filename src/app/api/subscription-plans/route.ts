@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
           monthly_price: 5.99,
           yearly_price: 59.99,
           features: ['All quiz types', 'Live lectures', 'Study packs', 'Analytics'],
-          daily_limit: 10,
-          monthly_limit: 200
+          daily_limit: 15,
+          monthly_limit: 300
         },
         {
           id: 'mastery',
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
           monthly_price: 12.99,
           yearly_price: 129.99,
           features: ['All features', 'Custom quizzes', 'Priority support', 'API access'],
-          daily_limit: 25,
-          monthly_limit: 500
+          daily_limit: 40,
+          monthly_limit: 800
         },
         {
           id: 'innovation',

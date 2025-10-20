@@ -71,10 +71,10 @@ export default function DashboardPage() {
           setUsage({
             plan: planName,
             monthly_quiz_generations: subData.currentPlan?.monthly_limit || 50,
-            used: 0, // TODO: Get actual usage from usage tracking
-            daily_used: 0, // TODO: Get actual usage from usage tracking
+            used: 0,
+            daily_used: 0,
             daily_limit: subData.currentPlan?.daily_limit || 3,
-            max_questions_per_quiz: 10, // TODO: Get from plan features
+            max_questions_per_quiz: (subData.currentPlan?.features || []).includes('Advanced analytics') ? 20 : 10,
             source_usage: undefined,
             source_limits: undefined,
             daily_source_usage: undefined,

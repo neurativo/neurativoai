@@ -38,11 +38,11 @@ export async function GET(req: Request) {
     
     const currentPlan = (subscription?.subscription_plans as any)?.name?.toLowerCase() || "free";
 
-    // Get plan limits from subscription_plans
+    // Get plan limits from subscription_plans (case-insensitive by name)
     const { data: planData } = await supabase
       .from("subscription_plans")
-      .select("monthly_limit, daily_limit, features")
-      .eq("name", currentPlan)
+      .select("monthly_limit, daily_limit, features, name")
+      .ilike("name", currentPlan)
       .maybeSingle();
 
     // Period start (YYYY-MM-01)
@@ -74,11 +74,12 @@ export async function GET(req: Request) {
       document: sourceUsageData?.find(s => s.source_type === 'document')?.used_count ?? 0
     };
 
-    // For now, use default source limits since subscription_plans doesn't have these fields
+    // Derive source limits from features if available, otherwise defaults
+    const parsedFeatures = Array.isArray(planData?.features) ? planData?.features : [];
     const sourceLimits = {
-      url: 5,
-      text: 10,
-      document: 5
+      url: parsedFeatures.includes('All quiz types') ? Math.max(5, Math.round((planData?.daily_limit ?? 5) / 3)) : 5,
+      text: parsedFeatures.includes('All quiz types') ? Math.max(10, Math.round((planData?.daily_limit ?? 5) / 2)) : 10,
+      document: parsedFeatures.includes('All quiz types') ? Math.max(5, Math.round((planData?.daily_limit ?? 5) / 3)) : 5
     };
 
     // Read daily usage from user_daily_usage
@@ -110,7 +111,7 @@ export async function GET(req: Request) {
       data: {
         plan: currentPlan,
         monthly_quiz_generations: monthly_limit,
-        max_questions_per_quiz: 8, // Default for now
+        max_questions_per_quiz: parsedFeatures.includes('Advanced analytics') ? 20 : 10,
         monthly_used,
         monthly_limit,
         daily_used,
@@ -119,9 +120,9 @@ export async function GET(req: Request) {
         source_limits: sourceLimits,
         daily_source_usage: dailySourceUsage,
         daily_source_limits: {
-          url: 5, // Default for now
-          text: 5, // Default for now
-          document: 5 // Default for now
+          url: sourceLimits.url,
+          text: sourceLimits.text,
+          document: sourceLimits.document
         }
       }
     });

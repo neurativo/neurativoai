@@ -1,0 +1,631 @@
+import { PDFDocument, PDFPage, PDFFont, rgb, PDFText, StandardFonts } from 'pdf-lib';
+
+export interface BuildOptions {
+  appName?: string;
+  brandPrimary?: { r: number; g: number; b: number };
+  brandSecondary?: { r: number; g: number; b: number };
+  watermarkText?: string | null;
+}
+
+export async function buildStudyPackPdf(studyPack: any, options: BuildOptions = {}): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  
+  // Embed fonts
+  const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+  const codeFont = await pdfDoc.embedFont(StandardFonts.Courier);
+
+  const template = new StudyPackTemplate(
+    pdfDoc,
+    { regular: regularFont, bold: boldFont, italic: italicFont, code: codeFont },
+    {
+      title: studyPack.title || 'Study Pack',
+      subtitle: 'AI-Generated Learning Materials',
+      generatedAt: new Date(studyPack.generatedAt || Date.now()),
+      plan: 'professional', // Default for now
+      showWatermark: !!options.watermarkText
+    }
+  );
+
+  // Add cover page
+  await template.addCoverPage();
+
+  // Detect chapters for table of contents
+  const chapters = studyPack.chapters?.map((title: string, index: number) => ({
+    title,
+    pageStart: 0, // Will be calculated
+    pageEnd: 0
+  })) || [];
+
+  // Add table of contents
+  if (chapters.length > 0) {
+    await template.addTableOfContents(chapters);
+  }
+
+  // Add detailed notes
+  if (Array.isArray(studyPack.detailedNotes) && studyPack.detailedNotes.length > 0) {
+    await template.addNotesSection(studyPack.detailedNotes);
+  }
+
+  // Add flashcards
+  if (Array.isArray(studyPack.flashcardDeck) && studyPack.flashcardDeck.length > 0) {
+    await template.addFlashcardsSection(studyPack.flashcardDeck);
+  }
+
+  // Add quizzes
+  if (Array.isArray(studyPack.quizBank) && studyPack.quizBank.length > 0) {
+    await template.addQuizzesSection(studyPack.quizBank);
+  }
+
+  // Add quick revision sheet
+  if (studyPack.quickRevisionSheet) {
+    await template.addQuickRevisionSection(studyPack.quickRevisionSheet);
+  }
+
+  return await pdfDoc.save();
+}
+
+export interface StudyPackTemplateConfig {
+  title: string;
+  subtitle?: string;
+  generatedAt: Date;
+  plan?: string;
+  showWatermark?: boolean;
+}
+
+export interface Chapter {
+  title: string;
+  pageStart: number;
+  pageEnd: number;
+}
+
+export interface StudyNote {
+  title: string;
+  content: string;
+  chapter?: string;
+  tags?: string[];
+}
+
+export interface Flashcard {
+  front: string;
+  back: string;
+  chapter?: string;
+  topic?: string;
+  type: 'concept' | 'qa' | 'cloze';
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  rationale: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  timeEstimate: number; // minutes
+}
+
+export interface QuizPack {
+  title: string;
+  questions: QuizQuestion[];
+  chapter?: string;
+  totalTime: number;
+}
+
+export class StudyPackTemplate {
+  private doc: PDFDocument;
+  private regularFont: PDFFont;
+  private boldFont: PDFFont;
+  private italicFont: PDFFont;
+  private codeFont: PDFFont;
+  private config: StudyPackTemplateConfig;
+  private chapters: Chapter[] = [];
+  private currentPage = 0;
+
+  constructor(doc: PDFDocument, fonts: {
+    regular: PDFFont;
+    bold: PDFFont;
+    italic: PDFFont;
+    code: PDFFont;
+  }, config: StudyPackTemplateConfig) {
+    this.doc = doc;
+    this.regularFont = fonts.regular;
+    this.boldFont = fonts.bold;
+    this.italicFont = fonts.italic;
+    this.codeFont = fonts.code;
+    this.config = config;
+  }
+
+  async addCoverPage(): Promise<void> {
+    const page = this.doc.addPage([595.28, 841.89]); // A4
+    const { width, height } = page.getSize();
+    
+    // Background gradient effect
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      color: rgb(0.95, 0.95, 0.98),
+    });
+
+    // Title
+    page.drawText(this.config.title, {
+      x: 50,
+      y: height - 150,
+      size: 32,
+      font: this.boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    // Subtitle
+    if (this.config.subtitle) {
+      page.drawText(this.config.subtitle, {
+        x: 50,
+        y: height - 200,
+        size: 18,
+        font: this.regularFont,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+    }
+
+    // Generated date
+    page.drawText(`Generated: ${this.config.generatedAt.toLocaleDateString()}`, {
+      x: 50,
+      y: height - 250,
+      size: 14,
+      font: this.regularFont,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+
+    // Plan info
+    if (this.config.plan) {
+      page.drawText(`Plan: ${this.config.plan.toUpperCase()}`, {
+        x: 50,
+        y: height - 280,
+        size: 12,
+        font: this.boldFont,
+        color: rgb(0.2, 0.4, 0.8),
+      });
+    }
+
+    // Watermark
+    if (this.config.showWatermark) {
+      page.drawText('Generated by Neurativo AI', {
+        x: width - 200,
+        y: 50,
+        size: 10,
+        font: this.italicFont,
+        color: rgb(0.7, 0.7, 0.7),
+        rotate: { type: 'degrees', angle: -45 },
+      });
+    }
+
+    this.currentPage++;
+  }
+
+  async addTableOfContents(chapters: Chapter[]): Promise<void> {
+    const page = this.doc.addPage([595.28, 841.89]);
+    const { width, height } = page.getSize();
+    
+    this.addHeader(page, 'Table of Contents');
+    
+    let y = height - 120;
+    page.drawText('Chapter', {
+      x: 50,
+      y,
+      size: 14,
+      font: this.boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+    
+    page.drawText('Page', {
+      x: width - 100,
+      y,
+      size: 14,
+      font: this.boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    y -= 30;
+    for (const chapter of chapters) {
+      if (y < 100) {
+        const newPage = this.doc.addPage([595.28, 841.89]);
+        this.addHeader(newPage, 'Table of Contents (continued)');
+        y = height - 120;
+      }
+
+      page.drawText(chapter.title, {
+        x: 50,
+        y,
+        size: 12,
+        font: this.regularFont,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+
+      page.drawText(`${chapter.pageStart}`, {
+        x: width - 100,
+        y,
+        size: 12,
+        font: this.regularFont,
+        color: rgb(0.4, 0.4, 0.4),
+      });
+
+      y -= 20;
+    }
+
+    this.chapters = chapters;
+    this.currentPage++;
+  }
+
+  async addNotesSection(notes: StudyNote[]): Promise<void> {
+    const page = this.doc.addPage([595.28, 841.89]);
+    const { width, height } = page.getSize();
+    
+    this.addHeader(page, 'Detailed Notes');
+    
+    let y = height - 120;
+    let currentPage = page;
+
+    for (const note of notes) {
+      if (y < 150) {
+        currentPage = this.doc.addPage([595.28, 841.89]);
+        this.addHeader(currentPage, 'Detailed Notes (continued)');
+        y = height - 120;
+      }
+
+      // Note title
+      currentPage.drawText(note.title, {
+        x: 50,
+        y,
+        size: 16,
+        font: this.boldFont,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+      y -= 25;
+
+      // Chapter tag
+      if (note.chapter) {
+        currentPage.drawText(`Chapter: ${note.chapter}`, {
+          x: 50,
+          y,
+          size: 10,
+          font: this.italicFont,
+          color: rgb(0.4, 0.4, 0.4),
+        });
+        y -= 20;
+      }
+
+      // Note content (two-column layout)
+      const content = note.content;
+      const lines = this.wrapText(content, width - 100, 11, this.regularFont);
+      
+      const columnWidth = (width - 120) / 2;
+      let leftColumn = true;
+      let columnX = 50;
+
+      for (const line of lines) {
+        if (y < 100) {
+          currentPage = this.doc.addPage([595.28, 841.89]);
+          this.addHeader(currentPage, 'Detailed Notes (continued)');
+          y = height - 120;
+          leftColumn = true;
+          columnX = 50;
+        }
+
+        currentPage.drawText(line, {
+          x: columnX,
+          y,
+          size: 11,
+          font: this.regularFont,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+
+        y -= 15;
+
+        // Switch to right column
+        if (leftColumn && y < 200) {
+          leftColumn = false;
+          columnX = 50 + columnWidth + 20;
+          y = height - 120;
+        }
+      }
+
+      y -= 30;
+    }
+  }
+
+  async addFlashcardsSection(flashcards: Flashcard[]): Promise<void> {
+    const page = this.doc.addPage([595.28, 841.89]);
+    const { width, height } = page.getSize();
+    
+    this.addHeader(page, 'Flashcards');
+    
+    let y = height - 120;
+    let currentPage = page;
+    let cardIndex = 0;
+
+    // Group flashcards by chapter
+    const groupedCards = this.groupFlashcardsByChapter(flashcards);
+
+    for (const [chapter, cards] of Object.entries(groupedCards)) {
+      if (y < 200) {
+        currentPage = this.doc.addPage([595.28, 841.89]);
+        this.addHeader(currentPage, 'Flashcards (continued)');
+        y = height - 120;
+      }
+
+      // Chapter header
+      currentPage.drawText(chapter, {
+        x: 50,
+        y,
+        size: 14,
+        font: this.boldFont,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+      y -= 25;
+
+      // Render cards in grid (2x2)
+      for (let i = 0; i < cards.length; i += 4) {
+        if (y < 300) {
+          currentPage = this.doc.addPage([595.28, 841.89]);
+          this.addHeader(currentPage, 'Flashcards (continued)');
+          y = height - 120;
+        }
+
+        const rowCards = cards.slice(i, i + 4);
+        
+        for (let j = 0; j < rowCards.length; j++) {
+          const card = rowCards[j];
+          const cardX = 50 + (j % 2) * (width - 100) / 2;
+          const cardY = y - (Math.floor(j / 2) * 120);
+
+          // Card border
+          currentPage.drawRectangle({
+            x: cardX,
+            y: cardY - 100,
+            width: (width - 120) / 2,
+            height: 100,
+            borderColor: rgb(0.8, 0.8, 0.8),
+            borderWidth: 1,
+          });
+
+          // Front
+          currentPage.drawText('Front:', {
+            x: cardX + 5,
+            y: cardY - 20,
+            size: 10,
+            font: this.boldFont,
+            color: rgb(0.4, 0.4, 0.4),
+          });
+
+          const frontText = this.wrapText(card.front, (width - 120) / 2 - 10, 9, this.regularFont)[0];
+          currentPage.drawText(frontText, {
+            x: cardX + 5,
+            y: cardY - 35,
+            size: 9,
+            font: this.regularFont,
+            color: rgb(0.2, 0.2, 0.2),
+          });
+
+          // Back
+          currentPage.drawText('Back:', {
+            x: cardX + 5,
+            y: cardY - 55,
+            size: 10,
+            font: this.boldFont,
+            color: rgb(0.4, 0.4, 0.4),
+          });
+
+          const backText = this.wrapText(card.back, (width - 120) / 2 - 10, 9, this.regularFont)[0];
+          currentPage.drawText(backText, {
+            x: cardX + 5,
+            y: cardY - 70,
+            size: 9,
+            font: this.regularFont,
+            color: rgb(0.2, 0.2, 0.2),
+          });
+
+          // Type tag
+          currentPage.drawText(`[${card.type}]`, {
+            x: cardX + 5,
+            y: cardY - 90,
+            size: 8,
+            font: this.italicFont,
+            color: rgb(0.6, 0.6, 0.6),
+          });
+        }
+
+        y -= 250;
+      }
+
+      y -= 20;
+    }
+  }
+
+  async addQuizzesSection(quizPacks: QuizPack[]): Promise<void> {
+    for (const quizPack of quizPacks) {
+      const page = this.doc.addPage([595.28, 841.89]);
+      const { width, height } = page.getSize();
+      
+      this.addHeader(page, `Quiz: ${quizPack.title}`);
+      
+      let y = height - 120;
+
+      // Quiz info
+      page.drawText(`Total Questions: ${quizPack.questions.length}`, {
+        x: 50,
+        y,
+        size: 12,
+        font: this.regularFont,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+      y -= 20;
+
+      page.drawText(`Estimated Time: ${quizPack.totalTime} minutes`, {
+        x: 50,
+        y,
+        size: 12,
+        font: this.regularFont,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+      y -= 30;
+
+      // Questions
+      for (let i = 0; i < quizPack.questions.length; i++) {
+        const question = quizPack.questions[i];
+        
+        if (y < 150) {
+          const newPage = this.doc.addPage([595.28, 841.89]);
+          this.addHeader(newPage, `Quiz: ${quizPack.title} (continued)`);
+          y = height - 120;
+        }
+
+        // Question number and text
+        page.drawText(`${i + 1}. ${question.question}`, {
+          x: 50,
+          y,
+          size: 12,
+          font: this.boldFont,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+        y -= 25;
+
+        // Options
+        for (let j = 0; j < question.options.length; j++) {
+          const option = question.options[j];
+          const letter = String.fromCharCode(65 + j);
+          const isCorrect = j === question.correctAnswer;
+          
+          page.drawText(`${letter}. ${option}`, {
+            x: 70,
+            y,
+            size: 11,
+            font: this.regularFont,
+            color: isCorrect ? rgb(0, 0.6, 0) : rgb(0.2, 0.2, 0.2),
+          });
+          y -= 18;
+        }
+
+        // Rationale
+        page.drawText(`Rationale: ${question.rationale}`, {
+          x: 50,
+          y,
+          size: 10,
+          font: this.italicFont,
+          color: rgb(0.4, 0.4, 0.4),
+        });
+        y -= 25;
+
+        // Difficulty and time
+        page.drawText(`Difficulty: ${question.difficulty} | Time: ${question.timeEstimate}min`, {
+          x: 50,
+          y,
+          size: 9,
+          font: this.regularFont,
+          color: rgb(0.5, 0.5, 0.5),
+        });
+        y -= 30;
+      }
+    }
+  }
+
+  async addQuickRevisionSection(content: string): Promise<void> {
+    const page = this.doc.addPage([595.28, 841.89]);
+    const { width, height } = page.getSize();
+    
+    this.addHeader(page, 'Quick Revision Sheet');
+    
+    let y = height - 120;
+    const lines = this.wrapText(content, width - 100, 11, this.regularFont);
+    
+    for (const line of lines) {
+      if (y < 100) {
+        const newPage = this.doc.addPage([595.28, 841.89]);
+        this.addHeader(newPage, 'Quick Revision Sheet (continued)');
+        y = height - 120;
+      }
+
+      page.drawText(line, {
+        x: 50,
+        y,
+        size: 11,
+        font: this.regularFont,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      y -= 15;
+    }
+  }
+
+  private addHeader(page: PDFPage, title: string): void {
+    const { width, height } = page.getSize();
+    
+    // Header background
+    page.drawRectangle({
+      x: 0,
+      y: height - 50,
+      width,
+      height: 50,
+      color: rgb(0.95, 0.95, 0.98),
+    });
+
+    // Title
+    page.drawText(title, {
+      x: 50,
+      y: height - 30,
+      size: 14,
+      font: this.boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    // Page number
+    page.drawText(`${this.currentPage}`, {
+      x: width - 50,
+      y: height - 30,
+      size: 12,
+      font: this.regularFont,
+      color: rgb(0.4, 0.4, 0.4),
+    });
+  }
+
+  private wrapText(text: string, maxWidth: number, fontSize: number, font: PDFFont): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+      
+      if (textWidth <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          lines.push(word);
+        }
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
+  }
+
+  private groupFlashcardsByChapter(flashcards: Flashcard[]): Record<string, Flashcard[]> {
+    const grouped: Record<string, Flashcard[]> = {};
+    
+    for (const card of flashcards) {
+      const chapter = card.chapter || 'General';
+      if (!grouped[chapter]) {
+        grouped[chapter] = [];
+      }
+      grouped[chapter].push(card);
+    }
+    
+    return grouped;
+  }
+}

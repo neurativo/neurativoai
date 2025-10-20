@@ -718,19 +718,46 @@ export default function QuizPage() {
 												</div>
 											) : (
 												<div className="space-y-6">
-													<div className="flex items-center justify-between">
-														<h3 className="text-xl font-bold text-white">{studyPack.title}</h3>
-														<button
-															onClick={() => {
-																setStudyPack(null);
-																setSourceFile(null);
-																setActiveStudyTab('notes');
-															}}
-															className="btn btn-sm btn-ghost text-gray-400"
-														>
-															Upload New Document
-														</button>
-													</div>
+						<div className="flex items-center justify-between">
+							<h3 className="text-xl font-bold text-white">{studyPack.title}</h3>
+							<div className="flex items-center gap-2">
+								<button
+									onClick={async () => {
+										try {
+											const res = await fetch('/api/study-pack/export', {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({ studyPack })
+											});
+											if (!res.ok) throw new Error('Failed to export PDF');
+											const blob = await res.blob();
+											const url = URL.createObjectURL(blob);
+											const a = document.createElement('a');
+											a.href = url;
+											a.download = 'study-pack.pdf';
+											a.click();
+											URL.revokeObjectURL(url);
+										} catch (e) {
+											console.error('Export failed:', e);
+											setError('Failed to export PDF.');
+										}
+								}}
+								className="btn btn-sm btn-outline text-gray-200"
+							>
+								Export PDF
+							</button>
+							<button
+								onClick={() => {
+									setStudyPack(null);
+									setSourceFile(null);
+									setActiveStudyTab('notes');
+								}}
+								className="btn btn-sm btn-ghost text-gray-400"
+							>
+								Upload New Document
+							</button>
+							</div>
+						</div>
 													
 													<div className="flex space-x-4 border-b border-white/20">
 														{[
@@ -760,62 +787,191 @@ export default function QuizPage() {
 													
 													{activeStudyTab === 'notes' && (
 														<div className="space-y-4 max-h-96 overflow-y-auto">
+															{/* Chapter Filter */}
+															{studyPack.chapters && studyPack.chapters.length > 0 && (
+																<div className="flex flex-wrap gap-2 mb-4">
+																	<button
+																		onClick={() => setActiveStudyTab('notes')}
+																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
+																	>
+																		All Chapters
+																	</button>
+																	{studyPack.chapters.map((chapter: string, index: number) => (
+																		<button
+																			key={index}
+																			onClick={() => setActiveStudyTab('notes')}
+																			className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
+																		>
+																			{chapter}
+																		</button>
+																	))}
+																</div>
+															)}
+															
 															{studyPack.detailedNotes?.map((note: any, index: number) => (
 																<div key={note.id || index} className="border border-white/20 rounded-lg p-4">
 																	<div className="flex items-center justify-between mb-2">
-																		<h4 className="text-lg font-semibold text-white">{note.topic}</h4>
-																		<span className={`px-2 py-1 rounded-full text-xs font-medium ${
-																			note.level === 'basic' ? 'bg-green-100 text-green-800' :
-																			note.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-																			'bg-red-100 text-red-800'
-																		}`}>
-																			{note.level}
-																		</span>
+																		<h4 className="text-lg font-semibold text-white">{note.title || note.topic}</h4>
+																		<div className="flex items-center gap-2">
+																			{note.chapter && (
+																				<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+																					{note.chapter}
+																				</span>
+																			)}
+																			<span className={`px-2 py-1 rounded-full text-xs font-medium ${
+																				note.level === 'basic' ? 'bg-green-100 text-green-800' :
+																				note.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+																				'bg-red-100 text-red-800'
+																			}`}>
+																				{note.level}
+																			</span>
+																		</div>
 																	</div>
 																	<div className="text-gray-300 whitespace-pre-line text-sm">
 																		{note.content}
 																	</div>
+																	{note.tags && note.tags.length > 0 && (
+																		<div className="flex flex-wrap gap-1 mt-2">
+																			{note.tags.map((tag: string, tagIndex: number) => (
+																				<span key={tagIndex} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+																					{tag}
+																				</span>
+																			))}
+																		</div>
+																	)}
 																</div>
 															))}
 														</div>
 													)}
 													
 													{activeStudyTab === 'flashcards' && (
-														<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-															{studyPack.flashcardDeck?.map((card: any, index: number) => (
-																<div key={card.id || index} className="border border-white/20 rounded-lg p-4">
-																	<div className="space-y-3">
-																		<div className="p-3 bg-blue-500/20 rounded">
-																			<h4 className="font-medium text-white mb-1">Question:</h4>
-																			<p className="text-gray-300 text-sm">{card.front}</p>
-																		</div>
-																		<div className="p-3 bg-green-500/20 rounded">
-																			<h4 className="font-medium text-white mb-1">Answer:</h4>
-																			<p className="text-gray-300 text-sm">{card.back}</p>
+														<div className="space-y-4 max-h-96 overflow-y-auto">
+															{/* Chapter Filter */}
+															{studyPack.chapters && studyPack.chapters.length > 0 && (
+																<div className="flex flex-wrap gap-2 mb-4">
+																	<button
+																		onClick={() => setActiveStudyTab('flashcards')}
+																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
+																	>
+																		All Chapters
+																	</button>
+																	{studyPack.chapters.map((chapter: string, index: number) => (
+																		<button
+																			key={index}
+																			onClick={() => setActiveStudyTab('flashcards')}
+																			className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
+																		>
+																			{chapter}
+																		</button>
+																	))}
+																</div>
+															)}
+															
+															<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+																{studyPack.flashcardDeck?.map((card: any, index: number) => (
+																	<div key={card.id || index} className="border border-white/20 rounded-lg p-4">
+																		<div className="space-y-3">
+																			{/* Card Type Badge */}
+																			<div className="flex items-center justify-between">
+																				<span className={`px-2 py-1 rounded-full text-xs font-medium ${
+																					card.type === 'concept' ? 'bg-blue-100 text-blue-800' :
+																					card.type === 'qa' ? 'bg-green-100 text-green-800' :
+																					'bg-purple-100 text-purple-800'
+																				}`}>
+																					{card.type?.toUpperCase() || 'CONCEPT'}
+																				</span>
+																				{card.chapter && (
+																					<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+																						{card.chapter}
+																					</span>
+																				)}
+																			</div>
+																			
+																			<div className="p-3 bg-blue-500/20 rounded">
+																				<h4 className="font-medium text-white mb-1">Question:</h4>
+																				<p className="text-gray-300 text-sm">{card.front}</p>
+																			</div>
+																			<div className="p-3 bg-green-500/20 rounded">
+																				<h4 className="font-medium text-white mb-1">Answer:</h4>
+																				<p className="text-gray-300 text-sm">{card.back}</p>
+																			</div>
+																			<div className="flex items-center justify-between text-xs text-gray-400">
+																				<span className="px-2 py-1 bg-gray-700 rounded">{card.difficulty}</span>
+																				<span className="px-2 py-1 bg-gray-700 rounded">{card.topic}</span>
+																			</div>
 																		</div>
 																	</div>
-																</div>
-															))}
+																))}
+															</div>
 														</div>
 													)}
 													
 													{activeStudyTab === 'quizzes' && (
 														<div className="space-y-4 max-h-96 overflow-y-auto">
+															{/* Chapter Filter */}
+															{studyPack.chapters && studyPack.chapters.length > 0 && (
+																<div className="flex flex-wrap gap-2 mb-4">
+																	<button
+																		onClick={() => setActiveStudyTab('quizzes')}
+																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
+																	>
+																		All Chapters
+																	</button>
+																	{studyPack.chapters.map((chapter: string, index: number) => (
+																		<button
+																			key={index}
+																			onClick={() => setActiveStudyTab('quizzes')}
+																			className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
+																		>
+																			{chapter}
+																		</button>
+																	))}
+																</div>
+															)}
+															
 															{studyPack.quizBank?.map((quiz: any, index: number) => (
 																<div key={quiz.id || index} className="border border-white/20 rounded-lg p-4">
 																	<div className="flex items-center justify-between mb-4">
-																		<h4 className="text-lg font-semibold text-white">{quiz.title}</h4>
+																		<div className="flex items-center gap-2">
+																			<h4 className="text-lg font-semibold text-white">{quiz.title}</h4>
+																			{quiz.chapter && (
+																				<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+																					{quiz.chapter}
+																				</span>
+																			)}
+																		</div>
 																		<div className="flex items-center space-x-4 text-sm text-gray-400">
 																			<span>{quiz.totalQuestions} questions</span>
-																			<span>{quiz.estimatedTime} min</span>
+																			<span>{quiz.totalTime || quiz.estimatedTime} min</span>
 																		</div>
 																	</div>
 																	<div className="space-y-3">
 																		{quiz.questions?.slice(0, 2).map((question: any, qIndex: number) => (
 																			<div key={qIndex} className="p-3 bg-white/5 rounded">
-																				<h5 className="font-medium text-white mb-2">
-																					{qIndex + 1}. {question.question}
-																				</h5>
+																				<div className="flex items-center justify-between mb-2">
+																					<h5 className="font-medium text-white">
+																						{qIndex + 1}. {question.question}
+																					</h5>
+																					<div className="flex items-center gap-2">
+																						{question.chapter && (
+																							<span className="px-2 py-1 bg-gray-600 rounded text-xs text-gray-300">
+																								{question.chapter}
+																							</span>
+																						)}
+																						<span className={`px-2 py-1 rounded text-xs ${
+																							question.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+																							question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+																							'bg-red-100 text-red-800'
+																						}`}>
+																							{question.difficulty}
+																						</span>
+																						{question.timeEstimate && (
+																							<span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+																								{question.timeEstimate}min
+																							</span>
+																						)}
+																					</div>
+																				</div>
 																				<div className="space-y-1">
 																					{question.options?.map((option: string, oIndex: number) => (
 																						<div key={oIndex} className="flex items-center space-x-2">
@@ -830,6 +986,11 @@ export default function QuizPage() {
 																						</div>
 																					))}
 																				</div>
+																				{question.rationale && (
+																					<div className="mt-2 p-2 bg-blue-500/10 rounded text-xs text-blue-300">
+																						<strong>Rationale:</strong> {question.rationale}
+																					</div>
+																				)}
 																			</div>
 																		))}
 																		{quiz.questions?.length > 2 && (

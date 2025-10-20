@@ -5,9 +5,12 @@ import { ProcessedDocument, DocumentSection } from './documentProcessor';
 
 export interface StudyNote {
   id: string;
+  title: string;
   topic: string;
   content: string;
   level: 'basic' | 'intermediate' | 'advanced';
+  chapter?: string;
+  pageReference?: string;
   highlights: {
     keyFormulas: string[];
     examTips: string[];
@@ -15,6 +18,7 @@ export interface StudyNote {
   };
   examples: StudyExample[];
   relatedTopics: string[];
+  tags: string[];
 }
 
 export interface StudyExample {
@@ -32,6 +36,8 @@ export interface Flashcard {
   back: string;
   difficulty: 'easy' | 'medium' | 'hard';
   topic: string;
+  chapter?: string;
+  type: 'concept' | 'qa' | 'cloze';
   tags: string[];
 }
 
@@ -41,8 +47,11 @@ export interface QuizQuestion {
   options: string[];
   correctAnswer: number;
   explanation: string;
+  rationale: string;
   difficulty: 'easy' | 'medium' | 'hard';
   topic: string;
+  chapter?: string;
+  timeEstimate: number; // minutes
   tags: string[];
 }
 
@@ -53,6 +62,16 @@ export interface QuizPack {
   totalQuestions: number;
   estimatedTime: number; // in minutes
   difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+  chapter?: string;
+  totalTime: number; // total time for all questions
+}
+
+export interface GlossaryTerm {
+  term: string;
+  definition: string;
+  chapter?: string;
+  pageReference?: string;
+  relatedTerms: string[];
 }
 
 export interface RevisionPack {
@@ -62,6 +81,8 @@ export interface RevisionPack {
   detailedNotes: StudyNote[];
   flashcardDeck: Flashcard[];
   quizBank: QuizPack[];
+  glossary: GlossaryTerm[];
+  chapters: string[];
   summary: {
     totalTopics: number;
     totalFlashcards: number;
@@ -102,28 +123,38 @@ export class AIStudyPackGenerator {
     const startTime = Date.now();
     
     try {
-      // Generate detailed notes for each section
-      const detailedNotes = await this.generateDetailedNotes(document.sections);
+      // Detect chapters from sections
+      const chapters = this.detectChapters(document.sections);
       
-      // Generate flashcards for each topic
-      const flashcardDeck = await this.generateFlashcards(document.sections);
+      // Generate detailed notes for each section (with shortnotes + citations)
+      const detailedNotes = await this.generateDetailedNotes(document.sections, chapters);
       
-      // Generate quiz packs for each chapter
-      const quizBank = await this.generateQuizPacks(document.sections);
+      // Generate flashcards for each topic (add cloze cards)
+      const flashcardDeck = await this.generateFlashcards(document.sections, chapters);
+      const clozeCards = await this.generateClozeCards(document.sections, chapters);
+      const allCards = [...flashcardDeck, ...clozeCards];
+      
+      // Generate quiz packs for each chapter (with rationales and estimates)
+      const quizBank = await this.generateQuizPacks(document.sections, chapters);
+      
+      // Generate glossary from document content
+      const glossary = await this.generateGlossary(document.sections, chapters);
       
       // Generate quick revision sheet
       const quickRevisionSheet = await this.generateQuickRevisionSheet(document);
       
       // Calculate summary statistics
-      const summary = this.calculateSummary(detailedNotes, flashcardDeck, quizBank);
+      const summary = this.calculateSummary(detailedNotes, allCards, quizBank);
       
       const revisionPack: RevisionPack = {
         id: `pack_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         title: `${document.title} - Study Pack`,
         quickRevisionSheet,
         detailedNotes,
-        flashcardDeck,
+        flashcardDeck: allCards,
         quizBank,
+        glossary,
+        chapters: chapters.map(c => c.title),
         summary,
         generatedAt: new Date()
       };
@@ -143,7 +174,7 @@ export class AIStudyPackGenerator {
     }
   }
 
-  private async generateDetailedNotes(sections: DocumentSection[]): Promise<StudyNote[]> {
+  private async generateDetailedNotes(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<StudyNote[]> {
     console.log('Generating detailed notes...');
     
     const notes: StudyNote[] = [];
@@ -300,7 +331,7 @@ export class AIStudyPackGenerator {
     }
   }
 
-  private async generateFlashcards(sections: DocumentSection[]): Promise<Flashcard[]> {
+  private async generateFlashcards(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<Flashcard[]> {
     console.log('Generating flashcards...');
     
     const flashcards: Flashcard[] = [];
@@ -367,7 +398,7 @@ export class AIStudyPackGenerator {
     return qaPairs;
   }
 
-  private async generateQuizPacks(sections: DocumentSection[]): Promise<QuizPack[]> {
+  private async generateQuizPacks(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<QuizPack[]> {
     console.log('Generating quiz packs...');
     
     const quizPacks: QuizPack[] = [];
@@ -489,5 +520,146 @@ export class AIStudyPackGenerator {
       estimatedStudyTime: Math.ceil(estimatedStudyTime),
       difficulty: this.config.difficultyLevel
     };
+  }
+
+  private detectChapters(sections: DocumentSection[]): Array<{ title: string; startIndex: number; endIndex: number }> {
+    const chapters: Array<{ title: string; startIndex: number; endIndex: number }> = [];
+    
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      
+      // Look for chapter indicators in title
+      if (section.title.match(/^(Chapter|Ch\.?|Part|Section)\s*\d+/i)) {
+        const prevChapter = chapters[chapters.length - 1];
+        if (prevChapter) {
+          prevChapter.endIndex = i - 1;
+        }
+        
+        chapters.push({
+          title: section.title,
+          startIndex: i,
+          endIndex: sections.length - 1
+        });
+      }
+    }
+    
+    // If no chapters found, create one chapter per section
+    if (chapters.length === 0) {
+      for (let i = 0; i < sections.length; i++) {
+        chapters.push({
+          title: `Section ${i + 1}: ${sections[i].title}`,
+          startIndex: i,
+          endIndex: i
+        });
+      }
+    }
+    
+    return chapters;
+  }
+
+  private async generateClozeCards(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<Flashcard[]> {
+    const clozeCards: Flashcard[] = [];
+    
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const chapter = chapters.find(c => i >= c.startIndex && i <= c.endIndex);
+      
+      if (!section.isExamRelevant) continue;
+      
+      try {
+        // Extract key terms and definitions from section content
+        const content = section.content;
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+        
+        for (const sentence of sentences.slice(0, 3)) { // Limit to 3 cloze cards per section
+          // Look for definition patterns
+          const definitionMatch = sentence.match(/(\w+(?:\s+\w+)*)\s+(?:is|are|refers to|means|can be defined as)\s+(.+)/i);
+          if (definitionMatch) {
+            const term = definitionMatch[1].trim();
+            const definition = definitionMatch[2].trim();
+            
+            // Create cloze deletion
+            const clozeText = sentence.replace(term, '_____');
+            
+            clozeCards.push({
+              id: `cloze_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              front: clozeText,
+              back: `${term}: ${definition}`,
+              difficulty: 'medium',
+              topic: section.title,
+              chapter: chapter?.title,
+              type: 'cloze',
+              tags: ['cloze', 'definition', chapter?.title || 'general']
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating cloze cards for section ${section.id}:`, error);
+      }
+    }
+    
+    return clozeCards.slice(0, this.config.maxFlashcardsPerTopic);
+  }
+
+  private async generateGlossary(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<GlossaryTerm[]> {
+    const glossary: GlossaryTerm[] = [];
+    const termMap = new Map<string, GlossaryTerm>();
+    
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const chapter = chapters.find(c => i >= c.startIndex && i <= c.endIndex);
+      
+      if (!section.isExamRelevant) continue;
+      
+      try {
+        // Extract terms and definitions using various patterns
+        const content = section.content;
+        
+        // Pattern 1: "Term is definition"
+        const pattern1 = /(\w+(?:\s+\w+)*)\s+(?:is|are|refers to|means|can be defined as)\s+(.+?)(?:\n|\.|$)/gi;
+        let match;
+        while ((match = pattern1.exec(content)) !== null) {
+          const term = match[1].trim();
+          const definition = match[2].trim();
+          
+          if (term.length > 2 && definition.length > 10) {
+            if (!termMap.has(term.toLowerCase())) {
+              termMap.set(term.toLowerCase(), {
+                term,
+                definition,
+                chapter: chapter?.title,
+                pageReference: `Section ${i + 1}`,
+                relatedTerms: []
+              });
+            }
+          }
+        }
+        
+        // Pattern 2: Bold terms followed by definitions
+        const pattern2 = /\*\*([^*]+)\*\*\s*[:\-]\s*(.+?)(?:\n|$)/g;
+        while ((match = pattern2.exec(content)) !== null) {
+          const term = match[1].trim();
+          const definition = match[2].trim();
+          
+          if (term.length > 2 && definition.length > 10) {
+            if (!termMap.has(term.toLowerCase())) {
+              termMap.set(term.toLowerCase(), {
+                term,
+                definition,
+                chapter: chapter?.title,
+                pageReference: `Section ${i + 1}`,
+                relatedTerms: []
+              });
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.error(`Error generating glossary for section ${section.id}:`, error);
+      }
+    }
+    
+    // Convert map to array and limit size
+    return Array.from(termMap.values()).slice(0, 50);
   }
 }

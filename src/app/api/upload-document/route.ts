@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DocumentProcessor } from '@/app/lib/documentProcessor';
 import { AIStudyPackGenerator } from '@/app/lib/aiStudyPackGenerator';
+import { getSupabaseServer } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,10 +19,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
+    // Determine user plan to apply plan-based limits
+    const supabase = getSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    let currentPlan = 'free';
+    if (user) {
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
+        .select(`subscription_plans!inner(name, daily_limit, monthly_limit, features)`) 
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      currentPlan = (subscription?.subscription_plans as any)?.name?.toLowerCase() || 'free';
+    }
+
+    // Allowed mime types (PDF, DOCX, TXT/MD, images)
     const allowedTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
       'image/jpeg',
       'image/png',
       'image/tiff'
@@ -34,8 +54,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Plan-based file size limits
+    const planMaxMb: Record<string, number> = {
+      free: 5,
+      professional: 25,
+      mastery: 50,
+      innovation: 100
+    };
+    const maxSize = (planMaxMb[currentPlan] || 5) * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: 'File too large. Maximum size is 10MB.' },
@@ -49,7 +75,8 @@ export async function POST(request: NextRequest) {
       size: file.size,
       title,
       subject,
-      course
+      course,
+      plan: currentPlan
     });
 
     // Process the document
@@ -65,14 +92,23 @@ export async function POST(request: NextRequest) {
       course
     });
 
+    // Plan-based generation configuration
+    const planConfig: Record<string, { notes: number; flashcards: number; questions: number; includeDiagrams: boolean; includeExamples: boolean }> = {
+      free: { notes: 3, flashcards: 6, questions: 6, includeDiagrams: false, includeExamples: true },
+      professional: { notes: 6, flashcards: 15, questions: 12, includeDiagrams: true, includeExamples: true },
+      mastery: { notes: 10, flashcards: 25, questions: 20, includeDiagrams: true, includeExamples: true },
+      innovation: { notes: 20, flashcards: 50, questions: 40, includeDiagrams: true, includeExamples: true }
+    };
+    const cfg = planConfig[currentPlan] || planConfig.free;
+
     // Generate study pack
     const generator = new AIStudyPackGenerator({
       difficultyLevel: (difficulty as 'beginner' | 'intermediate' | 'advanced') || 'intermediate',
-      maxNotesPerSection: 5,
-      maxFlashcardsPerTopic: 10,
-      maxQuestionsPerChapter: 10,
-      includeExamples: true,
-      includeDiagrams: true
+      maxNotesPerSection: cfg.notes,
+      maxFlashcardsPerTopic: cfg.flashcards,
+      maxQuestionsPerChapter: cfg.questions,
+      includeExamples: cfg.includeExamples,
+      includeDiagrams: cfg.includeDiagrams
     });
 
     const studyPack = await generator.generateStudyPack(processedDocument);

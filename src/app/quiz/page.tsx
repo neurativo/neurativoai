@@ -111,13 +111,24 @@ export default function QuizPage() {
 				throw new Error('No file selected');
 			}
 			
-			// Check file size (max 10MB)
-			const maxSize = 10 * 1024 * 1024;
+			// Plan-based file size (fetch from usage API which reflects plan)
+			let maxSize = 5 * 1024 * 1024; // default 5MB
+			try {
+				const supabase = getSupabaseBrowser();
+				const { data: { session } } = await supabase.auth.getSession();
+				if (session?.access_token) {
+					const res = await fetch('/api/usage', { headers: { Authorization: `Bearer ${session.access_token}` } });
+					const ujson = await res.json();
+					const plan = (ujson?.data?.plan || 'free').toLowerCase();
+					const planMaxMb: any = { free: 5, professional: 25, mastery: 50, innovation: 100 };
+					maxSize = (planMaxMb[plan] || 5) * 1024 * 1024;
+				}
+			} catch {}
 			if (file.size > maxSize) {
 				throw new Error('File too large. Maximum size is 10MB.');
 			}
 			
-			// Check file type
+			// Check file type (allow PDF, DOCX, TXT/MD, images)
 			const allowedTypes = [
 				'application/pdf',
 				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

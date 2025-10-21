@@ -108,10 +108,19 @@ export async function POST(request: NextRequest) {
       examRelevanceThreshold: 0.7
     });
 
+    console.log('Starting document processing...');
     const processedDocument = await processor.processDocument(file, {
       title: title || file.name.replace(/\.[^/.]+$/, ''),
       subject,
       course
+    });
+    console.log('Document processed successfully:', {
+      id: processedDocument.id,
+      title: processedDocument.title,
+      type: processedDocument.type,
+      totalPages: processedDocument.totalPages,
+      totalWords: processedDocument.totalWords,
+      sectionsCount: processedDocument.sections.length
     });
 
     // For chunked processing, we'll process in smaller chunks
@@ -130,6 +139,7 @@ export async function POST(request: NextRequest) {
     const cfg = planConfig[currentPlan] || planConfig.free;
 
     // Generate study pack
+    console.log('Starting AI study pack generation...');
     const generator = new AIStudyPackGenerator({
       difficultyLevel: (difficulty as 'beginner' | 'intermediate' | 'advanced') || 'intermediate',
       maxNotesPerSection: cfg.notes,
@@ -139,7 +149,9 @@ export async function POST(request: NextRequest) {
       includeDiagrams: cfg.includeDiagrams
     });
 
+    console.log('AI generator created, generating study pack...');
     const studyPack = await generator.generateStudyPack(processedDocument);
+    console.log('AI study pack generation completed');
 
     console.log('Study pack generated successfully:', {
       documentId: processedDocument.id,
@@ -158,10 +170,18 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error processing document upload:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      cause: error instanceof Error ? error.cause : undefined
+    });
+    
     return NextResponse.json(
       { 
         error: 'Failed to process document',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        type: error instanceof Error ? error.name : 'UnknownError'
       },
       { status: 500 }
     );

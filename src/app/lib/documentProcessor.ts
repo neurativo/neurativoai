@@ -1,8 +1,6 @@
 // Document Processor - Handles PDF, DOCX, and OCR processing
 // Extracts text, structures content, and prepares for AI analysis
 
-import * as pdfParse from 'pdf-parse';
-
 export interface DocumentSection {
   id: string;
   title: string;
@@ -136,8 +134,11 @@ export class DocumentProcessor {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       
+      // Dynamic import to avoid build-time execution
+      const pdfParse = await import('pdf-parse');
+      
       // Use pdf-parse to extract text and metadata
-      const pdfData = await pdfParse(buffer);
+      const pdfData = await pdfParse.default(buffer);
       
       console.log('PDF parsed successfully:', {
         pages: pdfData.numpages,

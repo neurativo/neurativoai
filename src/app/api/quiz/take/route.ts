@@ -50,20 +50,51 @@ export async function GET(req: NextRequest) {
 		return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
 	}
 	
-	// Return the FULL quiz data with answers for taking the quiz
-	const fullQuiz = {
+	// Return quiz data WITHOUT answers for secure taking
+	const safeQuestions = (quizData.questions || []).map((q: any) => {
+		const safeQuestion: any = {
+			id: q.id,
+			type: q.type,
+			question: q.question,
+			hint: q.hint
+		};
+		
+		// Only include options for multiple choice, but NOT the correct answer
+		if (q.type === 'multiple_choice' && q.options) {
+			safeQuestion.options = q.options;
+		}
+		
+		// For true/false, don't include the correct answer
+		if (q.type === 'true_false') {
+			// Just include the question, no correct_answer
+		}
+		
+		// For short answer, don't include correct answers
+		if (q.type === 'short_answer') {
+			// Just include the question, no correct_answers
+		}
+		
+		// For fill in the blank, don't include correct answers
+		if (q.type === 'fill_blank') {
+			// Just include the question, no blanks with correct answers
+		}
+		
+		return safeQuestion;
+	});
+
+	const safeQuiz = {
 		id: quizData.id,
 		quiz: {
 			title: quizData.title,
 			description: quizData.description,
 			difficulty: quizData.difficulty,
-			questions: quizData.questions || []
+			questions: safeQuestions
 		},
 		question_count: quizData.questions?.length || 0,
 		created_at: quizData.created_at
 	};
 	
-	return NextResponse.json({ success: true, data: fullQuiz }, { headers });
+	return NextResponse.json({ success: true, data: safeQuiz }, { headers });
 }
 
 export async function POST(req: NextRequest) {
@@ -115,31 +146,59 @@ export async function POST(req: NextRequest) {
 	
 	// Grade the quiz
 	const questions = quizData.questions || [];
-	const results = questions.map((question: any, index: number) => {
-		const userAnswer = answers[index];
+	const results = questions.map((question: any) => {
+		// Get user answer for this specific question
+		let userAnswer;
+		if (question.type === 'fill_blank') {
+			// For fill in the blank, collect all blank answers
+			userAnswer = {};
+			question.blanks?.forEach((blank: any) => {
+				const key = `${question.id}_${blank.position}`;
+				userAnswer[blank.position] = answers[key];
+			});
+		} else {
+			userAnswer = answers[question.id];
+		}
+		
 		let isCorrect = false;
 		let explanation = question.explanation || '';
+		let wrongAnswerFeedback = question.wrong_answer_feedback || '';
+		let correctAnswers = null;
 		
 		if (question.type === 'multiple_choice') {
 			isCorrect = userAnswer === question.correct_answer;
+			// Get specific feedback for multiple choice
+			if (!isCorrect && typeof wrongAnswerFeedback === 'object') {
+				wrongAnswerFeedback = wrongAnswerFeedback[userAnswer] || wrongAnswerFeedback;
+			}
 		} else if (question.type === 'true_false') {
 			isCorrect = userAnswer === question.correct_answer;
 		} else if (question.type === 'short_answer') {
 			// Check if user's answer matches any of the correct answers (case insensitive)
-			const correctAnswers = question.correct_answers || [];
-			isCorrect = correctAnswers.some((correct: string) => 
-				correct.toLowerCase().trim() === userAnswer?.toLowerCase().trim()
+			const correctAnswersList = question.correct_answers || [];
+			isCorrect = correctAnswersList.some((correct: string) => 
+				correct.toLowerCase().trim() === userAnswer?.toLowerCase().trim() ||
+				userAnswer?.toLowerCase().trim().includes(correct.toLowerCase().trim()) ||
+				correct.toLowerCase().trim().includes(userAnswer?.toLowerCase().trim())
 			);
+			correctAnswers = correctAnswersList;
 		} else if (question.type === 'fill_blank') {
 			// Check each blank
 			const blanks = question.blanks || [];
-			isCorrect = blanks.every((blank: any, blankIndex: number) => {
-				const userBlankAnswer = userAnswer[blankIndex];
-				const correctAnswers = blank.correct_answers || [];
-				return correctAnswers.some((correct: string) => 
-					correct.toLowerCase().trim() === userBlankAnswer?.toLowerCase().trim()
+			isCorrect = blanks.every((blank: any) => {
+				const userBlankAnswer = userAnswer[blank.position];
+				if (!userBlankAnswer) return false;
+				const normalizedAnswer = String(userBlankAnswer).toLowerCase().trim();
+				return blank.correct_answers.some((correct: string) => 
+					correct.toLowerCase().trim() === normalizedAnswer ||
+					normalizedAnswer.includes(correct.toLowerCase().trim()) ||
+					correct.toLowerCase().trim().includes(normalizedAnswer)
 				);
 			});
+			// Format correct answers for display
+			correctAnswers = blanks.map((blank: any) => 
+				`Blank ${blank.position}: ${blank.correct_answers.join(", ")}`
+			).join("; ");
 		}
 		
 		return {
@@ -149,7 +208,9 @@ export async function POST(req: NextRequest) {
 			userAnswer,
 			isCorrect,
 			explanation,
-			hint: question.hint
+			hint: question.hint,
+			wrong_answer_feedback: wrongAnswerFeedback,
+			correct_answers: correctAnswers
 		};
 	});
 	

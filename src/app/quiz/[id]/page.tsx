@@ -24,6 +24,7 @@ export default function QuizPlayerPage() {
 	const [finished, setFinished] = useState(false);
 	const [confidence, setConfidence] = useState(50);
 	const [showFeedback, setShowFeedback] = useState(false);
+	const [questionResult, setQuestionResult] = useState<any>(null);
 	const [telemetry, setTelemetry] = useState<Telemetry[]>([]);
 	const questionStartRef = useRef<number>(Date.now());
 	const liveRef = useRef<HTMLDivElement | null>(null);
@@ -68,14 +69,8 @@ export default function QuizPlayerPage() {
 	const currentQuestion = questions[current];
 	const currentChosen = currentQuestion ? answers[currentQuestion.id] : undefined;
 
-	const score = useMemo(() => {
-		let correct = 0;
-		for (const q of questions) {
-			const chosen = answers[q.id as number];
-			if (typeof q.correct_answer === "number" && chosen === q.correct_answer) correct++;
-		}
-		return { correct, total: questions.length, percent: questions.length ? Math.round((correct / questions.length) * 100) : 0 };
-	}, [answers, questions]);
+	// Score will be calculated server-side after submission
+	const [score, setScore] = useState({ correct: 0, total: 0, percent: 0 });
 
 	function announce(text: string) {
 		if (liveRef.current) {
@@ -89,7 +84,7 @@ export default function QuizPlayerPage() {
 		setAnswers((prev) => ({ ...prev, [currentQuestion.id]: idx }));
 	}
 
-	function submit() {
+	async function submit() {
 		if (!currentQuestion) return;
 		
 		// Check if answer is provided based on question type
@@ -107,24 +102,65 @@ export default function QuizPlayerPage() {
 		
 		if (!hasAnswer) return;
 		
-		// Determine if answer is correct based on question type
-		let isCorrect = false;
-		if (currentQuestion.type === "short_answer") {
-			isCorrect = checkShortAnswerCorrect(currentQuestion, currentChosen as string);
-		} else if (currentQuestion.type === "fill_blank") {
-			isCorrect = checkFillBlankCorrect(currentQuestion, answers);
-		} else {
-			isCorrect = currentChosen === currentQuestion.correct_answer;
+		// Submit answer to server for grading
+		try {
+			const supabase = getSupabaseBrowser();
+			const { data: { session } } = await supabase.auth.getSession();
+			
+			if (!session?.access_token) {
+				setError("Please sign in to submit answers");
+				return;
+			}
+			
+			// Prepare answer data
+			const answerData: any = {};
+			if (currentQuestion.type === "fill_blank") {
+				// For fill in the blank, collect all blank answers
+				currentQuestion.blanks?.forEach((blank: any) => {
+					answerData[`${currentQuestion.id}_${blank.position}`] = answers[`${currentQuestion.id}_${blank.position}`];
+				});
+			} else {
+				answerData[currentQuestion.id] = currentChosen;
+			}
+			
+			const response = await fetch('/api/quiz/take', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${session.access_token}`
+				},
+				body: JSON.stringify({
+					quizId: id,
+					answers: answerData
+				})
+			});
+			
+			const result = await response.json();
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to submit answer');
+			}
+			
+			// Get the result for this specific question
+			const resultData = result.data.results.find((r: any) => r.questionId === currentQuestion.id);
+			if (!resultData) {
+				throw new Error('No result found for this question');
+			}
+			
+			setQuestionResult(resultData);
+			const ms = Date.now() - (questionStartRef.current || Date.now());
+			setTelemetry((prev) => [...prev, { questionId: currentQuestion.id, correct: resultData.isCorrect, confidence, ms }]);
+			setShowFeedback(true);
+			announce(resultData.isCorrect ? "Correct." : "Incorrect.");
+			
+		} catch (error) {
+			console.error('Error submitting answer:', error);
+			setError('Failed to submit answer. Please try again.');
 		}
-		
-		const ms = Date.now() - (questionStartRef.current || Date.now());
-		setTelemetry((prev) => [...prev, { questionId: currentQuestion.id, correct: !!isCorrect, confidence, ms }]);
-		setShowFeedback(true);
-		announce(isCorrect ? "Correct." : "Incorrect.");
 	}
 
 	function next() {
 		setShowFeedback(false);
+		setQuestionResult(null);
 		setConfidence(50);
 		questionStartRef.current = Date.now();
 		if (current < questions.length - 1) setCurrent(current + 1);
@@ -134,6 +170,7 @@ export default function QuizPlayerPage() {
 	function prev() {
 		if (current > 0) {
 			setShowFeedback(false);
+			setQuestionResult(null);
 			setConfidence(50);
 			questionStartRef.current = Date.now();
 			setCurrent(current - 1);
@@ -414,117 +451,67 @@ export default function QuizPlayerPage() {
 								)}
 
 								{/* Feedback */}
-								{showFeedback && (
+								{showFeedback && questionResult && (
 									<div className="mt-6 space-y-4">
 										{/* Correct/Incorrect Status */}
-										{(() => {
-                                            const isCorrect = currentQuestion?.type === "short_answer" 
-                                                ? checkShortAnswerCorrect(currentQuestion, typeof currentChosen === "string" ? currentChosen : String(currentChosen ?? ""))
-												: currentQuestion?.type === "fill_blank"
-												? checkFillBlankCorrect(currentQuestion, answers)
-												: currentChosen === currentQuestion?.correct_answer;
-											
-											return isCorrect ? (
-												<div className="alert alert-success">
-													<svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-													</svg>
-													<span>Correct! 🎉</span>
-												</div>
-											) : (
-												<div className="alert alert-error">
-													<svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-													</svg>
-													<span>Incorrect. Keep learning! 💪</span>
-												</div>
-											);
-										})()}
+										{questionResult.isCorrect ? (
+											<div className="alert alert-success">
+												<svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+												</svg>
+												<span>Correct! 🎉</span>
+											</div>
+										) : (
+											<div className="alert alert-error">
+												<svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+												</svg>
+												<span>Incorrect. Keep learning! 💪</span>
+											</div>
+										)}
 
 										{/* AI Explanation */}
-										{currentQuestion?.explanation && (
+										{questionResult?.explanation && (
 											<div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
 												<div className="flex items-start gap-3">
 													<div className="text-blue-400 text-lg">🤖</div>
 													<div>
 														<h4 className="text-blue-300 font-semibold mb-2">AI Explanation</h4>
-														<p className="text-gray-200 text-sm leading-relaxed">{currentQuestion.explanation}</p>
+														<p className="text-gray-200 text-sm leading-relaxed">{questionResult.explanation}</p>
 													</div>
 												</div>
 											</div>
 										)}
 
 										{/* Wrong Answer Feedback */}
-										{(() => {
-                                            const isCorrect = currentQuestion?.type === "short_answer" 
-                                                ? checkShortAnswerCorrect(currentQuestion, typeof currentChosen === "string" ? currentChosen : String(currentChosen ?? ""))
-												: currentQuestion?.type === "fill_blank"
-												? checkFillBlankCorrect(currentQuestion, answers)
-												: currentChosen === currentQuestion?.correct_answer;
-											
-											if (isCorrect || !currentQuestion?.wrong_answer_feedback) return null;
-											
-											// Get specific feedback for multiple choice
-											if (currentQuestion.type === "multiple_choice" && typeof currentQuestion.wrong_answer_feedback === "object") {
-												const feedback = currentQuestion.wrong_answer_feedback[currentChosen as string];
-												if (!feedback) return null;
-												
-												return (
-													<div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-														<div className="flex items-start gap-3">
-															<div className="text-red-400 text-lg">❌</div>
-															<div>
-																<h4 className="text-red-300 font-semibold mb-2">Why Your Answer Was Wrong</h4>
-																<p className="text-gray-200 text-sm leading-relaxed">{feedback}</p>
-															</div>
-														</div>
+										{!questionResult?.isCorrect && questionResult?.wrong_answer_feedback && (
+											<div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+												<div className="flex items-start gap-3">
+													<div className="text-red-400 text-lg">❌</div>
+													<div>
+														<h4 className="text-red-300 font-semibold mb-2">Why Your Answer Was Wrong</h4>
+														<p className="text-gray-200 text-sm leading-relaxed">{questionResult.wrong_answer_feedback}</p>
 													</div>
-												);
-											}
-											
-											// General feedback for other question types
-											if (typeof currentQuestion.wrong_answer_feedback === "string") {
-												return (
-													<div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-														<div className="flex items-start gap-3">
-															<div className="text-red-400 text-lg">❌</div>
-															<div>
-																<h4 className="text-red-300 font-semibold mb-2">Why Your Answer Was Wrong</h4>
-																<p className="text-gray-200 text-sm leading-relaxed">{currentQuestion.wrong_answer_feedback}</p>
-															</div>
-														</div>
-													</div>
-												);
-											}
-											
-											return null;
-										})()}
-
-										{/* Show correct answers for short answer and fill blank */}
-										{currentQuestion?.type === "short_answer" && Array.isArray(currentQuestion?.correct_answers) && (
-											<div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-												<h4 className="text-green-300 font-semibold mb-2">Correct Answers:</h4>
-												<ul className="text-gray-200 text-sm space-y-1">
-													{currentQuestion.correct_answers.map((answer: string, idx: number) => (
-														<li key={idx} className="flex items-center gap-2">
-															<span className="text-green-400">✓</span>
-															<span>{answer}</span>
-														</li>
-													))}
-												</ul>
+												</div>
 											</div>
 										)}
 
-										{currentQuestion?.type === "fill_blank" && Array.isArray(currentQuestion?.blanks) && (
+										{/* Show correct answers for short answer and fill blank */}
+										{questionResult?.correct_answers && (
 											<div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
 												<h4 className="text-green-300 font-semibold mb-2">Correct Answers:</h4>
-												<div className="space-y-2">
-													{currentQuestion.blanks.map((blank: any, idx: number) => (
-														<div key={idx} className="text-gray-200 text-sm">
-															<span className="text-green-400">Blank {blank.position}:</span> {Array.isArray(blank.correct_answers) ? blank.correct_answers.join(", ") : ""}
-														</div>
-													))}
-												</div>
+												{Array.isArray(questionResult.correct_answers) ? (
+													<ul className="text-gray-200 text-sm space-y-1">
+														{questionResult.correct_answers.map((answer: string, idx: number) => (
+															<li key={idx} className="flex items-center gap-2">
+																<span className="text-green-400">✓</span>
+																<span>{answer}</span>
+															</li>
+														))}
+													</ul>
+												) : (
+													<p className="text-gray-200 text-sm">{questionResult.correct_answers}</p>
+												)}
 											</div>
 										)}
 									</div>

@@ -418,12 +418,15 @@ export async function POST(req: Request) {
 			// Save to database with unique id
 			const saved = await saveQuiz(parsed, user.id);
 			
-			// Return only essential data, not the full quiz content
+			// Return the full quiz data including questions for preview
 			const safeResponse = {
 				id: saved.id,
-				title: saved.quiz?.title || 'Untitled Quiz',
-				description: saved.quiz?.description || '',
-				difficulty: saved.quiz?.difficulty || 'medium',
+				quiz: {
+					title: saved.quiz?.title || 'Untitled Quiz',
+					description: saved.quiz?.description || '',
+					difficulty: saved.quiz?.difficulty || 'medium',
+					questions: saved.quiz?.questions || []
+				},
 				question_count: saved.quiz?.questions?.length || 0,
 				created_at: saved.metadata?.created_at || new Date().toISOString()
 			};

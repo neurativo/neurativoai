@@ -418,14 +418,45 @@ export async function POST(req: Request) {
 			// Save to database with unique id
 			const saved = await saveQuiz(parsed, user.id);
 			
-			// Return the full quiz data including questions for preview
+			// Return safe quiz data for preview - NO ANSWERS OR CORRECT OPTIONS
+			const safeQuestions = (saved.quiz?.questions || []).map((q: any) => {
+				const safeQuestion: any = {
+					id: q.id,
+					type: q.type,
+					question: q.question,
+					hint: q.hint
+				};
+				
+				// Only include options for multiple choice, but NOT the correct answer
+				if (q.type === 'multiple_choice' && q.options) {
+					safeQuestion.options = q.options;
+				}
+				
+				// For true/false, don't include the correct answer
+				if (q.type === 'true_false') {
+					// Just include the question, no correct_answer
+				}
+				
+				// For short answer, don't include correct answers
+				if (q.type === 'short_answer') {
+					// Just include the question, no correct_answers
+				}
+				
+				// For fill in the blank, don't include correct answers
+				if (q.type === 'fill_blank') {
+					// Just include the question, no blanks with correct answers
+				}
+				
+				return safeQuestion;
+			});
+
 			const safeResponse = {
 				id: saved.id,
 				quiz: {
 					title: saved.quiz?.title || 'Untitled Quiz',
 					description: saved.quiz?.description || '',
 					difficulty: saved.quiz?.difficulty || 'medium',
-					questions: saved.quiz?.questions || []
+					questions: safeQuestions
 				},
 				question_count: saved.quiz?.questions?.length || 0,
 				created_at: saved.metadata?.created_at || new Date().toISOString()

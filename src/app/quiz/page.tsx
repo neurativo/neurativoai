@@ -1214,8 +1214,9 @@ export default function QuizPage() {
 						</div>
 						<div className="modal-action">
 							<button onClick={() => setPreviewOpen(false)} className="btn btn-outline"><i className="fas fa-edit mr-2"></i>Edit</button>
-							<button onClick={() => { 
+							<button onClick={async () => { 
 								if (previewData?.id) { 
+									// Navigate to quiz taking page with secure data loading
 									window.location.href = `/quiz/${previewData.id}`;
 								} else { 
 									setPreviewOpen(false); 

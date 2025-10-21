@@ -40,7 +40,7 @@ export default function QuizPlayerPage() {
 					return;
 				}
 				
-				const res = await fetch(`/api/quiz?id=${encodeURIComponent(id)}`, {
+				const res = await fetch(`/api/quiz/take?id=${encodeURIComponent(id)}`, {
 					headers: {
 						'Authorization': `Bearer ${session.access_token}`
 					}

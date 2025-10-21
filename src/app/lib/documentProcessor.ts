@@ -1,6 +1,8 @@
 // Document Processor - Handles PDF, DOCX, and OCR processing
 // Extracts text, structures content, and prepares for AI analysis
 
+import * as pdfParse from 'pdf-parse';
+
 export interface DocumentSection {
   id: string;
   title: string;
@@ -93,8 +95,11 @@ export class DocumentProcessor {
       // Structure the content into sections
       const sections = await this.structureContent(content, totalPages);
       
+      // Calculate total words
+      const totalWords = this.countWords(content);
+      
       // Filter for exam-relevant content
-      const relevantSections = await this.filterExamRelevantContent(sections);
+      const relevantSections = await this.filterExamRelevantContent(sections, totalWords);
 
       const processedDocument: ProcessedDocument = {
         id: documentId,
@@ -127,16 +132,28 @@ export class DocumentProcessor {
   }
 
   private async processPDF(file: File): Promise<{ content: string; pages: number }> {
-    // For now, we'll use a simple text extraction approach
-    // In production, you'd use a proper PDF parsing library like pdf-parse
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // This is a placeholder - in production, use pdf-parse or similar
-    const content = await this.extractTextFromPDF(uint8Array);
-    const pages = this.estimatePagesFromContent(content);
-    
-    return { content, pages };
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      // Use pdf-parse to extract text and metadata
+      const pdfData = await pdfParse(buffer);
+      
+      console.log('PDF parsed successfully:', {
+        pages: pdfData.numpages,
+        textLength: pdfData.text.length,
+        title: pdfData.info?.Title,
+        author: pdfData.info?.Author
+      });
+      
+      return {
+        content: pdfData.text,
+        pages: pdfData.numpages
+      };
+    } catch (error) {
+      console.error('Error parsing PDF:', error);
+      throw new Error(`Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async processDOCX(file: File): Promise<{ content: string; pages: number }> {
@@ -164,11 +181,6 @@ export class DocumentProcessor {
     return { content, pages: 1 };
   }
 
-  private async extractTextFromPDF(data: Uint8Array): Promise<string> {
-    // Placeholder implementation
-    // In production, use pdf-parse or similar
-    return "This is a placeholder for PDF text extraction. In production, you would use a proper PDF parsing library like pdf-parse to extract text from the PDF file.";
-  }
 
   private async extractTextFromDOCX(data: Uint8Array): Promise<string> {
     // Placeholder implementation
@@ -270,7 +282,7 @@ export class DocumentProcessor {
     return 3;
   }
 
-  private async filterExamRelevantContent(sections: DocumentSection[]): Promise<DocumentSection[]> {
+  private async filterExamRelevantContent(sections: DocumentSection[], totalWords: number): Promise<DocumentSection[]> {
     console.log('Filtering exam-relevant content...');
     
     // Simple keyword-based filtering for now
@@ -304,8 +316,12 @@ export class DocumentProcessor {
       };
     });
     
+    // For small documents, be more flexible with section length requirements
+    const isSmallDocument = totalWords < 100;
+    const minLength = isSmallDocument ? 10 : this.config.minSectionLength;
+    
     const filteredSections = relevantSections.filter(section => 
-      section.isExamRelevant && section.wordCount >= this.config.minSectionLength
+      section.isExamRelevant && section.wordCount >= minLength
     );
     
     console.log(`Filtered to ${filteredSections.length} exam-relevant sections`);

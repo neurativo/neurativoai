@@ -111,6 +111,13 @@ export default function QuizPage() {
 				throw new Error('No file selected');
 			}
 			
+			// Check Vercel function payload limit first (4.5MB)
+			const vercelLimit = 4.5 * 1024 * 1024; // 4.5MB Vercel limit
+			if (file.size > vercelLimit) {
+				const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+				throw new Error(`File too large (${fileSizeMB}MB). Maximum size for direct processing is 4.5MB. Please use a smaller file or contact support for large document processing.`);
+			}
+			
 			// Plan-based file size (fetch from usage API which reflects plan)
 			let maxSize = 5 * 1024 * 1024; // default 5MB
 			try {
@@ -125,7 +132,9 @@ export default function QuizPage() {
 				}
 			} catch {}
 			if (file.size > maxSize) {
-				throw new Error('File too large. Maximum size is 10MB.');
+				const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+				const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(0);
+				throw new Error(`File too large (${fileSizeMB}MB). Maximum size is ${maxSizeMB}MB for your plan.`);
 			}
 			
 			// Check file type (allow PDF, DOCX, TXT/MD, images)
@@ -162,9 +171,23 @@ export default function QuizPage() {
 				let errorMessage = 'Study pack generation failed';
 				try {
 					const errorData = await response.json();
-					errorMessage = errorData.error || errorData.details || errorMessage;
+					if (response.status === 413) {
+						const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+						if (errorData.requiresChunkedProcessing) {
+							errorMessage = `File too large (${fileSizeMB}MB). Files larger than ${errorData.maxSize} require special processing. Please use a smaller file or contact support.`;
+						} else {
+							errorMessage = `File too large (${fileSizeMB}MB). Maximum size is ${errorData.maxSize || '4.5MB'}. Please use a smaller file.`;
+						}
+					} else {
+						errorMessage = errorData.error || errorData.details || errorMessage;
+					}
 				} catch (e) {
-					errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+					if (response.status === 413) {
+						const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+						errorMessage = `File too large (${fileSizeMB}MB). Maximum size is 4.5MB. Please use a smaller file.`;
+					} else {
+						errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+					}
 				}
 				throw new Error(errorMessage);
 			}
@@ -623,14 +646,15 @@ export default function QuizPage() {
 															/>
 															<div className="text-6xl mb-4">📖</div>
 															<h4 className="text-xl font-semibold mb-2 text-white">Upload Your Book, Tutorial, or Document</h4>
-															<p className="text-gray-400 mb-4">
-																Upload PDF textbooks, DOCX documents, TXT files, or images. Our AI will analyze every section and create comprehensive study materials.
-															</p>
-															<div className="text-sm text-gray-500 mb-4">
-																✅ Comprehensive analysis by section<br/>
-																✅ Key concepts extraction<br/>
-																✅ Professional PDF export
-															</div>
+											<p className="text-gray-400 mb-4">
+												Upload PDF textbooks, DOCX documents, TXT files, or images. Our AI will analyze every section and create comprehensive study materials.
+											</p>
+											<div className="text-sm text-gray-500 mb-4">
+												✅ Comprehensive analysis by section<br/>
+												✅ Key concepts extraction<br/>
+												✅ Professional PDF export<br/>
+												⚠️ Maximum file size: 4.5MB for direct processing
+											</div>
 															<button 
 																type="button" 
 																className="btn btn-primary btn-lg"

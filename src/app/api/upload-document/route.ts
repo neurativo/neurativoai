@@ -7,6 +7,21 @@ import { updateJobStatus } from '@/app/api/study-pack/status/route';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check content length before processing
+    const contentLength = request.headers.get('content-length');
+    const maxPayloadSize = 4.5 * 1024 * 1024; // 4.5MB Vercel limit
+    
+    if (contentLength && parseInt(contentLength) > maxPayloadSize) {
+      return NextResponse.json(
+        { 
+          error: 'File too large for direct processing. Please use chunked processing for files larger than 4.5MB.',
+          requiresChunkedProcessing: true,
+          maxSize: '4.5MB'
+        },
+        { status: 413 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;

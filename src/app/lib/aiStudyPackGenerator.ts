@@ -123,22 +123,38 @@ export class AIStudyPackGenerator {
     const startTime = Date.now();
     
     try {
+      // If no sections were created (small document), create a single section from the document
+      let sections = document.sections;
+      if (sections.length === 0 && document.totalWords > 0) {
+        console.log('No sections found, creating single section from document content');
+        sections = [{
+          id: 'section_1',
+          title: 'Document Content',
+          level: 1,
+          content: this.extractContentFromDocument(document),
+          pageNumber: 1,
+          wordCount: document.totalWords,
+          isExamRelevant: true,
+          topics: ['general']
+        }];
+      }
+      
       // Detect chapters from sections
-      const chapters = this.detectChapters(document.sections);
+      const chapters = this.detectChapters(sections);
       
       // Generate detailed notes for each section (with shortnotes + citations)
-      const detailedNotes = await this.generateDetailedNotes(document.sections, chapters);
+      const detailedNotes = await this.generateDetailedNotes(sections, chapters);
       
       // Generate flashcards for each topic (add cloze cards)
-      const flashcardDeck = await this.generateFlashcards(document.sections, chapters);
-      const clozeCards = await this.generateClozeCards(document.sections, chapters);
+      const flashcardDeck = await this.generateFlashcards(sections, chapters);
+      const clozeCards = await this.generateClozeCards(sections, chapters);
       const allCards = [...flashcardDeck, ...clozeCards];
       
       // Generate quiz packs for each chapter (with rationales and estimates)
-      const quizBank = await this.generateQuizPacks(document.sections, chapters);
+      const quizBank = await this.generateQuizPacks(sections, chapters);
       
       // Generate glossary from document content
-      const glossary = await this.generateGlossary(document.sections, chapters);
+      const glossary = await this.generateGlossary(sections, chapters);
       
       // Generate quick revision sheet
       const quickRevisionSheet = await this.generateQuickRevisionSheet(document);
@@ -693,5 +709,17 @@ export class AIStudyPackGenerator {
     
     // Convert map to array and limit size
     return Array.from(termMap.values()).slice(0, 50);
+  }
+
+  private extractContentFromDocument(document: ProcessedDocument): string {
+    // Extract all content from sections if available, otherwise return a generic message
+    if (document.sections && document.sections.length > 0) {
+      return document.sections.map(section => 
+        `${section.title}\n${section.content}`
+      ).join('\n\n');
+    }
+    
+    // Fallback: return document title and basic info
+    return `Document: ${document.title}\nType: ${document.type}\nPages: ${document.totalPages}\nWords: ${document.totalWords}`;
   }
 }

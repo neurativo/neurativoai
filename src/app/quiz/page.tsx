@@ -1028,11 +1028,16 @@ export default function QuizPage() {
 													)}
 												</div>
 											)}
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
 
-											{/* Quiz Generation Section */}
-											<div className="mt-8">
-												<h3 className="text-xl font-bold text-white mb-4">Generate Quiz from Study Pack</h3>
-												<div className="space-y-4">
+						{/* Quiz Generation Section - Only for Text, URL, and Document tabs */}
+						{sourceTab !== "study-pack" && (
+							<div className="mt-8">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div>
 										<label className="text-white font-semibold mb-2 block">Difficulty Level</label>
 										<select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value)} className="select select-bordered w-full bg-white/5 text-white">
@@ -1115,13 +1120,13 @@ export default function QuizPage() {
 											</div>
 										)}
 									</div>
-
 								</div>
+
 								<div className="divider my-6 opacity-20"></div>
 
 								<div className="mt-2">
 									<button 
-										disabled={loading || limits?.blocked || (sourceTab === "study-pack" && !studyPack)} 
+										disabled={loading || limits?.blocked} 
 										onClick={async () => {
 											await generateQuiz();
 										}} 
@@ -1130,41 +1135,40 @@ export default function QuizPage() {
 										<i className="fas fa-magic mr-2"></i>
 										{loading ? (
 											urlLoading ? "Extracting content..." : 
-											documentProcessing ? (sourceTab === "study-pack" ? "Generating from study pack..." : "Processing document...") : 
+											documentProcessing ? "Processing document..." : 
 											"Generating quiz..."
 										) : (
 											limits?.blocked ? "Limit reached" : 
-											sourceTab === "study-pack" && !studyPack ? "Generate Study Pack First" :
 											"Generate Quiz"
 										)}
 									</button>
-                                    {limits && (
+									{limits && (
 										<div className="text-gray-300 text-sm mt-2 text-center space-y-1">
-                                            {limits.plan && (
-                                                <div className="text-purple-300 font-medium">
-                                                    {limits.plan.charAt(0).toUpperCase() + limits.plan.slice(1)} Plan
-                                                </div>
-                                            )}
-                                            {typeof limits.dailyUsed === 'number' && typeof limits.dailyLimit === 'number' && (
-                                                <div>
-                                                    Today: {limits.dailyUsed}/{limits.dailyLimit === -1 ? '∞' : limits.dailyLimit}
-                                                    {limits.remainingQuizzes && limits.remainingQuizzes.daily !== -1 && (
-                                                        <span className="text-green-400 ml-2">
-                                                            ({limits.remainingQuizzes.daily} remaining)
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {typeof limits.monthlyUsed === 'number' && typeof limits.monthlyLimit === 'number' && (
-                                                <div>
-                                                    Month: {limits.monthlyUsed}/{limits.monthlyLimit === -1 ? '∞' : limits.monthlyLimit}
-                                                    {limits.remainingQuizzes && limits.remainingQuizzes.monthly !== -1 && (
-                                                        <span className="text-green-400 ml-2">
-                                                            ({limits.remainingQuizzes.monthly} remaining)
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
+											{limits.plan && (
+												<div className="text-purple-300 font-medium">
+													{limits.plan.charAt(0).toUpperCase() + limits.plan.slice(1)} Plan
+												</div>
+											)}
+											{typeof limits.dailyUsed === 'number' && typeof limits.dailyLimit === 'number' && (
+												<div>
+													Today: {limits.dailyUsed}/{limits.dailyLimit === -1 ? '∞' : limits.dailyLimit}
+													{limits.remainingQuizzes && limits.remainingQuizzes.daily !== -1 && (
+														<span className="text-green-400 ml-2">
+															({limits.remainingQuizzes.daily} remaining)
+														</span>
+													)}
+												</div>
+											)}
+											{typeof limits.monthlyUsed === 'number' && typeof limits.monthlyLimit === 'number' && (
+												<div>
+													Month: {limits.monthlyUsed}/{limits.monthlyLimit === -1 ? '∞' : limits.monthlyLimit}
+													{limits.remainingQuizzes && limits.remainingQuizzes.monthly !== -1 && (
+														<span className="text-green-400 ml-2">
+															({limits.remainingQuizzes.monthly} remaining)
+														</span>
+													)}
+												</div>
+											)}
 										</div>
 									)}
 									<div className="text-gray-400 text-sm mt-2 text-center">{characters} characters</div>
@@ -1179,13 +1183,9 @@ export default function QuizPage() {
 											</div>
 										</div>
 									)}
-												</div>
-											</div>
-										</div>
-									)}
 								</div>
 							</div>
-						</div>
+						)}
 					</div>
 				</section>
 			</main>

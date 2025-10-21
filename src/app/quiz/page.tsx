@@ -1028,17 +1028,11 @@ export default function QuizPage() {
 													)}
 												</div>
 											)}
-										</div>
-									)}
-								</div>
-							)}
-						</div>
-					)}
 
-								</div>
-								<div className="divider my-6 opacity-20"></div>
-
-								<div className="mt-2">
+											{/* Quiz Generation Section */}
+											<div className="mt-8">
+												<h3 className="text-xl font-bold text-white mb-4">Generate Quiz from Study Pack</h3>
+												<div className="space-y-4">
 									<div>
 										<label className="text-white font-semibold mb-2 block">Difficulty Level</label>
 										<select value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value)} className="select select-bordered w-full bg-white/5 text-white">
@@ -1185,48 +1179,56 @@ export default function QuizPage() {
 											</div>
 										</div>
 									)}
-								</div>
-					</div>
-					</div>
-					</div>
-					</section>
-					<div className={"modal" + (previewOpen ? " modal-open" : "")}>
-						<div className="modal-box max-w-5xl bg-white/5 backdrop-blur-xl border border-white/20">
-							<h3 className="font-bold text-lg text-white mb-4">{previewData?.quiz?.title || "Quiz Preview"}</h3>
-							{previewData?.quiz?.description && (
-								<p className="text-gray-300 mb-4">{previewData.quiz.description}</p>
-							)}
-							<div id="quizPreviewContent" className="max-h-[60vh] overflow-auto space-y-3 pr-1">
-                                {Array.isArray(previewData?.quiz?.questions) && previewData.quiz.questions.length > 0 ? (
-                                    previewData.quiz.questions.map((q: PreviewQuestion, idx: number) => (
-										<div key={q.id ?? idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
-											<div className="flex items-start justify-between gap-3">
-												<h4 className="text-white font-semibold">{idx + 1}. {q.question}</h4>
-												{q.type && <span className="badge badge-outline text-xs text-gray-300">{q.type}</span>}
+												</div>
 											</div>
 										</div>
-									))
-								) : (
-									<p className="text-gray-300">No questions generated.</p>
-								)}
-							</div>
-							<div className="modal-action">
-								<button onClick={() => setPreviewOpen(false)} className="btn btn-outline"><i className="fas fa-edit mr-2"></i>Edit</button>
-								<button onClick={() => { 
-									if (previewData?.id) { 
-										window.location.href = `/quiz/${previewData.id}`;
-									} else { 
-										setPreviewOpen(false); 
-									} 
-								}} className="btn btn-primary">
-									<i className="fas fa-play mr-2"></i>
-									Start Quiz
-								</button>
+									)}
+								</div>
 							</div>
 						</div>
-						<button className="modal-backdrop" onClick={() => setPreviewOpen(false)}>Close</button>
 					</div>
+				</section>
 			</main>
+
+			{/* Modal Section */}
+			{previewOpen && (
+				<div className="modal modal-open">
+					<div className="modal-box max-w-5xl bg-white/5 backdrop-blur-xl border border-white/20">
+						<h3 className="font-bold text-lg text-white mb-4">{previewData?.quiz?.title || "Quiz Preview"}</h3>
+						{previewData?.quiz?.description && (
+							<p className="text-gray-300 mb-4">{previewData.quiz.description}</p>
+						)}
+						<div id="quizPreviewContent" className="max-h-[60vh] overflow-auto space-y-3 pr-1">
+							{Array.isArray(previewData?.quiz?.questions) && previewData.quiz.questions.length > 0 ? (
+								previewData.quiz.questions.map((q: PreviewQuestion, idx: number) => (
+									<div key={q.id ?? idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
+										<div className="flex items-start justify-between gap-3">
+											<h4 className="text-white font-semibold">{idx + 1}. {q.question}</h4>
+											{q.type && <span className="badge badge-outline text-xs text-gray-300">{q.type}</span>}
+										</div>
+									</div>
+								))
+							) : (
+								<p className="text-gray-300">No questions generated.</p>
+							)}
+						</div>
+						<div className="modal-action">
+							<button onClick={() => setPreviewOpen(false)} className="btn btn-outline"><i className="fas fa-edit mr-2"></i>Edit</button>
+							<button onClick={() => { 
+								if (previewData?.id) { 
+									window.location.href = `/quiz/${previewData.id}`;
+								} else { 
+									setPreviewOpen(false); 
+								} 
+							}} className="btn btn-primary">
+								<i className="fas fa-play mr-2"></i>
+								Start Quiz
+							</button>
+						</div>
+					</div>
+					<button className="modal-backdrop" onClick={() => setPreviewOpen(false)}>Close</button>
+				</div>
+			)}
 		</>
 	);
 }

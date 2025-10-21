@@ -601,7 +601,7 @@ export default function QuizPage() {
 												<div className="space-y-6">
 													{/* File Upload Section */}
 													<div className="bg-white/5 rounded-xl p-6 border border-white/10">
-														<h3 className="text-lg font-semibold text-white mb-4">Upload Document</h3>
+														<h3 className="text-lg font-semibold text-white mb-4">📚 Upload Your Learning Material</h3>
 														<div 
 															className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
 															onClick={() => document.getElementById('study-pack-upload')?.click()}
@@ -621,11 +621,16 @@ export default function QuizPage() {
 																className="hidden"
 																id="study-pack-upload"
 															/>
-															<div className="text-6xl mb-4">📚</div>
-															<h4 className="text-xl font-semibold mb-2 text-white">Choose Your Document</h4>
+															<div className="text-6xl mb-4">📖</div>
+															<h4 className="text-xl font-semibold mb-2 text-white">Upload Your Book, Tutorial, or Document</h4>
 															<p className="text-gray-400 mb-4">
-																Upload PDF, DOCX, TXT, MD, or image files to generate study materials
+																Upload PDF textbooks, DOCX documents, TXT files, or images. Our AI will analyze every section and create comprehensive study materials.
 															</p>
+															<div className="text-sm text-gray-500 mb-4">
+																✅ Comprehensive analysis by section<br/>
+																✅ Key concepts extraction<br/>
+																✅ Professional PDF export
+															</div>
 															<button 
 																type="button" 
 																className="btn btn-primary btn-lg"
@@ -634,7 +639,7 @@ export default function QuizPage() {
 																	document.getElementById('study-pack-upload')?.click();
 																}}
 															>
-																Select File
+																📁 Choose File
 															</button>
 														</div>
 														
@@ -715,27 +720,51 @@ export default function QuizPage() {
 								<button
 									onClick={async () => {
 										try {
+											setError(null);
+											// Show loading state
+											const button = event?.target as HTMLButtonElement;
+											const originalText = button.textContent;
+											button.textContent = '📄 Generating PDF...';
+											button.disabled = true;
+											
 											const res = await fetch('/api/study-pack/export', {
 												method: 'POST',
 												headers: { 'Content-Type': 'application/json' },
 												body: JSON.stringify({ studyPack })
 											});
-											if (!res.ok) throw new Error('Failed to export PDF');
+											
+											if (!res.ok) {
+												const errorData = await res.json();
+												throw new Error(errorData.details || errorData.error || 'Failed to export PDF');
+											}
+											
 											const blob = await res.blob();
 											const url = URL.createObjectURL(blob);
 											const a = document.createElement('a');
 											a.href = url;
-											a.download = 'study-pack.pdf';
+											a.download = `${studyPack.title || 'study-pack'}.pdf`;
 											a.click();
 											URL.revokeObjectURL(url);
+											
+											// Show success message
+											button.textContent = '✅ PDF Downloaded!';
+											setTimeout(() => {
+												button.textContent = originalText;
+												button.disabled = false;
+											}, 2000);
+											
 										} catch (e) {
 											console.error('Export failed:', e);
-											setError('Failed to export PDF.');
+											setError(`Failed to export PDF: ${e instanceof Error ? e.message : 'Unknown error'}`);
+											// Reset button
+											const button = event?.target as HTMLButtonElement;
+											button.textContent = '📄 Export PDF';
+											button.disabled = false;
 										}
 								}}
-								className="btn btn-sm btn-outline text-gray-200"
+								className="btn btn-primary btn-lg text-white font-semibold"
 							>
-								Export PDF
+								📄 Export PDF
 							</button>
 							<button
 								onClick={() => {
@@ -785,7 +814,7 @@ export default function QuizPage() {
 																		onClick={() => setActiveStudyTab('notes')}
 																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
 																	>
-																		All Chapters
+																		📚 All Chapters ({studyPack.detailedNotes?.length || 0})
 																	</button>
 																	{studyPack.chapters.map((chapter: string, index: number) => (
 																		<button
@@ -799,39 +828,97 @@ export default function QuizPage() {
 																</div>
 															)}
 															
-															{studyPack.detailedNotes?.map((note: any, index: number) => (
-																<div key={note.id || index} className="border border-white/20 rounded-lg p-4">
-																	<div className="flex items-center justify-between mb-2">
-																		<h4 className="text-lg font-semibold text-white">{note.title || note.topic}</h4>
-																		<div className="flex items-center gap-2">
-																			{note.chapter && (
-																				<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
-																					{note.chapter}
+															{studyPack.detailedNotes?.length > 0 ? (
+																studyPack.detailedNotes.map((note: any, index: number) => (
+																	<div key={note.id || index} className="border border-white/20 rounded-lg p-4 hover:border-purple-400/50 transition-colors">
+																		<div className="flex items-start justify-between mb-3">
+																			<div className="flex-1">
+																				<h4 className="text-lg font-semibold text-white mb-1">{note.title || note.topic}</h4>
+																				{note.pageReference && (
+																					<p className="text-xs text-gray-500 mb-2">📄 Page {note.pageReference}</p>
+																				)}
+																			</div>
+																			<div className="flex items-center gap-2 ml-4">
+																				{note.chapter && (
+																					<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+																						{note.chapter}
+																					</span>
+																				)}
+																				<span className={`px-2 py-1 rounded-full text-xs font-medium ${
+																					note.level === 'basic' ? 'bg-green-100 text-green-800' :
+																					note.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+																					'bg-red-100 text-red-800'
+																				}`}>
+																					{note.level}
 																				</span>
-																			)}
-																			<span className={`px-2 py-1 rounded-full text-xs font-medium ${
-																				note.level === 'basic' ? 'bg-green-100 text-green-800' :
-																				note.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-																				'bg-red-100 text-red-800'
-																			}`}>
-																				{note.level}
-																			</span>
+																			</div>
 																		</div>
-																	</div>
-																	<div className="text-gray-300 whitespace-pre-line text-sm">
-																		{note.content}
-																	</div>
-																	{note.tags && note.tags.length > 0 && (
-																		<div className="flex flex-wrap gap-1 mt-2">
-																			{note.tags.map((tag: string, tagIndex: number) => (
-																				<span key={tagIndex} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-																					{tag}
-																				</span>
-																			))}
+																		
+																		<div className="text-gray-300 whitespace-pre-line text-sm leading-relaxed mb-3">
+																			{note.content}
 																		</div>
-																	)}
+																		
+																		{/* Key Highlights */}
+																		{note.highlights && (
+																			<div className="space-y-2 mb-3">
+																				{note.highlights.keyFormulas && note.highlights.keyFormulas.length > 0 && (
+																					<div className="bg-blue-500/10 border border-blue-500/20 rounded p-3">
+																						<h5 className="text-blue-300 font-medium text-sm mb-1">🔑 Key Formulas:</h5>
+																						<ul className="text-xs text-gray-300 space-y-1">
+																							{note.highlights.keyFormulas.map((formula: string, fIndex: number) => (
+																								<li key={fIndex} className="font-mono">{formula}</li>
+																							))}
+																						</ul>
+																					</div>
+																				)}
+																				{note.highlights.examTips && note.highlights.examTips.length > 0 && (
+																					<div className="bg-green-500/10 border border-green-500/20 rounded p-3">
+																						<h5 className="text-green-300 font-medium text-sm mb-1">💡 Exam Tips:</h5>
+																						<ul className="text-xs text-gray-300 space-y-1">
+																							{note.highlights.examTips.map((tip: string, tIndex: number) => (
+																								<li key={tIndex}>• {tip}</li>
+																							))}
+																						</ul>
+																					</div>
+																				)}
+																			</div>
+																		)}
+																		
+																		{/* Examples */}
+																		{note.examples && note.examples.length > 0 && (
+																			<div className="bg-purple-500/10 border border-purple-500/20 rounded p-3 mb-3">
+																				<h5 className="text-purple-300 font-medium text-sm mb-2">📝 Examples:</h5>
+																				{note.examples.map((example: any, eIndex: number) => (
+																					<div key={eIndex} className="mb-2 last:mb-0">
+																						<p className="text-xs text-gray-300 font-medium">{example.title}</p>
+																						<p className="text-xs text-gray-400">{example.description}</p>
+																						{example.code && (
+																							<pre className="text-xs text-gray-300 bg-black/20 p-2 rounded mt-1 font-mono">{example.code}</pre>
+																						)}
+																					</div>
+																				))}
+																			</div>
+																		)}
+																		
+																		{/* Tags */}
+																		{note.tags && note.tags.length > 0 && (
+																			<div className="flex flex-wrap gap-1">
+																				{note.tags.map((tag: string, tagIndex: number) => (
+																					<span key={tagIndex} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+																						{tag}
+																					</span>
+																				))}
+																			</div>
+																		)}
+																	</div>
+																))
+															) : (
+																<div className="text-center py-8 text-gray-400">
+																	<div className="text-4xl mb-2">📝</div>
+																	<p>No detailed notes generated yet.</p>
+																	<p className="text-sm">Upload a document to generate comprehensive notes.</p>
 																</div>
-															))}
+															)}
 														</div>
 													)}
 													
@@ -844,7 +931,7 @@ export default function QuizPage() {
 																		onClick={() => setActiveStudyTab('flashcards')}
 																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
 																	>
-																		All Chapters
+																		🎴 All Cards ({studyPack.flashcardDeck?.length || 0})
 																	</button>
 																	{studyPack.chapters.map((chapter: string, index: number) => (
 																		<button
@@ -858,42 +945,93 @@ export default function QuizPage() {
 																</div>
 															)}
 															
-															<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-																{studyPack.flashcardDeck?.map((card: any, index: number) => (
-																	<div key={card.id || index} className="border border-white/20 rounded-lg p-4">
-																		<div className="space-y-3">
-																			{/* Card Type Badge */}
-																			<div className="flex items-center justify-between">
-																				<span className={`px-2 py-1 rounded-full text-xs font-medium ${
-																					card.type === 'concept' ? 'bg-blue-100 text-blue-800' :
-																					card.type === 'qa' ? 'bg-green-100 text-green-800' :
-																					'bg-purple-100 text-purple-800'
-																				}`}>
-																					{card.type?.toUpperCase() || 'CONCEPT'}
-																				</span>
-																				{card.chapter && (
-																					<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
-																						{card.chapter}
+															{studyPack.flashcardDeck?.length > 0 ? (
+																<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+																	{studyPack.flashcardDeck.map((card: any, index: number) => (
+																		<div key={card.id || index} className="border border-white/20 rounded-lg p-4 hover:border-purple-400/50 transition-colors">
+																			<div className="space-y-3">
+																				{/* Card Type Badge */}
+																				<div className="flex items-center justify-between">
+																					<span className={`px-2 py-1 rounded-full text-xs font-medium ${
+																						card.type === 'concept' ? 'bg-blue-100 text-blue-800' :
+																						card.type === 'qa' ? 'bg-green-100 text-green-800' :
+																						card.type === 'cloze' ? 'bg-purple-100 text-purple-800' :
+																						'bg-gray-100 text-gray-800'
+																					}`}>
+																						{card.type === 'concept' ? '📚 CONCEPT' :
+																						 card.type === 'qa' ? '❓ Q&A' :
+																						 card.type === 'cloze' ? '🔤 CLOZE' :
+																						 'CARD'}
 																					</span>
+																					{card.chapter && (
+																						<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+																							{card.chapter}
+																						</span>
+																					)}
+																				</div>
+																				
+																				{/* Cloze Card Special Display */}
+																				{card.type === 'cloze' ? (
+																					<div className="space-y-3">
+																						<div className="p-3 bg-purple-500/20 rounded">
+																							<h4 className="font-medium text-white mb-1">Fill in the blank:</h4>
+																							<p className="text-gray-300 text-sm">{card.front}</p>
+																						</div>
+																						<div className="p-3 bg-green-500/20 rounded">
+																							<h4 className="font-medium text-white mb-1">Answer:</h4>
+																							<p className="text-gray-300 text-sm">{card.back}</p>
+																						</div>
+																					</div>
+																				) : (
+																					<div className="space-y-3">
+																						<div className="p-3 bg-blue-500/20 rounded">
+																							<h4 className="font-medium text-white mb-1">
+																								{card.type === 'qa' ? 'Question:' : 'Front:'}
+																							</h4>
+																							<p className="text-gray-300 text-sm">{card.front}</p>
+																						</div>
+																						<div className="p-3 bg-green-500/20 rounded">
+																							<h4 className="font-medium text-white mb-1">
+																								{card.type === 'qa' ? 'Answer:' : 'Back:'}
+																							</h4>
+																							<p className="text-gray-300 text-sm">{card.back}</p>
+																						</div>
+																					</div>
+																				)}
+																				
+																				{/* Card Metadata */}
+																				<div className="flex items-center justify-between text-xs text-gray-400">
+																					<span className={`px-2 py-1 rounded ${
+																						card.difficulty === 'easy' ? 'bg-green-700 text-green-300' :
+																						card.difficulty === 'medium' ? 'bg-yellow-700 text-yellow-300' :
+																						'bg-red-700 text-red-300'
+																					}`}>
+																						{card.difficulty}
+																					</span>
+																					<span className="px-2 py-1 bg-gray-700 rounded">{card.topic}</span>
+																				</div>
+																				
+																				{/* Tags */}
+																				{card.tags && card.tags.length > 0 && (
+																					<div className="flex flex-wrap gap-1">
+																						{card.tags.map((tag: string, tagIndex: number) => (
+																							<span key={tagIndex} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+																								{tag}
+																							</span>
+																						))}
+																					</div>
 																				)}
 																			</div>
-																			
-																			<div className="p-3 bg-blue-500/20 rounded">
-																				<h4 className="font-medium text-white mb-1">Question:</h4>
-																				<p className="text-gray-300 text-sm">{card.front}</p>
-																			</div>
-																			<div className="p-3 bg-green-500/20 rounded">
-																				<h4 className="font-medium text-white mb-1">Answer:</h4>
-																				<p className="text-gray-300 text-sm">{card.back}</p>
-																			</div>
-																			<div className="flex items-center justify-between text-xs text-gray-400">
-																				<span className="px-2 py-1 bg-gray-700 rounded">{card.difficulty}</span>
-																				<span className="px-2 py-1 bg-gray-700 rounded">{card.topic}</span>
-																			</div>
 																		</div>
-																	</div>
-																))}
-															</div>
+																	))}
+																</div>
+															) : (
+																<div className="text-center py-8 text-gray-400">
+																	<div className="text-4xl mb-2">🎴</div>
+																	<p>No flashcards generated yet.</p>
+																	<p className="text-sm">Upload a document to generate flashcards.</p>
+																</div>
+															)}
 														</div>
 													)}
 													
@@ -997,32 +1135,71 @@ export default function QuizPage() {
 													
 													{activeStudyTab === 'revision' && (
 														<div className="space-y-4">
-															<div className="border border-white/20 rounded-lg p-4">
-																<h4 className="text-lg font-semibold text-white mb-3">Quick Revision Sheet</h4>
-																<div className="prose max-w-none">
-																	<pre className="whitespace-pre-wrap text-gray-300 bg-white/5 p-4 rounded text-sm">
-																		{studyPack.quickRevisionSheet}
-																	</pre>
+															{/* Quick Revision Sheet */}
+															{studyPack.quickRevisionSheet && (
+																<div className="border border-white/20 rounded-lg p-4">
+																	<h4 className="text-lg font-semibold text-white mb-3">📋 Quick Revision Sheet</h4>
+																	<div className="prose max-w-none">
+																		<pre className="whitespace-pre-wrap text-gray-300 bg-white/5 p-4 rounded text-sm leading-relaxed">
+																			{studyPack.quickRevisionSheet}
+																		</pre>
+																	</div>
 																</div>
-															</div>
+															)}
 															
-															<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-																<div className="text-center p-4 bg-blue-500/20 rounded">
-																	<div className="text-2xl font-bold text-blue-400">{studyPack.summary?.totalTopics || 0}</div>
-																	<div className="text-sm text-gray-400">Topics</div>
+															{/* Glossary */}
+															{studyPack.glossary && studyPack.glossary.length > 0 && (
+																<div className="border border-white/20 rounded-lg p-4">
+																	<h4 className="text-lg font-semibold text-white mb-3">📚 Glossary ({studyPack.glossary.length} terms)</h4>
+																	<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+																		{studyPack.glossary.map((term: any, index: number) => (
+																			<div key={index} className="bg-white/5 rounded p-3">
+																				<h5 className="font-semibold text-white text-sm">{term.term}</h5>
+																				<p className="text-gray-300 text-xs mt-1">{term.definition}</p>
+																				{term.chapter && (
+																					<span className="inline-block mt-2 px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+																						{term.chapter}
+																					</span>
+																				)}
+																			</div>
+																		))}
+																	</div>
 																</div>
-																<div className="text-center p-4 bg-purple-500/20 rounded">
-																	<div className="text-2xl font-bold text-purple-400">{studyPack.summary?.totalFlashcards || 0}</div>
-																	<div className="text-sm text-gray-400">Flashcards</div>
+															)}
+															
+															{/* Summary Statistics */}
+															<div className="border border-white/20 rounded-lg p-4">
+																<h4 className="text-lg font-semibold text-white mb-4">📊 Study Pack Summary</h4>
+																<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+																	<div className="text-center p-4 bg-blue-500/20 rounded">
+																		<div className="text-2xl font-bold text-blue-400">{studyPack.detailedNotes?.length || 0}</div>
+																		<div className="text-sm text-gray-400">Detailed Notes</div>
+																	</div>
+																	<div className="text-center p-4 bg-purple-500/20 rounded">
+																		<div className="text-2xl font-bold text-purple-400">{studyPack.flashcardDeck?.length || 0}</div>
+																		<div className="text-sm text-gray-400">Flashcards</div>
+																	</div>
+																	<div className="text-center p-4 bg-orange-500/20 rounded">
+																		<div className="text-2xl font-bold text-orange-400">
+																			{studyPack.quizBank?.reduce((sum: number, quiz: any) => sum + (quiz.questions?.length || 0), 0) || 0}
+																		</div>
+																		<div className="text-sm text-gray-400">Quiz Questions</div>
+																	</div>
+																	<div className="text-center p-4 bg-green-500/20 rounded">
+																		<div className="text-2xl font-bold text-green-400">{studyPack.chapters?.length || 0}</div>
+																		<div className="text-sm text-gray-400">Chapters</div>
+																	</div>
 																</div>
-																<div className="text-center p-4 bg-orange-500/20 rounded">
-																	<div className="text-2xl font-bold text-orange-400">{studyPack.summary?.totalQuestions || 0}</div>
-																	<div className="text-sm text-gray-400">Questions</div>
-																</div>
-																<div className="text-center p-4 bg-green-500/20 rounded">
-																	<div className="text-2xl font-bold text-green-400">{studyPack.summary?.estimatedStudyTime || 0}h</div>
-																	<div className="text-sm text-gray-400">Study Time</div>
-																</div>
+																
+																{/* Study Time Estimate */}
+																{studyPack.summary?.estimatedStudyTime && (
+																	<div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded">
+																		<div className="flex items-center gap-2">
+																			<span className="text-green-400">⏱️</span>
+																			<span className="text-green-300 font-medium">Estimated Study Time: {studyPack.summary.estimatedStudyTime} hours</span>
+																		</div>
+																	</div>
+																)}
 															</div>
 														</div>
 													)}

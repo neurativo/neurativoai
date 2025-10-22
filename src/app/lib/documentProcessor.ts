@@ -132,49 +132,46 @@ export class DocumentProcessor {
   private async processPDF(file: File): Promise<{ content: string; pages: number }> {
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
       
-      // Use pdfjs-dist for more reliable PDF parsing
-      const pdfjsLib = await import('pdfjs-dist');
+      // Use pdf-parse for reliable multi-page extraction
+      const { extractPDFText, normalizeText, validatePageExtraction } = await import('@/lib/pdf-extractor');
       
-      // Load the PDF document
-      const loadingTask = pdfjsLib.getDocument({
-        data: arrayBuffer,
-        useSystemFonts: true,
-        disableFontFace: false,
-        disableRange: false,
-        disableStream: false
-      });
+      console.log('Starting PDF processing with pdf-parse...');
+      const result = await extractPDFText(buffer);
       
-      const pdf = await loadingTask.promise;
-      const numPages = pdf.numPages;
-      
-      console.log('PDF loaded successfully:', {
-        pages: numPages
-      });
-      
-      // Extract text from all pages
-      let fullText = '';
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ')
-          .trim();
-        fullText += pageText + '\n\n';
+      if (!result.success) {
+        throw new Error(result.error || 'PDF extraction failed');
       }
       
-      console.log('PDF text extracted successfully:', {
-        pages: numPages,
-        textLength: fullText.length
+      console.log('PDF extraction successful:', {
+        pages: result.numPages,
+        textLength: result.text.length,
+        hasPageMarkers: result.text.includes('[PAGE BREAK]')
+      });
+      
+      // Validate page extraction
+      const isValid = validatePageExtraction(result.numPages, result.text);
+      if (!isValid) {
+        console.warn('Page extraction validation failed - PDF may be scanned');
+      }
+      
+      // Normalize the text for better section detection
+      const normalizedText = normalizeText(result.text);
+      
+      console.log('PDF processing completed:', {
+        originalLength: result.text.length,
+        normalizedLength: normalizedText.length,
+        pages: result.numPages
       });
       
       return {
-        content: fullText,
-        pages: numPages
+        content: normalizedText,
+        pages: result.numPages
       };
+      
     } catch (error) {
-      console.error('Error parsing PDF with pdfjs-dist:', error);
+      console.error('Error parsing PDF with pdf-parse:', error);
       console.error('PDF parsing error details:', {
         name: error instanceof Error ? error.name : 'Unknown',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -267,11 +264,40 @@ export class DocumentProcessor {
     
     let currentSection: Partial<DocumentSection> | null = null;
     let sectionCounter = 0;
-    let pageCounter = 1;
+    let currentPage = 1;
     const wordsPerPage = Math.ceil(this.countWords(content) / totalPages);
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
+      
+      // Handle page breaks
+      if (line.startsWith('[PAGE BREAK]')) {
+        console.log('Found page break, current page:', currentPage + 1);
+        currentPage++;
+        
+        // Save current section if it has content
+        if (currentSection && currentSection.content) {
+          sections.push({
+            id: `section_${sectionCounter++}`,
+            title: currentSection.title || `Page ${currentPage - 1} Content`,
+            level: currentSection.level || 2,
+            content: currentSection.content.trim(),
+            pageNumber: currentPage - 1,
+            wordCount: this.countWords(currentSection.content),
+            isExamRelevant: false,
+            topics: []
+          });
+        }
+        
+        // Start new section for new page
+        currentSection = {
+          title: `Page ${currentPage} Content`,
+          level: 1,
+          content: '',
+          pageNumber: currentPage
+        };
+        continue;
+      }
       
       // Detect section headers (improved heuristic)
       if (this.isSectionHeader(line)) {
@@ -295,7 +321,7 @@ export class DocumentProcessor {
           title: line,
           level: this.getHeaderLevel(line),
           content: '',
-          pageNumber: Math.ceil((i / lines.length) * totalPages)
+          pageNumber: currentPage
         };
       } else if (currentSection) {
         // Add content to current section
@@ -306,7 +332,7 @@ export class DocumentProcessor {
           title: 'Introduction',
           level: 1,
           content: line,
-          pageNumber: Math.ceil((i / lines.length) * totalPages)
+          pageNumber: currentPage
         };
       }
     }
@@ -328,43 +354,71 @@ export class DocumentProcessor {
     // If no sections were created, create sections by splitting content
     if (sections.length === 0) {
       console.log('No sections detected, creating sections by content splitting...');
-      const wordsPerSection = Math.max(200, Math.ceil(this.countWords(content) / 5)); // At least 5 sections
-      const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
       
-      console.log('Creating sections from paragraphs:', paragraphs.length);
+      // Try to split by page breaks first
+      const pageSections = content.split('[PAGE BREAK]').filter(p => p.trim().length > 0);
+      console.log('Page sections found:', pageSections.length);
       
-      let currentSection: Partial<DocumentSection> | null = null;
-      let sectionCounter = 0;
+      if (pageSections.length > 1) {
+        // Create sections based on pages
+        pageSections.forEach((pageContent, index) => {
+          const cleanContent = pageContent.trim();
+          if (cleanContent.length > 50) {
+            sections.push({
+              id: `page_section_${index + 1}`,
+              title: `Page ${index + 1} Content`,
+              level: 1,
+              content: cleanContent,
+              pageNumber: index + 1,
+              wordCount: this.countWords(cleanContent),
+              isExamRelevant: false,
+              topics: []
+            });
+          }
+        });
+      }
       
-      for (let i = 0; i < paragraphs.length; i++) {
-        const paragraph = paragraphs[i].trim();
+      // If still no sections, try paragraph splitting
+      if (sections.length === 0) {
+        console.log('No page sections, trying paragraph splitting...');
+        const wordsPerSection = Math.max(200, Math.ceil(this.countWords(content) / 5)); // At least 5 sections
+        const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
         
-        if (!currentSection) {
-          currentSection = {
-            title: `Section ${sectionCounter + 1}`,
-            level: 1,
-            content: paragraph,
-            pageNumber: 1,
-            wordCount: this.countWords(paragraph)
-          };
-        } else {
-          currentSection.content = (currentSection.content || '') + '\n\n' + paragraph;
-          currentSection.wordCount = this.countWords(currentSection.content);
-        }
+        console.log('Creating sections from paragraphs:', paragraphs.length);
         
-        // If section is long enough or this is the last paragraph, finalize it
-        if ((currentSection.wordCount || 0) >= wordsPerSection || i === paragraphs.length - 1) {
-          sections.push({
-            id: `section_${sectionCounter++}`,
-            title: currentSection.title || 'Untitled Section',
-            level: currentSection.level || 1,
-            content: (currentSection.content || '').trim(),
-            pageNumber: currentSection.pageNumber || 1,
-            wordCount: currentSection.wordCount || 0,
-            isExamRelevant: false,
-            topics: []
-          });
-          currentSection = null;
+        let currentSection: Partial<DocumentSection> | null = null;
+        let sectionCounter = 0;
+        
+        for (let i = 0; i < paragraphs.length; i++) {
+          const paragraph = paragraphs[i].trim();
+          
+          if (!currentSection) {
+            currentSection = {
+              title: `Topic ${sectionCounter + 1}`,
+              level: 1,
+              content: paragraph,
+              pageNumber: 1,
+              wordCount: this.countWords(paragraph)
+            };
+          } else {
+            currentSection.content = (currentSection.content || '') + '\n\n' + paragraph;
+            currentSection.wordCount = this.countWords(currentSection.content);
+          }
+          
+          // If section is long enough or this is the last paragraph, finalize it
+          if ((currentSection.wordCount || 0) >= wordsPerSection || i === paragraphs.length - 1) {
+            sections.push({
+              id: `auto_section_${sectionCounter++}`,
+              title: currentSection.title || 'Untitled Section',
+              level: currentSection.level || 1,
+              content: (currentSection.content || '').trim(),
+              pageNumber: currentSection.pageNumber || 1,
+              wordCount: currentSection.wordCount || 0,
+              isExamRelevant: false,
+              topics: []
+            });
+            currentSection = null;
+          }
         }
       }
       

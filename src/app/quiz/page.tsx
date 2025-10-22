@@ -887,7 +887,11 @@ export default function QuizPage() {
 																		</div>
 																		
 																		<div className="text-gray-300 whitespace-pre-line text-sm leading-relaxed mb-3">
-																			{note.content}
+																			{typeof note.content === 'string' ? note.content : 
+																				note.content?.summary ? 
+																					`${note.content.summary.title}\n\n${note.content.summary.keyConcepts?.join('\n• ') || ''}` :
+																					'Content not available'
+																			}
 																		</div>
 																		
 																		{/* Key Highlights */}

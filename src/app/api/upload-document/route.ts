@@ -108,11 +108,25 @@ export async function POST(request: NextRequest) {
       examRelevanceThreshold: 0.7
     });
 
-    console.log('Starting document processing...');
+    console.log('=== UPLOAD API: Starting document processing ===');
+    console.log('File details:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+    
     const processedDocument = await processor.processDocument(file, {
       title: title || file.name.replace(/\.[^/.]+$/, ''),
       subject,
       course
+    });
+    
+    console.log('=== UPLOAD API: Document processing completed ===');
+    console.log('Processed document:', {
+      id: processedDocument.id,
+      totalPages: processedDocument.totalPages,
+      totalWords: processedDocument.totalWords,
+      sectionsCount: processedDocument.sections.length
     });
     console.log('Document processed successfully:', {
       id: processedDocument.id,

@@ -2,6 +2,7 @@
 // Generates notes, flashcards, quizzes, and revision packs
 
 import { ProcessedDocument, DocumentSection } from './documentProcessor';
+import OpenAI from 'openai';
 
 export interface StudyNote {
   id: string;
@@ -104,6 +105,7 @@ export interface StudyPackGeneratorConfig {
 
 export class AIStudyPackGenerator {
   private config: StudyPackGeneratorConfig;
+  private openai: OpenAI | null = null;
 
   constructor(config: Partial<StudyPackGeneratorConfig> = {}) {
     this.config = {
@@ -115,6 +117,13 @@ export class AIStudyPackGenerator {
       difficultyLevel: 'intermediate',
       ...config
     };
+    
+    // Initialize OpenAI client
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    }
   }
 
   async generateStudyPack(document: ProcessedDocument): Promise<RevisionPack> {
@@ -210,9 +219,88 @@ export class AIStudyPackGenerator {
   }
 
   private async createStudyNote(section: DocumentSection): Promise<StudyNote> {
-    // This is a placeholder implementation
-    // In production, you'd use AI to generate high-quality notes
-    
+    if (!this.openai) {
+      // Fallback to placeholder if OpenAI is not available
+      return this.createPlaceholderNote(section);
+    }
+
+    try {
+      const prompt = `Create comprehensive study notes from this content:
+
+Title: ${section.title}
+Content: ${section.content}
+
+Please generate:
+1. A well-structured summary with key concepts
+2. Important formulas, definitions, and principles
+3. Practical examples and applications
+4. Related topics and connections
+5. Study tips and exam focus areas
+
+Format the response as JSON with this structure:
+{
+  "content": "Main study note content with clear structure",
+  "highlights": {
+    "keyFormulas": ["formula1", "formula2"],
+    "examTips": ["tip1", "tip2"],
+    "conceptChecks": ["check1", "check2"]
+  },
+  "examples": [
+    {
+      "title": "Example title",
+      "description": "Example description",
+      "code": "Code if applicable",
+      "explanation": "Detailed explanation"
+    }
+  ],
+  "relatedTopics": ["topic1", "topic2"],
+  "tags": ["tag1", "tag2"],
+  "level": "beginner|intermediate|advanced"
+}`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert educational content creator. Generate comprehensive, well-structured study notes that help students understand and retain information effectively.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const aiResponse = response.choices[0]?.message?.content;
+      if (!aiResponse) {
+        throw new Error('No response from AI');
+      }
+
+      const parsed = JSON.parse(aiResponse);
+      
+      return {
+        id: `note_${section.id}`,
+        title: section.title,
+        topic: section.title,
+        content: parsed.content || this.formatNoteContent(section.content),
+        level: parsed.level || this.determineDifficultyLevel(section.content),
+        highlights: parsed.highlights || this.extractHighlights(section.content),
+        examples: parsed.examples || this.generateExamples(section.content),
+        relatedTopics: parsed.relatedTopics || this.extractRelatedTopics(section.content),
+        tags: parsed.tags || this.extractTags(section.content)
+      };
+
+    } catch (error) {
+      console.error('Error generating AI study note:', error);
+      // Fallback to placeholder if AI fails
+      return this.createPlaceholderNote(section);
+    }
+  }
+
+  private createPlaceholderNote(section: DocumentSection): StudyNote {
     const content = this.formatNoteContent(section.content);
     const highlights = this.extractHighlights(section.content);
     const examples = this.generateExamples(section.content);
@@ -395,6 +483,74 @@ export class AIStudyPackGenerator {
   }
 
   private async createFlashcardsForSection(section: DocumentSection): Promise<Flashcard[]> {
+    if (!this.openai) {
+      // Fallback to placeholder if OpenAI is not available
+      return this.createPlaceholderFlashcards(section);
+    }
+
+    try {
+      const prompt = `Create educational flashcards from this content:
+
+Title: ${section.title}
+Content: ${section.content}
+
+Generate ${this.config.maxFlashcardsPerTopic} flashcards with:
+1. Clear, concise questions on the front
+2. Comprehensive, accurate answers on the back
+3. Mix of concept, definition, and application questions
+4. Appropriate difficulty level
+
+Format as JSON array:
+[
+  {
+    "front": "Question text",
+    "back": "Answer text",
+    "type": "concept|qa|definition",
+    "difficulty": "easy|medium|hard"
+  }
+]`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert educational content creator. Generate high-quality flashcards that help students learn and retain information effectively.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1500
+      });
+
+      const aiResponse = response.choices[0]?.message?.content;
+      if (!aiResponse) {
+        throw new Error('No response from AI');
+      }
+
+      const parsed = JSON.parse(aiResponse);
+      
+      return parsed.map((card: any, index: number) => ({
+        id: `flashcard_${section.id}_${index}`,
+        front: card.front,
+        back: card.back,
+        difficulty: this.mapDifficultyLevel(card.difficulty || this.determineDifficultyLevel(section.content)),
+        topic: section.title,
+        type: card.type || 'qa',
+        tags: section.topics
+      }));
+
+    } catch (error) {
+      console.error('Error generating AI flashcards:', error);
+      // Fallback to placeholder if AI fails
+      return this.createPlaceholderFlashcards(section);
+    }
+  }
+
+  private createPlaceholderFlashcards(section: DocumentSection): Flashcard[] {
     const flashcards: Flashcard[] = [];
     
     // Generate Q&A pairs from section content

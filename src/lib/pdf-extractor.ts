@@ -1,8 +1,6 @@
 // PDF Text Extractor using pdf-parse
 // Handles multi-page PDFs properly in serverless environments
 
-const pdf = require("pdf-parse");
-
 export interface PDFExtractionResult {
   text: string;
   numPages: number;
@@ -13,13 +11,18 @@ export interface PDFExtractionResult {
 
 export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResult> {
   try {
+    console.log('=== PDF EXTRACTION START ===');
     console.log('Starting PDF extraction with pdf-parse...');
     console.log('Buffer size:', buffer.length, 'bytes');
     
-    const data = await pdf(buffer, {
+    // Use require for better compatibility
+    const pdfParse = require("pdf-parse");
+    
+    console.log('pdf-parse loaded successfully:', typeof pdfParse);
+    
+    const data = await pdfParse(buffer, {
       // Options for better text extraction
       max: 0, // No page limit
-      version: 'v1.10.100', // Use specific version for stability
     });
 
     console.log('PDF parsed successfully:', {
@@ -27,6 +30,7 @@ export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResul
       textLength: data.text.length,
       info: data.info
     });
+    console.log('Raw text preview (first 200 chars):', data.text.substring(0, 200));
 
     // Split by page breaks and add page markers
     const pages = data.text.split(/\f/).filter(Boolean);

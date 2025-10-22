@@ -137,10 +137,19 @@ export class DocumentProcessor {
       // Use pdf-parse for reliable multi-page extraction
       const { extractPDFText, normalizeText, validatePageExtraction } = await import('@/lib/pdf-extractor');
       
-      console.log('Starting PDF processing with pdf-parse...');
+      console.log('=== DOCUMENT PROCESSOR: Starting PDF processing with pdf-parse ===');
       const result = await extractPDFText(buffer);
       
+      console.log('PDF extraction result:', {
+        success: result.success,
+        pages: result.numPages,
+        textLength: result.text.length,
+        hasPageMarkers: result.text.includes('[PAGE BREAK]'),
+        error: result.error
+      });
+      
       if (!result.success) {
+        console.error('PDF extraction failed:', result.error);
         throw new Error(result.error || 'PDF extraction failed');
       }
       

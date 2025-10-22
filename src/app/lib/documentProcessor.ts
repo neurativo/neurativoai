@@ -255,9 +255,15 @@ export class DocumentProcessor {
 
   private async structureContent(content: string, totalPages: number): Promise<DocumentSection[]> {
     console.log('Structuring content into sections...');
+    console.log('Content length:', content.length);
+    console.log('Total pages:', totalPages);
+    console.log('First 500 characters:', content.substring(0, 500));
     
     const sections: DocumentSection[] = [];
     const lines = content.split('\n').filter(line => line.trim().length > 0);
+    
+    console.log('Total lines after filtering:', lines.length);
+    console.log('First 10 lines:', lines.slice(0, 10));
     
     let currentSection: Partial<DocumentSection> | null = null;
     let sectionCounter = 0;
@@ -267,8 +273,9 @@ export class DocumentProcessor {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Detect section headers (simple heuristic)
+      // Detect section headers (improved heuristic)
       if (this.isSectionHeader(line)) {
+        console.log('Found section header:', line);
         // Save previous section
         if (currentSection && currentSection.content) {
           sections.push({
@@ -293,6 +300,14 @@ export class DocumentProcessor {
       } else if (currentSection) {
         // Add content to current section
         currentSection.content += (currentSection.content ? '\n' : '') + line;
+      } else {
+        // Start first section if none exists
+        currentSection = {
+          title: 'Introduction',
+          level: 1,
+          content: line,
+          pageNumber: Math.ceil((i / lines.length) * totalPages)
+        };
       }
     }
     
@@ -313,8 +328,10 @@ export class DocumentProcessor {
     // If no sections were created, create sections by splitting content
     if (sections.length === 0) {
       console.log('No sections detected, creating sections by content splitting...');
-      const wordsPerSection = Math.max(300, Math.ceil(this.countWords(content) / 3)); // At least 3 sections
+      const wordsPerSection = Math.max(200, Math.ceil(this.countWords(content) / 5)); // At least 5 sections
       const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
+      
+      console.log('Creating sections from paragraphs:', paragraphs.length);
       
       let currentSection: Partial<DocumentSection> | null = null;
       let sectionCounter = 0;
@@ -350,6 +367,21 @@ export class DocumentProcessor {
           currentSection = null;
         }
       }
+      
+      // If still no sections, create one big section
+      if (sections.length === 0) {
+        console.log('Still no sections, creating single large section...');
+        sections.push({
+          id: 'section_0',
+          title: 'Document Content',
+          level: 1,
+          content: content.trim(),
+          pageNumber: 1,
+          wordCount: this.countWords(content),
+          isExamRelevant: false,
+          topics: []
+        });
+      }
     }
     
     console.log(`Structured content into ${sections.length} sections`);
@@ -357,7 +389,7 @@ export class DocumentProcessor {
   }
 
   private isSectionHeader(line: string): boolean {
-    // Improved heuristic to detect section headers
+    // More aggressive heuristic to detect section headers
     const headerPatterns = [
       /^Chapter\s+\d+/i,
       /^Section\s+\d+/i,
@@ -368,17 +400,21 @@ export class DocumentProcessor {
       /^__.*__$/,
       /^[A-Z][a-z].*:$/,  // Title followed by colon
       /^\d+\.\s+[A-Za-z]/, // Numbered list items
-      /^[A-Z][a-z].*[.!?]$/ // Title ending with punctuation
+      /^[A-Z][a-z].*[.!?]$/, // Title ending with punctuation
+      /^[A-Z][a-z].*$/, // Any title case line
+      /^\d+\./, // Any numbered line
+      /^[A-Z][A-Za-z\s]{2,}$/ // All caps or title case with at least 3 chars
     ];
     
-    // Additional checks
-    const isShort = line.length < 100;
+    // More lenient checks
+    const isShort = line.length < 150;
     const isTitleCase = /^[A-Z][a-z]/.test(line);
     const hasNumbers = /\d/.test(line);
     const isAllCaps = /^[A-Z\s]+$/.test(line);
+    const isStandalone = line.length > 5 && line.length < 100;
     
     return headerPatterns.some(pattern => pattern.test(line)) && 
-           (isShort || isTitleCase || hasNumbers || isAllCaps);
+           (isShort || isTitleCase || hasNumbers || isAllCaps || isStandalone);
   }
 
   private getHeaderLevel(line: string): number {

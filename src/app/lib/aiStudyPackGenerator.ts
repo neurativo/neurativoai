@@ -291,7 +291,9 @@ Format the response as JSON with this structure:
         throw new Error('No response from AI');
       }
 
-      const parsed = JSON.parse(aiResponse);
+      // Clean the response by removing code fences
+      const cleanResponse = aiResponse.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleanResponse);
       
       return {
         id: `note_${section.id}`,
@@ -543,7 +545,9 @@ Format as JSON array:
         throw new Error('No response from AI');
       }
 
-      const parsed = JSON.parse(aiResponse);
+      // Clean the response by removing code fences
+      const cleanResponse = aiResponse.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleanResponse);
       
       return parsed.map((card: any, index: number) => ({
         id: `flashcard_${section.id}_${index}`,

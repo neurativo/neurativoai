@@ -310,12 +310,54 @@ export class DocumentProcessor {
       });
     }
     
+    // If no sections were created, create sections by splitting content
+    if (sections.length === 0) {
+      console.log('No sections detected, creating sections by content splitting...');
+      const wordsPerSection = Math.max(300, Math.ceil(this.countWords(content) / 3)); // At least 3 sections
+      const paragraphs = content.split('\n\n').filter(p => p.trim().length > 0);
+      
+      let currentSection: Partial<DocumentSection> | null = null;
+      let sectionCounter = 0;
+      
+      for (let i = 0; i < paragraphs.length; i++) {
+        const paragraph = paragraphs[i].trim();
+        
+        if (!currentSection) {
+          currentSection = {
+            title: `Section ${sectionCounter + 1}`,
+            level: 1,
+            content: paragraph,
+            pageNumber: 1,
+            wordCount: this.countWords(paragraph)
+          };
+        } else {
+          currentSection.content = (currentSection.content || '') + '\n\n' + paragraph;
+          currentSection.wordCount = this.countWords(currentSection.content);
+        }
+        
+        // If section is long enough or this is the last paragraph, finalize it
+        if ((currentSection.wordCount || 0) >= wordsPerSection || i === paragraphs.length - 1) {
+          sections.push({
+            id: `section_${sectionCounter++}`,
+            title: currentSection.title || 'Untitled Section',
+            level: currentSection.level || 1,
+            content: (currentSection.content || '').trim(),
+            pageNumber: currentSection.pageNumber || 1,
+            wordCount: currentSection.wordCount || 0,
+            isExamRelevant: false,
+            topics: []
+          });
+          currentSection = null;
+        }
+      }
+    }
+    
     console.log(`Structured content into ${sections.length} sections`);
     return sections;
   }
 
   private isSectionHeader(line: string): boolean {
-    // Simple heuristic to detect section headers
+    // Improved heuristic to detect section headers
     const headerPatterns = [
       /^Chapter\s+\d+/i,
       /^Section\s+\d+/i,
@@ -323,10 +365,20 @@ export class DocumentProcessor {
       /^[A-Z][A-Z\s]+$/,
       /^#{1,6}\s+/,
       /^\*\*.*\*\*$/,
-      /^__.*__$/
+      /^__.*__$/,
+      /^[A-Z][a-z].*:$/,  // Title followed by colon
+      /^\d+\.\s+[A-Za-z]/, // Numbered list items
+      /^[A-Z][a-z].*[.!?]$/ // Title ending with punctuation
     ];
     
-    return headerPatterns.some(pattern => pattern.test(line)) && line.length < 100;
+    // Additional checks
+    const isShort = line.length < 100;
+    const isTitleCase = /^[A-Z][a-z]/.test(line);
+    const hasNumbers = /\d/.test(line);
+    const isAllCaps = /^[A-Z\s]+$/.test(line);
+    
+    return headerPatterns.some(pattern => pattern.test(line)) && 
+           (isShort || isTitleCase || hasNumbers || isAllCaps);
   }
 
   private getHeaderLevel(line: string): number {

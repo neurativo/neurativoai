@@ -203,6 +203,14 @@ export default function QuizPage() {
 				throw new Error('No study pack data received from server');
 			}
 			
+			console.log('Setting study pack data:', {
+				studyPack: result.studyPack,
+				notesCount: result.studyPack?.detailedNotes?.length || 0,
+				flashcardsCount: result.studyPack?.flashcardDeck?.length || 0,
+				quizzesCount: result.studyPack?.quizBank?.length || 0,
+				chaptersCount: result.studyPack?.chapters?.length || 0
+			});
+			
 			setProcessedDocument(result.document);
 			setStudyPack(result.studyPack);
 			setDocumentProcessing(false);

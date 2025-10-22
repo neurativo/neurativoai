@@ -123,6 +123,9 @@ export class AIStudyPackGenerator {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
       });
+      console.log('OpenAI client initialized successfully');
+    } else {
+      console.warn('OPENAI_API_KEY not found, will use placeholder methods');
     }
   }
 
@@ -187,8 +190,17 @@ export class AIStudyPackGenerator {
       const processingTime = Date.now() - startTime;
       console.log(`Study pack generated in ${processingTime}ms:`, {
         notes: detailedNotes.length,
-        flashcards: flashcardDeck.length,
-        questions: quizBank.reduce((sum, pack) => sum + pack.questions.length, 0)
+        flashcards: allCards.length,
+        questions: quizBank.reduce((sum, pack) => sum + pack.questions.length, 0),
+        chapters: chapters.length,
+        sections: sections.length
+      });
+      
+      console.log('Generated content details:', {
+        detailedNotes: detailedNotes.slice(0, 2), // First 2 notes
+        flashcardDeck: allCards.slice(0, 2), // First 2 flashcards
+        quizBank: quizBank.slice(0, 1), // First quiz pack
+        chapters: chapters.map(c => c.title)
       });
       
       return revisionPack;

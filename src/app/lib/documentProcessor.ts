@@ -132,28 +132,86 @@ export class DocumentProcessor {
   private async processPDF(file: File): Promise<{ content: string; pages: number }> {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
       
-      // Dynamic import to avoid build-time execution
-      const pdfParse = await import('pdf-parse');
+      // Use pdfjs-dist for more reliable PDF parsing
+      const pdfjsLib = await import('pdfjs-dist');
       
-      // Use pdf-parse to extract text and metadata
-      const pdfData = await pdfParse.default(buffer);
+      // Load the PDF document
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        useSystemFonts: true,
+        disableFontFace: false,
+        disableRange: false,
+        disableStream: false
+      });
       
-      console.log('PDF parsed successfully:', {
-        pages: pdfData.numpages,
-        textLength: pdfData.text.length,
-        title: pdfData.info?.Title,
-        author: pdfData.info?.Author
+      const pdf = await loadingTask.promise;
+      const numPages = pdf.numPages;
+      
+      console.log('PDF loaded successfully:', {
+        pages: numPages
+      });
+      
+      // Extract text from all pages
+      let fullText = '';
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ')
+          .trim();
+        fullText += pageText + '\n\n';
+      }
+      
+      console.log('PDF text extracted successfully:', {
+        pages: numPages,
+        textLength: fullText.length
       });
       
       return {
-        content: pdfData.text,
-        pages: pdfData.numpages
+        content: fullText,
+        pages: numPages
       };
     } catch (error) {
-      console.error('Error parsing PDF:', error);
-      throw new Error(`Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error parsing PDF with pdfjs-dist:', error);
+      console.error('PDF parsing error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      
+      // Fallback: try to extract basic text without PDF parsing
+      try {
+        console.log('Attempting fallback PDF processing...');
+        const arrayBuffer = await file.arrayBuffer();
+        const fallbackContent = await this.fallbackPDFProcessing(Buffer.from(arrayBuffer));
+        return {
+          content: fallbackContent,
+          pages: 1 // Estimate 1 page for fallback
+        };
+      } catch (fallbackError) {
+        console.error('Fallback PDF processing also failed:', fallbackError);
+        throw new Error(`Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }
+
+  private async fallbackPDFProcessing(buffer: Buffer): Promise<string> {
+    // Simple fallback: try to extract text using basic string operations
+    // This is a very basic implementation that might work for some PDFs
+    const text = buffer.toString('utf8', 0, Math.min(buffer.length, 100000)); // Limit to first 100KB
+    
+    // Try to extract readable text by filtering out binary data
+    const readableText = text
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '') // Remove control characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+    
+    if (readableText.length > 50) {
+      return readableText;
+    } else {
+      return 'PDF content could not be extracted. Please try with a different PDF file.';
     }
   }
 

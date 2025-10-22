@@ -87,27 +87,27 @@ export async function POST(request: NextRequest) {
     let wordCount = 0;
 
     try {
-      if (file.type === 'application/pdf') {
-        const result = await processPDF(file);
-        documentContent = result.content;
-        pageCount = result.pageCount;
-        wordCount = result.wordCount;
-      } else if (file.type.includes('text/') || file.name.endsWith('.txt')) {
-        const result = await processTextFile(file);
-        documentContent = result.content;
-        pageCount = result.pageCount;
-        wordCount = result.wordCount;
-      } else if (file.type.includes('application/vnd.openxmlformats') || file.name.endsWith('.docx')) {
-        const result = await processWordDocument(file);
-        documentContent = result.content;
-        pageCount = result.pageCount;
-        wordCount = result.wordCount;
-      } else {
-        return NextResponse.json(
-          { error: 'Unsupported file type. Please upload PDF, TXT, or DOCX files.' },
-          { status: 400 }
-        );
-      }
+    if (file.type === 'application/pdf') {
+      const result = await processPDF(file);
+      documentContent = result.content;
+      pageCount = result.pageCount;
+      wordCount = result.wordCount;
+    } else if (file.type.includes('text/') || file.name.endsWith('.txt')) {
+      const result = await processTextFile(file);
+      documentContent = result.content;
+      pageCount = result.pageCount;
+      wordCount = result.wordCount;
+    } else if (file.type.includes('application/vnd.openxmlformats') || file.name.endsWith('.docx')) {
+      const result = await processWordDocument(file);
+      documentContent = result.content;
+      pageCount = result.pageCount;
+      wordCount = result.wordCount;
+    } else {
+      return NextResponse.json(
+        { error: 'Unsupported file type. Please upload PDF, TXT, or DOCX files.' },
+        { status: 400 }
+      );
+    }
     } catch (processingError) {
       console.error('Document processing error:', processingError);
       return NextResponse.json(
@@ -237,14 +237,35 @@ async function processPDF(file: File): Promise<{ content: string; pageCount: num
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Import pdf-parse dynamically
-    const pdfParse = await import('pdf-parse');
+    // Use pdfjs-dist for PDF parsing
+    const pdfjsLib = await import('pdfjs-dist');
     
-    // Parse PDF
-    const data = await pdfParse.default(buffer);
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      useSystemFonts: true,
+      disableFontFace: false,
+      disableRange: false,
+      disableStream: false
+    });
+    
+    const pdf = await loadingTask.promise;
+    const numPages = pdf.numPages;
+    
+    // Extract text from all pages
+    let fullText = '';
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ')
+        .trim();
+      fullText += pageText + '\n\n';
+    }
     
     // Clean and validate the extracted text
-    let cleanText = data.text || '';
+    let cleanText = fullText;
     
     // Remove excessive whitespace and normalize
     cleanText = cleanText.replace(/\s+/g, ' ').trim();
@@ -255,15 +276,15 @@ async function processPDF(file: File): Promise<{ content: string; pageCount: num
     }
     
     console.log('PDF parsed successfully:', {
-      pages: data.numpages,
+      pages: numPages,
       textLength: cleanText.length,
       wordCount: cleanText.split(/\s+/).length,
-      originalTextLength: data.text?.length || 0
+      originalTextLength: fullText.length
     });
     
     return {
       content: cleanText,
-      pageCount: data.numpages,
+      pageCount: numPages,
       wordCount: cleanText.split(/\s+/).length
     };
     

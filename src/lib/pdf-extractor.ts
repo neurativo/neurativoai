@@ -12,37 +12,67 @@ export interface PDFExtractionResult {
 export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResult> {
   try {
     console.log('=== PDF EXTRACTION START ===');
-    console.log('Starting PDF extraction with pdf-parse...');
+    console.log('Starting PDF extraction with pdfjs-dist (serverless compatible)...');
     console.log('Buffer size:', buffer.length, 'bytes');
     
-    // Use require for better compatibility
-    const pdfParse = require("pdf-parse");
+    // Use pdfjs-dist which is serverless compatible
+    const pdfjsLib = await import('pdfjs-dist');
     
-    console.log('pdf-parse loaded successfully:', typeof pdfParse);
+    console.log('pdfjs-dist loaded successfully');
     
-    const data = await pdfParse(buffer, {
-      // Options for better text extraction
-      max: 0, // No page limit
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({
+      data: buffer,
+      useSystemFonts: true,
+      disableFontFace: false,
+      disableRange: false,
+      disableStream: false
     });
-
-    console.log('PDF parsed successfully:', {
-      pages: data.numpages,
-      textLength: data.text.length,
-      info: data.info
-    });
-    console.log('Raw text preview (first 200 chars):', data.text.substring(0, 200));
-
-    // Split by page breaks and add page markers
-    const pages = data.text.split(/\f/).filter(Boolean);
-    console.log('Pages detected after splitting:', pages.length);
     
+    const pdf = await loadingTask.promise;
+    const numPages = pdf.numPages;
+    
+    console.log('PDF loaded successfully:', {
+      pages: numPages
+    });
+    
+    // Extract text from all pages
+    let fullText = '';
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ')
+        .trim();
+      fullText += pageText + '\n\n';
+    }
+    
+    console.log('PDF text extracted successfully:', {
+      pages: numPages,
+      textLength: fullText.length
+    });
+    console.log('Raw text preview (first 200 chars):', fullText.substring(0, 200));
+
     // Create structured text with page markers
+    // Since pdfjs-dist doesn't provide page breaks, we'll split the text by pages manually
+    const pages: string[] = [];
+    const wordsPerPage = Math.ceil(fullText.split(/\s+/).length / numPages);
+    const words = fullText.split(/\s+/);
+    
+    for (let i = 0; i < numPages; i++) {
+      const startWord = i * wordsPerPage;
+      const endWord = Math.min((i + 1) * wordsPerPage, words.length);
+      const pageText = words.slice(startWord, endWord).join(' ').trim();
+      if (pageText) {
+        pages.push(pageText);
+      }
+    }
+    
+    console.log('Pages created from text splitting:', pages.length);
+    
     const structured = pages
-      .map((pageText, i) => {
-        const cleanText = pageText.trim();
-        return cleanText ? `--- PAGE ${i + 1} ---\n${cleanText}` : '';
-      })
-      .filter(Boolean)
+      .map((pageText, i) => `--- PAGE ${i + 1} ---\n${pageText}`)
       .join("\n\n");
 
     console.log('Structured text created:', {
@@ -53,7 +83,7 @@ export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResul
     return {
       text: structured,
       numPages: pages.length,
-      info: data.info,
+      info: { pages: numPages },
       success: true
     };
 

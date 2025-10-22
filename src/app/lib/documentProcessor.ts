@@ -135,7 +135,19 @@ export class DocumentProcessor {
       const buffer = Buffer.from(arrayBuffer);
       
       // Use pdf-parse for reliable multi-page extraction
-      const { extractPDFText, normalizeText, validatePageExtraction } = await import('@/lib/pdf-extractor');
+      console.log('=== DOCUMENT PROCESSOR: Attempting to import pdf-extractor ===');
+      
+      let extractPDFText, normalizeText, validatePageExtraction;
+      try {
+        const pdfExtractor = await import('@/lib/pdf-extractor');
+        extractPDFText = pdfExtractor.extractPDFText;
+        normalizeText = pdfExtractor.normalizeText;
+        validatePageExtraction = pdfExtractor.validatePageExtraction;
+        console.log('=== PDF-EXTRACTOR IMPORTED SUCCESSFULLY ===');
+      } catch (importError) {
+        console.error('=== PDF-EXTRACTOR IMPORT FAILED ===', importError);
+        throw new Error(`Failed to import pdf-extractor: ${importError}`);
+      }
       
       console.log('=== DOCUMENT PROCESSOR: Starting PDF processing with pdf-parse ===');
       const result = await extractPDFText(buffer);

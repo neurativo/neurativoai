@@ -276,6 +276,7 @@ export class DocumentProcessor {
     console.log('Content length:', content.length);
     console.log('Total pages:', totalPages);
     console.log('First 500 characters:', content.substring(0, 500));
+    console.log('Page break count:', (content.match(/\[PAGE BREAK\]/g) || []).length);
     
     const sections: DocumentSection[] = [];
     const lines = content.split('\n').filter(line => line.trim().length > 0);
@@ -384,7 +385,7 @@ export class DocumentProcessor {
         // Create sections based on pages
         pageSections.forEach((pageContent, index) => {
           const cleanContent = pageContent.trim();
-          if (cleanContent.length > 50) {
+          if (cleanContent.length > 10) { // Lower threshold for content
             sections.push({
               id: `page_section_${index + 1}`,
               title: `Page ${index + 1} Content`,
@@ -396,6 +397,24 @@ export class DocumentProcessor {
               topics: []
             });
           }
+        });
+      }
+      
+      // If still no sections but we have page breaks, create sections anyway
+      if (sections.length === 0 && pageSections.length > 0) {
+        console.log('Creating sections from page breaks despite low content...');
+        pageSections.forEach((pageContent, index) => {
+          const cleanContent = pageContent.trim();
+          sections.push({
+            id: `page_section_${index + 1}`,
+            title: `Page ${index + 1} Content`,
+            level: 1,
+            content: cleanContent || `Page ${index + 1} (no text content)`,
+            pageNumber: index + 1,
+            wordCount: this.countWords(cleanContent),
+            isExamRelevant: false,
+            topics: []
+          });
         });
       }
       

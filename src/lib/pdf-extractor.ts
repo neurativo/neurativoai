@@ -58,7 +58,7 @@ export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResul
                 }
               }).filter(text => text.trim().length > 0).join(" ");
               
-              return `--- PAGE ${i + 1} ---\n${text}`;
+              return `[PAGE BREAK]\n${text}`;
             });
 
             const fullText = pages.join("\n\n");
@@ -130,7 +130,7 @@ export function normalizeText(text: string): string {
     .replace(/\r\n/g, "\n")           // Normalize line endings
     .replace(/\n{3,}/g, "\n\n")       // Reduce multiple newlines
     .replace(/\s{3,}/g, " ")          // Reduce multiple spaces
-    .replace(/-{3,}\s*PAGE\s*\d+\s*-{3,}/g, "\n\n[PAGE BREAK]\n\n"); // Normalize page markers
+    .replace(/\[PAGE BREAK\]\s*\n/g, "\n\n[PAGE BREAK]\n\n"); // Normalize page markers
 
   console.log('Text normalized:', {
     newLength: normalized.length,

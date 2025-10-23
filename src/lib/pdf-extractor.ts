@@ -95,7 +95,7 @@ export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResul
     try {
       console.log('Attempting fallback with pdf-parse...');
       const pdfParse = await import('pdf-parse');
-      const data = await pdfParse.default(buffer);
+      const data = await (pdfParse as any).default(buffer);
       
       console.log('PDF-parse fallback successful:', {
         pages: data.numpages,

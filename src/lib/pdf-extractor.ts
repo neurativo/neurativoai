@@ -33,9 +33,31 @@ export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResul
             });
 
             const pages = pdfData.Pages.map((page: any, i: number) => {
-              const text = page.Texts.map((t: any) =>
-                decodeURIComponent(t.R[0].T)
-              ).join(" ");
+              if (!page.Texts || page.Texts.length === 0) {
+                console.warn(`Page ${i + 1} has no text content`);
+                return `--- PAGE ${i + 1} ---\n[No text content found]`;
+              }
+              
+              const text = page.Texts.map((t: any) => {
+                if (!t.R || !t.R[0] || !t.R[0].T) {
+                  return '';
+                }
+                
+                try {
+                  return decodeURIComponent(t.R[0].T);
+                } catch (error) {
+                  // If decodeURIComponent fails, try alternative decoding or return as-is
+                  console.warn('Failed to decode text:', t.R[0].T, error);
+                  try {
+                    // Try unescape as fallback
+                    return unescape(t.R[0].T);
+                  } catch (e2) {
+                    // Return as-is if all decoding fails
+                    return t.R[0].T || '';
+                  }
+                }
+              }).filter(text => text.trim().length > 0).join(" ");
+              
               return `--- PAGE ${i + 1} ---\n${text}`;
             });
 
@@ -67,14 +89,35 @@ export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResul
     });
 
   } catch (err) {
-    console.error('[PDF Extract Error]', err);
-    return { 
-      text: "", 
-      numPages: 0, 
-      info: {},
-      success: false,
-      error: err instanceof Error ? err.message : 'Unknown PDF extraction error'
-    };
+    console.error('[PDF Extract Error with pdf2json]', err);
+    
+    // Fallback to pdf-parse if pdf2json fails
+    try {
+      console.log('Attempting fallback with pdf-parse...');
+      const pdfParse = await import('pdf-parse');
+      const data = await pdfParse.default(buffer);
+      
+      console.log('PDF-parse fallback successful:', {
+        pages: data.numpages,
+        textLength: data.text.length
+      });
+      
+      return {
+        text: data.text,
+        numPages: data.numpages,
+        info: { pages: data.numpages },
+        success: true
+      };
+    } catch (fallbackError) {
+      console.error('[PDF Extract Fallback Error]', fallbackError);
+      return { 
+        text: "", 
+        numPages: 0, 
+        info: {},
+        success: false,
+        error: err instanceof Error ? err.message : 'Unknown PDF extraction error'
+      };
+    }
   }
 }
 

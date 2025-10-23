@@ -97,7 +97,8 @@ export class DocumentProcessor {
       const totalWords = this.countWords(content);
       
       // Filter for exam-relevant content
-      const relevantSections = await this.filterExamRelevantContent(sections, totalWords);
+      // Temporarily disable filtering to ensure content is available
+      const relevantSections = sections; // await this.filterExamRelevantContent(sections, totalWords);
 
       const processedDocument: ProcessedDocument = {
         id: documentId,

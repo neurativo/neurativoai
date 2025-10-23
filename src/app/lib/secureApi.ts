@@ -33,6 +33,12 @@ export interface SanitizedStudyPack {
     estimatedStudyTime: number;
     difficulty: string;
   };
+  detailedNotes: any[];
+  flashcardDeck: any[];
+  quizBank: any[];
+  glossary: any[];
+  chapters: string[];
+  quickRevisionSheet: string;
   generatedAt: string;
 }
 
@@ -84,6 +90,12 @@ export function sanitizeStudyPack(studyPack: any): SanitizedStudyPack {
       estimatedStudyTime: studyPack.summary?.estimatedStudyTime || 0,
       difficulty: studyPack.summary?.difficulty || 'medium'
     },
+    detailedNotes: studyPack.detailedNotes || [],
+    flashcardDeck: studyPack.flashcardDeck || [],
+    quizBank: studyPack.quizBank || [],
+    glossary: studyPack.glossary || [],
+    chapters: studyPack.chapters || [],
+    quickRevisionSheet: studyPack.quickRevisionSheet || '',
     generatedAt: studyPack.generatedAt || new Date().toISOString()
   };
 }

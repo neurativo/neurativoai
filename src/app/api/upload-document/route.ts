@@ -4,9 +4,38 @@ import { AIStudyPackGenerator } from '@/app/lib/aiStudyPackGenerator';
 import { getSupabaseServer } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { updateJobStatus } from '@/app/api/study-pack/status/route';
+import { 
+  createSecureResponse, 
+  secureLog, 
+  secureErrorLog, 
+  validateFileUpload, 
+  RateLimiter,
+  securityHeaders,
+  sanitizeInput,
+  generateSecureId
+} from '@/app/lib/secureApi';
+
+// Initialize rate limiter
+const rateLimiter = new RateLimiter(60000, 5); // 5 requests per minute
 
 export async function POST(request: NextRequest) {
   try {
+    // Get client IP for rate limiting
+    const clientIP = request.headers.get('x-forwarded-for') || 
+                    request.headers.get('x-real-ip') || 
+                    'unknown';
+    
+    // Check rate limit
+    if (!rateLimiter.isAllowed(clientIP)) {
+      return NextResponse.json(
+        { 
+          error: 'Too many requests. Please try again later.',
+          retryAfter: Math.ceil((rateLimiter.getResetTime(clientIP) - Date.now()) / 1000)
+        },
+        { status: 429 }
+      );
+    }
+
     // Check content length before processing
     const contentLength = request.headers.get('content-length');
     const maxPayloadSize = 4.5 * 1024 * 1024; // 4.5MB Vercel limit
@@ -24,10 +53,10 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const title = formData.get('title') as string;
-    const subject = formData.get('subject') as string;
-    const course = formData.get('course') as string;
-    const difficulty = formData.get('difficulty') as string;
+    const title = sanitizeInput(formData.get('title') as string || '');
+    const subject = sanitizeInput(formData.get('subject') as string || '');
+    const course = sanitizeInput(formData.get('course') as string || '');
+    const difficulty = sanitizeInput(formData.get('difficulty') as string || 'medium');
 
     if (!file) {
       return NextResponse.json(
@@ -35,6 +64,22 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate file upload
+    const validation = validateFileUpload(file);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    secureLog('Processing file upload', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      clientIP
+    });
 
     // Determine user plan to apply plan-based limits
     const supabase = getSupabaseServer();
@@ -175,29 +220,41 @@ export async function POST(request: NextRequest) {
       questions: studyPack.quizBank.reduce((sum, pack) => sum + pack.questions.length, 0)
     });
 
-    return NextResponse.json({
-      success: true,
-      document: processedDocument,
-      studyPack,
-      message: 'Document processed and study pack generated successfully'
+    // Create secure response
+    const secureResponse = createSecureResponse(
+      true,
+      { document: processedDocument, studyPack },
+      'Document processed and study pack generated successfully'
+    );
+
+    secureLog('Document processing completed successfully', {
+      documentId: processedDocument.id,
+      studyPackId: studyPack.id,
+      totalSections: processedDocument.sections.length,
+      totalFlashcards: studyPack.flashcardDeck.length,
+      totalNotes: studyPack.detailedNotes.length,
+      totalQuizzes: studyPack.quizBank.length
+    });
+
+    return NextResponse.json(secureResponse, {
+      status: 200,
+      headers: securityHeaders
     });
 
   } catch (error) {
-    console.error('Error processing document upload:', error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      cause: error instanceof Error ? error.cause : undefined
-    });
+    secureErrorLog('Document processing failed', error);
     
     return NextResponse.json(
       { 
         error: 'Failed to process document',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        type: error instanceof Error ? error.name : 'UnknownError'
+        details: process.env.NODE_ENV === 'production' 
+          ? 'An error occurred while processing your document. Please try again.' 
+          : error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: securityHeaders
+      }
     );
   }
 }

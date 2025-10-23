@@ -11,8 +11,11 @@ export interface SanitizedDocument {
     id: string;
     title: string;
     level: number;
+    content: string;
+    pageNumber: number;
     wordCount: number;
     isExamRelevant: boolean;
+    topics: string[];
   }>;
   metadata: {
     author: string;
@@ -63,8 +66,11 @@ export function sanitizeDocument(document: any): SanitizedDocument {
       id: section.id || '',
       title: section.title || 'Untitled Section',
       level: section.level || 1,
+      content: section.content || '',
+      pageNumber: section.pageNumber || 1,
       wordCount: section.wordCount || 0,
-      isExamRelevant: section.isExamRelevant || false
+      isExamRelevant: section.isExamRelevant || false,
+      topics: section.topics || []
     })),
     metadata: {
       author: document.metadata?.author || 'Unknown',

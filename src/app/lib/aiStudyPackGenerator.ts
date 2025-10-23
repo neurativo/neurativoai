@@ -103,6 +103,17 @@ export interface StudyPackGeneratorConfig {
   difficultyLevel: 'beginner' | 'intermediate' | 'advanced';
 }
 
+// Safe JSON parsing function for AI responses
+const safeJson = (str: string) => {
+  try {
+    const clean = str.replace(/```json|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch (e) {
+    console.error("Invalid AI JSON:", e);
+    return {};
+  }
+};
+
 export class AIStudyPackGenerator {
   private config: StudyPackGeneratorConfig;
   private openai: OpenAI | null = null;
@@ -291,9 +302,8 @@ Format the response as JSON with this structure:
         throw new Error('No response from AI');
       }
 
-      // Clean the response by removing code fences
-      const cleanResponse = aiResponse.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(cleanResponse);
+      // Use safe JSON parsing
+      const parsed = safeJson(aiResponse);
       
       return {
         id: `note_${section.id}`,
@@ -545,9 +555,8 @@ Format as JSON array:
         throw new Error('No response from AI');
       }
 
-      // Clean the response by removing code fences
-      const cleanResponse = aiResponse.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(cleanResponse);
+      // Use safe JSON parsing
+      const parsed = safeJson(aiResponse);
       
       return parsed.map((card: any, index: number) => ({
         id: `flashcard_${section.id}_${index}`,

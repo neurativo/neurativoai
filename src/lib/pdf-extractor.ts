@@ -1,5 +1,7 @@
-// PDF Text Extractor using pdfjs-dist directly
-// Handles multi-page PDFs properly in serverless environments
+// PDF Text Extractor using pdf2json
+// Pure Node.js solution that works perfectly in serverless environments
+
+import PDFParser from "pdf2json";
 
 export interface PDFExtractionResult {
   text: string;
@@ -12,80 +14,57 @@ export interface PDFExtractionResult {
 export async function extractPDFText(buffer: Buffer): Promise<PDFExtractionResult> {
   try {
     console.log('=== PDF EXTRACTION START ===');
-    console.log('Starting PDF extraction with pdfjs-dist (serverless compatible)...');
+    console.log('Starting PDF extraction with pdf2json (pure Node.js)...');
     console.log('Buffer size:', buffer.length, 'bytes');
     
-    // Use pdfjs-dist which is serverless compatible
-    const pdfjsLib = await import('pdfjs-dist');
-    
-    console.log('pdfjs-dist loaded successfully');
-    
-    // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument({
-      data: buffer,
-      useSystemFonts: true,
-      disableFontFace: false,
-      disableRange: false,
-      disableStream: false
-    });
-    
-    const pdf = await loadingTask.promise;
-    const numPages = pdf.numPages;
-    
-    console.log('PDF loaded successfully:', {
-      pages: numPages
-    });
-    
-    // Extract text from all pages
-    let fullText = '';
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ')
-        .trim();
-      fullText += pageText + '\n\n';
-    }
-    
-    console.log('PDF text extracted successfully:', {
-      pages: numPages,
-      textLength: fullText.length
-    });
-    console.log('Raw text preview (first 200 chars):', fullText.substring(0, 200));
+    return new Promise<PDFExtractionResult>((resolve, reject) => {
+      try {
+        const pdfParser = new PDFParser();
 
-    // Create structured text with page markers
-    // Since pdfjs-dist doesn't provide page breaks, we'll split the text by pages manually
-    const pages: string[] = [];
-    const wordsPerPage = Math.ceil(fullText.split(/\s+/).length / numPages);
-    const words = fullText.split(/\s+/);
-    
-    for (let i = 0; i < numPages; i++) {
-      const startWord = i * wordsPerPage;
-      const endWord = Math.min((i + 1) * wordsPerPage, words.length);
-      const pageText = words.slice(startWord, endWord).join(' ').trim();
-      if (pageText) {
-        pages.push(pageText);
+        pdfParser.on("pdfParser_dataError", (err: any) => {
+          console.error("[PDF2JSON ERROR]", err.parserError || err);
+          reject(new Error(`PDF parsing failed: ${err.parserError || err}`));
+        });
+
+        pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+          try {
+            console.log('PDF2JSON parsed successfully:', {
+              pages: pdfData.Pages?.length || 0
+            });
+
+            const pages = pdfData.Pages.map((page: any, i: number) => {
+              const text = page.Texts.map((t: any) =>
+                decodeURIComponent(t.R[0].T)
+              ).join(" ");
+              return `--- PAGE ${i + 1} ---\n${text}`;
+            });
+
+            const fullText = pages.join("\n\n");
+            
+            console.log('PDF text extracted successfully:', {
+              pages: pdfData.Pages.length,
+              textLength: fullText.length
+            });
+            console.log('Raw text preview (first 200 chars):', fullText.substring(0, 200));
+
+            resolve({
+              text: fullText,
+              numPages: pdfData.Pages.length,
+              info: { pages: pdfData.Pages.length },
+              success: true
+            });
+          } catch (e) {
+            console.error("[PDF2JSON PARSE ERROR]", e);
+            reject(new Error(`Failed to parse PDF data: ${e}`));
+          }
+        });
+
+        pdfParser.parseBuffer(buffer);
+      } catch (err) {
+        console.error("[PDF2JSON INIT ERROR]", err);
+        reject(new Error(`Failed to initialize PDF parser: ${err}`));
       }
-    }
-    
-    console.log('Pages created from text splitting:', pages.length);
-    
-    const structured = pages
-      .map((pageText, i) => `--- PAGE ${i + 1} ---\n${pageText}`)
-      .join("\n\n");
-
-    console.log('Structured text created:', {
-      totalLength: structured.length,
-      pageMarkers: (structured.match(/--- PAGE \d+ ---/g) || []).length
     });
-
-    return {
-      text: structured,
-      numPages: pages.length,
-      info: { pages: numPages },
-      success: true
-    };
 
   } catch (err) {
     console.error('[PDF Extract Error]', err);

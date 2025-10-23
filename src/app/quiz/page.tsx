@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from "react";
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { UsageTracker } from "@/lib/usage-tracker";
 import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
+import { Loader2, FileText, Brain, Layers, BookOpen, CheckCircle } from "lucide-react";
 
 type PreviewQuestion = { id?: string | number; question?: string; type?: string };
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
@@ -21,12 +22,89 @@ type LimitState = {
     };
 };
 
+// Progress bar component
+const StudyPackProgressBar = ({ progress }: { progress: { step: number; totalSteps: number; currentStep: string; percentage: number } }) => {
+	const steps = [
+		{ id: 1, name: 'Uploading Document', icon: FileText },
+		{ id: 2, name: 'Extracting Text', icon: FileText },
+		{ id: 3, name: 'Analyzing Content', icon: Brain },
+		{ id: 4, name: 'Generating Notes', icon: BookOpen },
+		{ id: 5, name: 'Creating Flashcards', icon: Layers },
+		{ id: 6, name: 'Finalizing Study Pack', icon: CheckCircle }
+	];
+
+	return (
+		<div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+			<div className="flex items-center justify-between mb-4">
+				<h3 className="text-lg font-semibold text-gray-900">Generating Your Study Pack</h3>
+				<span className="text-sm text-gray-500">{progress.percentage}%</span>
+			</div>
+			
+			{/* Progress Bar */}
+			<div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+				<div 
+					className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+					style={{ width: `${progress.percentage}%` }}
+				></div>
+			</div>
+			
+			{/* Current Step */}
+			<div className="flex items-center space-x-3 mb-4">
+				{progress.step > 0 ? (
+					<Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+				) : (
+					<div className="w-5 h-5 rounded-full bg-gray-300"></div>
+				)}
+				<span className="text-sm text-gray-700">{progress.currentStep}</span>
+			</div>
+			
+			{/* Step Indicators */}
+			<div className="flex justify-between">
+				{steps.map((step) => {
+					const Icon = step.icon;
+					const isCompleted = progress.step > step.id;
+					const isCurrent = progress.step === step.id;
+					
+					return (
+						<div key={step.id} className="flex flex-col items-center space-y-2">
+							<div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+								isCompleted 
+									? 'bg-green-500 text-white' 
+									: isCurrent 
+									? 'bg-blue-600 text-white' 
+									: 'bg-gray-300 text-gray-600'
+							}`}>
+								{isCompleted ? (
+									<CheckCircle className="w-4 h-4" />
+								) : (
+									<Icon className="w-4 h-4" />
+								)}
+							</div>
+							<span className={`text-xs text-center max-w-20 ${
+								isCompleted || isCurrent ? 'text-gray-900 font-medium' : 'text-gray-500'
+							}`}>
+								{step.name}
+							</span>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+};
+
 export default function QuizPage() {
 	const [sourceTab, setSourceTab] = useState<"text" | "url" | "document" | "study-pack" | "3d-quiz">("text");
 	const [documentProcessing, setDocumentProcessing] = useState(false);
 	const [processedDocument, setProcessedDocument] = useState<any>(null);
 	const [studyPackMode, setStudyPackMode] = useState(false);
 	const [studyPack, setStudyPack] = useState<any>(null);
+	const [generationProgress, setGenerationProgress] = useState({
+		step: 0,
+		totalSteps: 6,
+		currentStep: '',
+		percentage: 0
+	});
 	const [activeStudyTab, setActiveStudyTab] = useState<'notes' | 'flashcards' | 'quizzes' | 'revision'>('notes');
 	const [aiContent, setAiContent] = useState("");
 	const [sourceUrl, setSourceUrl] = useState("");
@@ -47,6 +125,27 @@ export default function QuizPage() {
 	const [usageStats, setUsageStats] = useState<any>(null);
 
 	const characters = useMemo(() => aiContent.length, [aiContent]);
+
+	// Progress update function
+	const updateProgress = (step: number, currentStep: string) => {
+		const percentage = Math.round((step / generationProgress.totalSteps) * 100);
+		setGenerationProgress({
+			step,
+			totalSteps: generationProgress.totalSteps,
+			currentStep,
+			percentage
+		});
+	};
+
+	// Reset progress function
+	const resetProgress = () => {
+		setGenerationProgress({
+			step: 0,
+			totalSteps: 6,
+			currentStep: '',
+			percentage: 0
+		});
+	};
 
 	// Load user plan and usage stats
 	useEffect(() => {
@@ -106,6 +205,10 @@ export default function QuizPage() {
 			setDocumentProcessing(true);
 			setError(null);
 			
+			// Reset and initialize progress
+			resetProgress();
+			updateProgress(1, 'Uploading Document...');
+			
 			// Validate file
 			if (!file) {
 				throw new Error('No file selected');
@@ -159,6 +262,9 @@ export default function QuizPage() {
 			formData.append('course', 'General');
 			formData.append('difficulty', aiDifficulty);
 
+			// Update progress - extracting text
+			updateProgress(2, 'Extracting text from document...');
+			
 			console.log('Sending request to /api/upload-document...');
 			const response = await fetch('/api/upload-document', {
 				method: 'POST',
@@ -199,6 +305,14 @@ export default function QuizPage() {
 				throw new Error(result.error || 'Study pack generation failed');
 			}
 			
+			// Update progress - analyzing content
+			updateProgress(3, 'Analyzing content structure...');
+			
+			// Simulate AI processing steps with progress updates
+			setTimeout(() => updateProgress(4, 'Generating detailed notes...'), 1000);
+			setTimeout(() => updateProgress(5, 'Creating flashcards...'), 2000);
+			setTimeout(() => updateProgress(6, 'Finalizing study pack...'), 3000);
+			
 			if (!result.studyPack) {
 				throw new Error('No study pack data received from server');
 			}
@@ -211,9 +325,16 @@ export default function QuizPage() {
 				chaptersCount: result.studyPack?.chapters?.length || 0
 			});
 			
+			// Complete progress
+			updateProgress(6, 'Study pack generated successfully!');
+			
 			setProcessedDocument(result.document);
 			setStudyPack(result.studyPack);
-			setDocumentProcessing(false);
+			
+			// Hide progress after a short delay
+			setTimeout(() => {
+				setDocumentProcessing(false);
+			}, 1000);
 			
 		} catch (error) {
 			console.error('Error generating study pack:', error);
@@ -590,11 +711,8 @@ export default function QuizPage() {
 											)}
 											
 											{documentProcessing && (
-												<div className="mt-4 p-4 bg-blue-500/20 rounded-lg">
-													<div className="flex items-center space-x-3">
-														<span className="loading loading-spinner loading-sm"></span>
-														<span className="text-blue-300">Processing document with AI...</span>
-													</div>
+												<div className="mt-4">
+													<StudyPackProgressBar progress={generationProgress} />
 												</div>
 											)}
 											

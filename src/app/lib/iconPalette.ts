@@ -66,26 +66,12 @@ export function getIconClasses(
 
 /**
  * Icon component wrapper with consistent styling
+ * Note: This is a utility file for icon classes only.
+ * For React components, use the classes directly in your JSX.
  */
 export interface IconProps {
   type: keyof typeof ICON_COLORS;
   size?: keyof typeof ICON_SIZES;
   background?: keyof typeof ICON_BACKGROUNDS;
   className?: string;
-  children: React.ReactNode;
-}
-
-export function ThemedIcon({ 
-  type, 
-  size = 'md', 
-  background, 
-  className = '', 
-  children 
-}: IconProps) {
-  const iconClasses = getIconClasses(type, size, background);
-  return (
-    <div className={`${iconClasses} ${className}`}>
-      {children}
-    </div>
-  );
 }

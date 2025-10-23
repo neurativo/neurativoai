@@ -169,15 +169,7 @@ export class SpacedRepetitionSystem {
       nextReview,
       confidence: nextEaseFactor,
       reviewCount: flashcard.reviewCount + 1,
-      correctStreak: newCorrectStreak,
-      reviewHistory: [
-        ...flashcard.reviewHistory,
-        {
-          date: new Date(),
-          correct: isCorrect,
-          timeSpent
-        }
-      ]
+      correctStreak: newCorrectStreak
     };
 
     return progress;

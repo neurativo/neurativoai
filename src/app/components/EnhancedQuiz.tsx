@@ -14,7 +14,13 @@ import {
   Brain,
   Timer,
   Award,
-  BarChart3
+  BarChart3,
+  Circle,
+  FileText,
+  Edit3,
+  FileEdit,
+  HelpCircle,
+  BookOpen
 } from 'lucide-react';
 import { EnhancedQuiz as QuizType } from '../lib/types/studyPack';
 
@@ -146,8 +152,6 @@ export default function EnhancedQuiz({
   const togglePause = () => {
     setIsPaused(!isPaused);
   };
-
-import { Circle, FileText, Edit3, FileEdit, HelpCircle } from 'lucide-react';
 
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {

@@ -3,10 +3,10 @@ import { createSecureResponse, secureLog, securityHeaders } from '@/app/lib/secu
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const studyPackId = params.id;
+    const { id: studyPackId } = await params;
     
     // In a real implementation, you would fetch from database
     // For now, return a mock response

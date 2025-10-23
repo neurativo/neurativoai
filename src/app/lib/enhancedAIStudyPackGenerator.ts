@@ -264,7 +264,7 @@ Make questions challenging but fair, with clear explanations for learning.
         questions,
         totalQuestions: questions.length,
         estimatedTime: Math.ceil(estimatedTime / 60),
-        difficulty: this.calculateOverallDifficulty(questions),
+        difficulty: this.mapQuizDifficulty(this.calculateOverallDifficulty(questions)),
         totalPoints,
         passingScore: 70,
         adaptiveMode: true,
@@ -468,6 +468,12 @@ Keep the explanation concise but comprehensive (2-3 sentences).
     if (difficulty <= 2) return 'beginner';
     if (difficulty <= 4) return 'intermediate';
     return 'advanced';
+  }
+
+  private mapQuizDifficulty(difficulty: number): 'easy' | 'medium' | 'hard' {
+    if (difficulty <= 2) return 'easy';
+    if (difficulty <= 4) return 'medium';
+    return 'hard';
   }
 
   // Fallback methods for error handling

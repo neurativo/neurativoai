@@ -127,8 +127,7 @@ export default function StudyPackViewer({
       progress,
       flashcard.id,
       performance,
-      timeSpent,
-      studySession?.id
+      timeSpent
     );
     setProgress(updatedProgress);
 

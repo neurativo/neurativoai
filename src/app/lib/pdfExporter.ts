@@ -1,8 +1,8 @@
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
 import { EnhancedFlashcard, EnhancedNote, EnhancedQuiz, StudyPackMetadata } from './types/studyPack';
 
 export class PDFExporter {
-  private browser: puppeteer.Browser | null = null;
+  private browser: Browser | null = null;
 
   async initialize() {
     if (!this.browser) {
@@ -57,7 +57,7 @@ export class PDFExporter {
         preferCSSPageSize: true
       });
 
-      return pdf;
+      return Buffer.from(pdf);
     } finally {
       await page.close();
     }
@@ -99,7 +99,7 @@ export class PDFExporter {
         preferCSSPageSize: true
       });
 
-      return pdf;
+      return Buffer.from(pdf);
     } finally {
       await page.close();
     }
@@ -134,7 +134,7 @@ export class PDFExporter {
         preferCSSPageSize: true
       });
 
-      return pdf;
+      return Buffer.from(pdf);
     } finally {
       await page.close();
     }

@@ -15,8 +15,7 @@ import {
   Star,
   CheckCircle
 } from 'lucide-react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+// Simple syntax highlighting without external dependencies
 import { EnhancedNote } from '../lib/types/studyPack';
 
 interface EnhancedNotesProps {
@@ -226,14 +225,9 @@ export default function EnhancedNotes({
           
           {example.code && (
             <div className="mb-3">
-              <SyntaxHighlighter
-                language={example.language || 'javascript'}
-                style={tomorrow}
-                className="rounded-lg text-sm"
-                showLineNumbers
-              >
-                {example.code}
-              </SyntaxHighlighter>
+              <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono">
+                <code>{example.code}</code>
+              </pre>
             </div>
           )}
           

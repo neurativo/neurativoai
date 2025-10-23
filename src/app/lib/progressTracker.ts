@@ -83,15 +83,14 @@ export class ProgressTracker {
   ): void {
     const flashcard = this.progress.flashcards[flashcardId];
     if (!flashcard) {
-      this.progress.flashcards[flashcardId] = {
-        status: 'new',
-        lastReviewed: new Date(),
-        nextReview: new Date(),
-        confidence: 0.5,
-        reviewCount: 0,
-        correctStreak: 0,
-        reviewHistory: []
-      };
+    this.progress.flashcards[flashcardId] = {
+      status: 'new',
+      lastReviewed: new Date(),
+      nextReview: new Date(),
+      confidence: 0.5,
+      reviewCount: 0,
+      correctStreak: 0
+    };
     }
 
     const isCorrect = performance === 'good' || performance === 'easy';
@@ -132,15 +131,7 @@ export class ProgressTracker {
       lastReviewed: new Date(),
       confidence: newConfidence,
       reviewCount: flashcard.reviewCount + 1,
-      correctStreak: newCorrectStreak,
-      reviewHistory: [
-        ...flashcard.reviewHistory,
-        {
-          date: new Date(),
-          correct: isCorrect,
-          timeSpent
-        }
-      ]
+      correctStreak: newCorrectStreak
     };
 
     // Update session progress

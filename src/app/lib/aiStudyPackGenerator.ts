@@ -228,7 +228,8 @@ export class AIStudyPackGenerator {
     const notes: StudyNote[] = [];
     
     for (const section of sections) {
-      if (!section.isExamRelevant) continue;
+      // Process all sections regardless of exam relevance for now
+      if (!section.content || section.content.trim().length < 10) continue;
       
       try {
         const note = await this.createStudyNote(section);
@@ -493,7 +494,8 @@ Format the response as JSON with this structure:
     const flashcards: Flashcard[] = [];
     
     for (const section of sections) {
-      if (!section.isExamRelevant) continue;
+      // Process all sections regardless of exam relevance for now
+      if (!section.content || section.content.trim().length < 10) continue;
       
       try {
         const sectionFlashcards = await this.createFlashcardsForSection(section);
@@ -725,7 +727,7 @@ Format as JSON array:
     
     // Add key points from each section
     for (const section of document.sections) {
-      if (!section.isExamRelevant) continue;
+      if (!section.content || section.content.trim().length < 10) continue;
       
       revisionSheet += `## ${section.title}\n`;
       revisionSheet += `- ${section.content.substring(0, 200)}...\n\n`;
@@ -793,7 +795,7 @@ Format as JSON array:
       const section = sections[i];
       const chapter = chapters.find(c => i >= c.startIndex && i <= c.endIndex);
       
-      if (!section.isExamRelevant) continue;
+      if (!section.content || section.content.trim().length < 10) continue;
       
       try {
         // Extract key terms and definitions from section content
@@ -838,7 +840,7 @@ Format as JSON array:
       const section = sections[i];
       const chapter = chapters.find(c => i >= c.startIndex && i <= c.endIndex);
       
-      if (!section.isExamRelevant) continue;
+      if (!section.content || section.content.trim().length < 10) continue;
       
       try {
         // Extract terms and definitions using various patterns

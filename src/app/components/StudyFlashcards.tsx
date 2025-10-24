@@ -55,16 +55,16 @@ const Flashcard = ({
   onFlip: () => void;
 }) => {
   return (
-    <div className="relative w-80 h-48 cursor-pointer perspective mx-auto" onClick={onFlip}>
+    <div className="relative w-80 h-48 cursor-pointer mx-auto" onClick={onFlip} style={{ perspective: '1000px' }}>
       <motion.div
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ duration: 0.6, ease: "easeInOut" }}
-        className="absolute inset-0 preserve-3d"
+        className="absolute inset-0 w-full h-full"
         style={{ transformStyle: 'preserve-3d' }}
       >
         {/* Front */}
         <div 
-          className="absolute inset-0 backface-hidden bg-white shadow-xl rounded-2xl flex flex-col justify-center p-6 text-center border-2 border-gray-200"
+          className="absolute inset-0 bg-white shadow-xl rounded-2xl flex flex-col justify-center p-6 text-center border-2 border-gray-200"
           style={{ backfaceVisibility: 'hidden' }}
         >
           <div className="flex items-center justify-between mb-2">
@@ -81,7 +81,7 @@ const Flashcard = ({
 
         {/* Back */}
         <div 
-          className="absolute inset-0 backface-hidden bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-2xl shadow-xl flex flex-col justify-center p-6 text-center"
+          className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-2xl shadow-xl flex flex-col justify-center p-6 text-center"
           style={{ 
             backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)'

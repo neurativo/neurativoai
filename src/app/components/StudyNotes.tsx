@@ -106,18 +106,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
   const formattedContent = formatNoteContent(note.content);
   
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
       <div 
-        className="p-4 border-b border-gray-100 cursor-pointer"
+        className="p-4 border-b border-gray-700 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <BookOpen className="w-5 h-5 text-blue-600" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{note.title}</h3>
-              <p className="text-sm text-gray-600">{note.topic}</p>
+            <h3 className="text-lg font-semibold text-white">{note.title}</h3>
+            <p className="text-sm text-gray-300">{note.topic}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -174,7 +174,7 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           
           {/* Tab Content */}
           {activeTab === 'content' && (
-            <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed">
+            <div className="prose prose-invert max-w-none leading-relaxed text-gray-300">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
               >
@@ -276,8 +276,8 @@ export default function StudyNotes({ notes, onExplainSection }: StudyNotesProps)
     return (
       <div className="text-center py-12">
         <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Notes Available</h3>
-        <p className="text-gray-500">Upload a document to generate comprehensive study notes.</p>
+        <h3 className="text-lg font-medium text-white mb-2">No Notes Available</h3>
+        <p className="text-gray-400">Upload a document to generate comprehensive study notes.</p>
       </div>
     );
   }
@@ -287,12 +287,12 @@ export default function StudyNotes({ notes, onExplainSection }: StudyNotesProps)
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Study Notes</h2>
+          <h2 className="text-2xl font-bold text-white">Study Notes</h2>
           <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
             {notes.length}
           </span>
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-400">
           <Clock className="w-4 h-4 inline mr-1" />
           Estimated study time: {notes.length * 5} minutes
         </div>

@@ -4,6 +4,9 @@ import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { UsageTracker } from "@/lib/usage-tracker";
 import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
 import { Loader2, FileText, Brain, Layers, BookOpen, CheckCircle } from "lucide-react";
+import StudyNotes from "@/app/components/StudyNotes";
+import StudyFlashcards from "@/app/components/StudyFlashcards";
+import StudyQuizzes from "@/app/components/StudyQuizzes";
 
 type PreviewQuestion = { id?: string | number; question?: string; type?: string };
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
@@ -956,123 +959,14 @@ export default function QuizPage() {
 													</div>
 													
 													{activeStudyTab === 'notes' && (
-														<div className="space-y-4 max-h-96 overflow-y-auto">
-															{/* Chapter Filter */}
-															{studyPack.chapters && studyPack.chapters.length > 0 && (
-																<div className="flex flex-wrap gap-2 mb-4">
-																	<button
-																		onClick={() => setActiveStudyTab('notes')}
-																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
-																	>
-																		📚 All Chapters ({studyPack.detailedNotes?.length || 0})
-																	</button>
-																	{studyPack.chapters.map((chapter: string, index: number) => (
-																		<button
-																			key={index}
-																			onClick={() => setActiveStudyTab('notes')}
-																			className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
-																		>
-																			{chapter}
-																		</button>
-																	))}
-																</div>
-															)}
-															
-															{studyPack.detailedNotes?.length > 0 ? (
-																studyPack.detailedNotes.map((note: any, index: number) => (
-																	<div key={note.id || index} className="border border-white/20 rounded-lg p-4 hover:border-purple-400/50 transition-colors">
-																		<div className="flex items-start justify-between mb-3">
-																			<div className="flex-1">
-																				<h4 className="text-lg font-semibold text-white mb-1">{note.title || note.topic}</h4>
-																				{note.pageReference && (
-																					<p className="text-xs text-gray-500 mb-2">📄 Page {note.pageReference}</p>
-																				)}
-																			</div>
-																			<div className="flex items-center gap-2 ml-4">
-																				{note.chapter && (
-																					<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
-																						{note.chapter}
-																					</span>
-																				)}
-																				<span className={`px-2 py-1 rounded-full text-xs font-medium ${
-																					note.level === 'basic' ? 'bg-green-100 text-green-800' :
-																					note.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-																					'bg-red-100 text-red-800'
-																				}`}>
-																					{note.level}
-																				</span>
-																			</div>
-																		</div>
-																		
-																		<div className="text-gray-300 whitespace-pre-line text-sm leading-relaxed mb-3">
-																			{typeof note.content === 'string' ? note.content : 
-																				note.content?.summary ? 
-																					`${note.content.summary.title}\n\n${note.content.summary.keyConcepts?.join('\n• ') || ''}` :
-																					'Content not available'
-																			}
-																		</div>
-																		
-																		{/* Key Highlights */}
-																		{note.highlights && (
-																			<div className="space-y-2 mb-3">
-																				{note.highlights.keyFormulas && note.highlights.keyFormulas.length > 0 && (
-																					<div className="bg-blue-500/10 border border-blue-500/20 rounded p-3">
-																						<h5 className="text-blue-300 font-medium text-sm mb-1">🔑 Key Formulas:</h5>
-																						<ul className="text-xs text-gray-300 space-y-1">
-																							{note.highlights.keyFormulas.map((formula: string, fIndex: number) => (
-																								<li key={fIndex} className="font-mono">{formula}</li>
-																							))}
-																						</ul>
-																					</div>
-																				)}
-																				{note.highlights.examTips && note.highlights.examTips.length > 0 && (
-																					<div className="bg-green-500/10 border border-green-500/20 rounded p-3">
-																						<h5 className="text-green-300 font-medium text-sm mb-1">💡 Exam Tips:</h5>
-																						<ul className="text-xs text-gray-300 space-y-1">
-																							{note.highlights.examTips.map((tip: string, tIndex: number) => (
-																								<li key={tIndex}>• {tip}</li>
-																							))}
-																						</ul>
-																					</div>
-																				)}
-																			</div>
-																		)}
-																		
-																		{/* Examples */}
-																		{note.examples && note.examples.length > 0 && (
-																			<div className="bg-purple-500/10 border border-purple-500/20 rounded p-3 mb-3">
-																				<h5 className="text-purple-300 font-medium text-sm mb-2">📝 Examples:</h5>
-																				{note.examples.map((example: any, eIndex: number) => (
-																					<div key={eIndex} className="mb-2 last:mb-0">
-																						<p className="text-xs text-gray-300 font-medium">{example.title}</p>
-																						<p className="text-xs text-gray-400">{example.description}</p>
-																						{example.code && (
-																							<pre className="text-xs text-gray-300 bg-black/20 p-2 rounded mt-1 font-mono">{example.code}</pre>
-																						)}
-																					</div>
-																				))}
-																			</div>
-																		)}
-																		
-																		{/* Tags */}
-																		{note.tags && note.tags.length > 0 && (
-																			<div className="flex flex-wrap gap-1">
-																				{note.tags.map((tag: string, tagIndex: number) => (
-																					<span key={tagIndex} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-																						{tag}
-																					</span>
-																				))}
-																			</div>
-																		)}
-																	</div>
-																))
-															) : (
-																<div className="text-center py-8 text-gray-400">
-																	<div className="text-4xl mb-2">📝</div>
-																	<p>No detailed notes generated yet.</p>
-																	<p className="text-sm">Upload a document to generate comprehensive notes.</p>
-																</div>
-															)}
+														<div className="max-h-96 overflow-y-auto">
+															<StudyNotes 
+																notes={studyPack.detailedNotes || []} 
+																onExplainSection={(note) => {
+																	console.log('Explain section:', note);
+																	// TODO: Implement AI explanation
+																}}
+															/>
 														</div>
 													)}
 													

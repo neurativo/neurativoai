@@ -8,9 +8,7 @@ import {
   Shuffle, 
   ChevronLeft, 
   ChevronRight,
-  Brain,
   Sparkles,
-  Clock,
   Target,
   CheckCircle,
   XCircle
@@ -50,13 +48,11 @@ const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
 const Flashcard = ({ 
   card, 
   isFlipped, 
-  onFlip, 
-  onExplainCard 
+  onFlip
 }: { 
   card: Flashcard; 
   isFlipped: boolean; 
   onFlip: () => void;
-  onExplainCard?: (card: Flashcard) => void;
 }) => {
   return (
     <div className="relative w-80 h-48 cursor-pointer perspective mx-auto" onClick={onFlip}>
@@ -264,7 +260,6 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
               card={currentCard}
               isFlipped={isFlipped}
               onFlip={() => setIsFlipped(!isFlipped)}
-              onExplainCard={onExplainCard}
             />
           </motion.div>
         </AnimatePresence>

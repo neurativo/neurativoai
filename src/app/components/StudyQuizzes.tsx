@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Brain, 
   Clock, 
@@ -10,7 +9,6 @@ import {
   XCircle, 
   RotateCcw,
   Play,
-  Pause,
   Save,
   Sparkles
 } from 'lucide-react';
@@ -62,7 +60,7 @@ const Quiz = ({
   onExplainQuestion 
 }: { 
   quiz: QuizPack; 
-  onComplete: (results: any) => void;
+  onComplete: (results: { totalQuestions: number; correctAnswers: number; timeSpent: number; answers: number[]; questions: QuizQuestion[] }) => void;
   onExplainQuestion?: (question: QuizQuestion) => void;
 }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -382,7 +380,7 @@ const Quiz = ({
 // Main component
 export default function StudyQuizzes({ quizPacks, onExplainQuestion }: StudyQuizzesProps) {
   const [selectedQuiz, setSelectedQuiz] = useState<QuizPack | null>(null);
-  const [quizResults, setQuizResults] = useState<any[]>([]);
+  const [quizResults, setQuizResults] = useState<{ quizId: string; score: number; correctAnswers: number; totalQuestions: number; timestamp: string }[]>([]);
 
   // Load saved results
   useEffect(() => {
@@ -418,7 +416,14 @@ export default function StudyQuizzes({ quizPacks, onExplainQuestion }: StudyQuiz
         <Quiz 
           quiz={selectedQuiz} 
           onComplete={(results) => {
-            setQuizResults(prev => [...prev, results]);
+            const quizResult = {
+              quizId: selectedQuiz.id,
+              score: Math.round((results.correctAnswers / results.totalQuestions) * 100),
+              correctAnswers: results.correctAnswers,
+              totalQuestions: results.totalQuestions,
+              timestamp: new Date().toISOString()
+            };
+            setQuizResults(prev => [...prev, quizResult]);
             setSelectedQuiz(null);
           }}
           onExplainQuestion={onExplainQuestion}

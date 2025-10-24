@@ -5,8 +5,6 @@ import { UsageTracker } from "@/lib/usage-tracker";
 import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
 import { Loader2, FileText, Brain, Layers, BookOpen, CheckCircle } from "lucide-react";
 import StudyNotes from "@/app/components/StudyNotes";
-import StudyFlashcards from "@/app/components/StudyFlashcards";
-import StudyQuizzes from "@/app/components/StudyQuizzes";
 
 type PreviewQuestion = { id?: string | number; question?: string; type?: string };
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };

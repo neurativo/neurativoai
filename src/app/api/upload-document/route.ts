@@ -3,7 +3,7 @@ import { DocumentProcessor } from '@/app/lib/documentProcessor';
 import { AIStudyPackGenerator } from '@/app/lib/aiStudyPackGenerator';
 import { getSupabaseServer } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { updateJobStatus } from '@/app/api/study-pack/status/route';
+import { updateJobStatus } from '@/app/lib/jobStatusManager';
 import { 
   createSecureResponse, 
   secureLog, 

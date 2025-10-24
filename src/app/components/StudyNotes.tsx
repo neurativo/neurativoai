@@ -6,10 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { 
   BookOpen, 
   Lightbulb, 
-  Edit3, 
   Key, 
-  Settings, 
-  Brain, 
   ChevronDown, 
   ChevronRight,
   Sparkles,
@@ -21,7 +18,7 @@ interface StudyNote {
   id: string;
   title: string;
   topic: string;
-  content: any;
+  content: string | { summary?: { title?: string; keyConcepts?: string[] }; importantTopics?: { definitions?: Record<string, string>; principles?: string[] } };
   level: 'basic' | 'intermediate' | 'advanced';
   highlights?: {
     keyFormulas?: string[];
@@ -44,7 +41,7 @@ interface StudyNotesProps {
 }
 
 // Helper function to format note content
-const formatNoteContent = (content: any): string => {
+const formatNoteContent = (content: string | { summary?: { title?: string; keyConcepts?: string[] }; importantTopics?: { definitions?: Record<string, string>; principles?: string[] } }): string => {
   if (typeof content === 'string') return content;
   
   if (content && typeof content === 'object') {
@@ -177,10 +174,9 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           
           {/* Tab Content */}
           {activeTab === 'content' && (
-            <div className="prose prose-neutral max-w-none">
+            <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
-                className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed"
               >
                 {formattedContent}
               </ReactMarkdown>

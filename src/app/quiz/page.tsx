@@ -214,19 +214,15 @@ export default function QuizPage() {
 						const res = await fetch(`/api/subscriptions?userId=${user.id}`, {
 							headers: { Authorization: `Bearer ${session?.access_token}` }
 						});
-						console.log('Subscription API response status:', res.status);
 						if (res.ok) {
 							const subData = await res.json();
-							console.log('Subscription data:', subData);
 							// The API returns plan data in currentPlan.name
 							const planName = subData?.currentPlan?.name?.toLowerCase() || 'free';
 							setUserPlan(planName);
 						} else {
-							console.log('Subscription API failed, falling back to free plan');
 							setUserPlan('free');
 						}
 					} catch (error) {
-						console.error('Error fetching user plan:', error);
 						setUserPlan('free');
 					}
 					

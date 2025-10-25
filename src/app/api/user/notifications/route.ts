@@ -3,20 +3,20 @@ import { getSupabaseServer } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabaseServer();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
     
-    // Get user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
+
+    const supabase = getSupabaseServer();
 
     // Get user notifications
     const { data: notifications, error } = await supabase
       .from('user_notifications')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -86,29 +86,22 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { notification_id, read } = await request.json();
+    const { notification_id, read, userId } = await request.json();
     
-    if (!notification_id || typeof read !== 'boolean') {
+    if (!notification_id || typeof read !== 'boolean' || !userId) {
       return NextResponse.json({ 
-        error: 'Missing required fields: notification_id, read' 
+        error: 'Missing required fields: notification_id, read, userId' 
       }, { status: 400 });
     }
 
     const supabase = getSupabaseServer();
-    
-    // Get user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Update notification
     const { error } = await supabase
       .from('user_notifications')
       .update({ read })
       .eq('id', notification_id)
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('Error updating notification:', error);

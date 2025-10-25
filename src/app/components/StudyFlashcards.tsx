@@ -44,7 +44,7 @@ const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
   );
 };
 
-// Individual flashcard component
+// Individual flashcard component with glassmorphism and proper flip animation
 const Flashcard = ({ 
   card, 
   isFlipped, 
@@ -55,50 +55,47 @@ const Flashcard = ({
   onFlip: () => void;
 }) => {
   return (
-    <div className="relative w-80 h-48 cursor-pointer mx-auto" onClick={onFlip} style={{ perspective: '1000px' }}>
-      <motion.div
-        animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.6, ease: "easeInOut" }}
-        className="absolute inset-0 w-full h-full"
-        style={{ transformStyle: 'preserve-3d' }}
-      >
-        {/* Front */}
-        <div 
-          className="absolute inset-0 bg-white shadow-xl rounded-2xl flex flex-col justify-center p-6 text-center border-2 border-gray-200"
-          style={{ backfaceVisibility: 'hidden' }}
+    <div className="relative w-full max-w-md h-64 mx-auto cursor-pointer" onClick={onFlip}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={isFlipped ? 'back' : 'front'}
+          initial={{ rotateY: isFlipped ? -180 : 0, opacity: 0 }}
+          animate={{ rotateY: 0, opacity: 1 }}
+          exit={{ rotateY: isFlipped ? 180 : -180, opacity: 0 }}
+          transition={{ duration: 0.6, ease: [0.43, 0.13, 0.23, 0.96] }}
+          className="absolute inset-0 bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl flex flex-col justify-center p-6 text-center"
         >
-          <div className="flex items-center justify-between mb-2">
-            <DifficultyBadge difficulty={card.difficulty} />
-            <span className="text-xs text-gray-500">{card.type}</span>
-          </div>
-          <p className="font-medium text-gray-800 text-lg leading-relaxed">
-            {card.front}
-          </p>
-          <div className="mt-4 text-xs text-gray-400">
-            Click to reveal answer
-          </div>
-        </div>
-
-        {/* Back */}
-        <div 
-          className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-2xl shadow-xl flex flex-col justify-center p-6 text-center"
-          style={{ 
-            backfaceVisibility: 'hidden',
-            transform: 'rotateY(180deg)'
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-blue-200">Answer</span>
-            <span className="text-xs text-blue-200">{card.topic}</span>
-          </div>
-          <p className="text-white text-lg leading-relaxed">
-            {card.back}
-          </p>
-          <div className="mt-4 text-xs text-blue-200">
-            Click to flip back
-          </div>
-        </div>
-      </motion.div>
+          {isFlipped ? (
+            // Back content
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-blue-200 font-medium">Answer</span>
+                <span className="text-xs text-blue-200 font-medium">{card.topic}</span>
+              </div>
+              <p className="text-white text-lg leading-relaxed font-medium">
+                {card.back}
+              </p>
+              <div className="mt-4 text-xs text-blue-200">
+                Click to flip back
+              </div>
+            </div>
+          ) : (
+            // Front content
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <DifficultyBadge difficulty={card.difficulty} />
+                <span className="text-xs text-white/70 font-medium">{card.type}</span>
+              </div>
+              <p className="font-medium text-white text-lg leading-relaxed">
+                {card.front}
+              </p>
+              <div className="mt-4 text-xs text-white/60">
+                Click to reveal answer
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };
@@ -167,10 +164,14 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
 
   if (!flashcards || flashcards.length === 0) {
     return (
-      <div className="text-center py-12">
-        <Layers className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Flashcards Available</h3>
-        <p className="text-gray-500">Upload a document to generate interactive flashcards.</p>
+      <div className="text-center py-16">
+        <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-12 border border-white/10 max-w-md mx-auto">
+          <div className="p-4 bg-purple-500/20 rounded-2xl w-fit mx-auto mb-6">
+            <Layers className="w-16 h-16 text-purple-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-white/90 mb-3">No Flashcards Available</h3>
+          <p className="text-white/70 leading-relaxed">Upload a document to generate interactive flashcards with beautiful animations.</p>
+        </div>
       </div>
     );
   }
@@ -178,34 +179,40 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
   const currentCard = studyCards[currentIndex];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers className="w-6 h-6 text-green-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Flashcards</h2>
-          <span className="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-            {flashcards.length}
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-purple-500/20 rounded-xl">
+            <Layers className="w-8 h-8 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-white/90">Study Flashcards</h2>
+            <p className="text-white/70 text-sm">Interactive memory training</p>
+          </div>
+          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-purple-400/30">
+            <span className="text-purple-200 font-bold text-lg">{flashcards.length}</span>
+            <span className="text-purple-300 text-sm ml-1">cards</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setShowStats(!showStats)}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 transition-all duration-200"
           >
             <Target className="w-4 h-4" />
             Stats
           </button>
           <button
             onClick={shuffleCards}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-500/20 backdrop-blur-sm text-purple-200 rounded-xl hover:bg-purple-500/30 border border-purple-400/30 transition-all duration-200"
           >
             <Shuffle className="w-4 h-4" />
             Shuffle
           </button>
           <button
             onClick={resetCards}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 transition-all duration-200"
           >
             <RotateCcw className="w-4 h-4" />
             Reset
@@ -219,30 +226,32 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="bg-gray-50 rounded-lg p-4"
+          className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl"
         >
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{studiedCards.size}</div>
-              <div className="text-sm text-gray-600">Studied</div>
+          <div className="grid grid-cols-3 gap-6 text-center">
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div className="text-3xl font-bold text-white">{studiedCards.size}</div>
+              <div className="text-sm text-white/70 font-medium">Studied</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">{Math.round(accuracy)}%</div>
-              <div className="text-sm text-gray-600">Accuracy</div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div className="text-3xl font-bold text-green-400">{Math.round(accuracy)}%</div>
+              <div className="text-sm text-white/70 font-medium">Accuracy</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-600">{Math.round(progress)}%</div>
-              <div className="text-sm text-gray-600">Progress</div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+              <div className="text-3xl font-bold text-blue-400">{Math.round(progress)}%</div>
+              <div className="text-sm text-white/70 font-medium">Progress</div>
             </div>
           </div>
         </motion.div>
       )}
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div 
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${progress}%` }}
+      <div className="w-full bg-white/10 backdrop-blur-sm rounded-full h-3 overflow-hidden">
+        <motion.div 
+          className="bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 h-3 rounded-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
         />
       </div>
 
@@ -270,17 +279,17 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
         <button
           onClick={goToPrevious}
           disabled={currentIndex === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-6 py-3 bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
         >
           <ChevronLeft className="w-4 h-4" />
           Previous
         </button>
 
-        <div className="text-center">
-          <div className="text-sm text-gray-600">
+        <div className="text-center bg-white/5 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10">
+          <div className="text-sm text-white font-medium">
             {currentIndex + 1} of {studyCards.length}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-white/60">
             {studyMode === 'shuffle' && 'Shuffled'}
           </div>
         </div>
@@ -288,7 +297,7 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
         <button
           onClick={goToNext}
           disabled={currentIndex === studyCards.length - 1}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-6 py-3 bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
         >
           Next
           <ChevronRight className="w-4 h-4" />
@@ -307,7 +316,7 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
               markAsStudied(false);
               goToNext();
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-red-500/20 backdrop-blur-sm text-red-200 rounded-xl hover:bg-red-500/30 border border-red-400/30 transition-all duration-200"
           >
             <XCircle className="w-4 h-4" />
             Incorrect
@@ -317,7 +326,7 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
               markAsStudied(true);
               goToNext();
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-green-500/20 backdrop-blur-sm text-green-200 rounded-xl hover:bg-green-500/30 border border-green-400/30 transition-all duration-200"
           >
             <CheckCircle className="w-4 h-4" />
             Correct
@@ -330,10 +339,10 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
         <div className="text-center">
           <button
             onClick={() => onExplainCard(currentCard)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors mx-auto"
+            className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
           >
-            <Sparkles className="w-4 h-4" />
-            AI Explain This Card
+            <Sparkles className="w-5 h-5" />
+            <span className="font-semibold">AI Explain This Card</span>
           </button>
         </div>
       )}

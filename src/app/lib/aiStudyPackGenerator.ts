@@ -165,25 +165,39 @@ export class AIStudyPackGenerator {
       // Detect chapters from sections
       const chapters = this.detectChapters(sections);
       
-      // Generate detailed notes for each section (with shortnotes + citations)
-      const detailedNotes = await this.generateDetailedNotes(sections, chapters);
+      // OPTIMIZATION: Process sections in batches for parallel AI calls
+      const batchSize = 3; // Process 3 sections at a time
+      const sectionBatches = this.chunkArray(sections, batchSize);
       
-      // Generate flashcards for each topic (add cloze cards)
-      const flashcardDeck = await this.generateFlashcards(sections, chapters);
-      const clozeCards = await this.generateClozeCards(sections, chapters);
-      const allCards = [...flashcardDeck, ...clozeCards];
+      console.log(`Processing ${sections.length} sections in ${sectionBatches.length} batches`);
       
-      // Generate quiz packs for each chapter (with rationales and estimates)
-      const quizBank = await this.generateQuizPacks(sections, chapters);
+      // Generate detailed notes in parallel batches
+      const detailedNotesPromises = sectionBatches.map(batch => 
+        this.generateDetailedNotesBatch(batch, chapters)
+      );
+      const detailedNotesResults = await Promise.allSettled(detailedNotesPromises);
+      const detailedNotes = detailedNotesResults
+        .filter(result => result.status === 'fulfilled')
+        .flatMap(result => (result as PromiseFulfilledResult<StudyNote[]>).value);
       
-      // Generate glossary from document content
-      const glossary = await this.generateGlossary(sections, chapters);
+      // OPTIMIZATION: Generate flashcards and quizzes in parallel
+      const [flashcardDeck, clozeCards, quizBank, glossary] = await Promise.allSettled([
+        this.generateFlashcards(sections, chapters),
+        this.generateClozeCards(sections, chapters),
+        this.generateQuizPacks(sections, chapters),
+        this.generateGlossary(sections, chapters)
+      ]);
       
-      // Generate quick revision sheet
+      const allCards = [
+        ...(flashcardDeck.status === 'fulfilled' ? flashcardDeck.value : []),
+        ...(clozeCards.status === 'fulfilled' ? clozeCards.value : [])
+      ];
+      
+      // Generate quick revision sheet (can be done in background)
       const quickRevisionSheet = await this.generateQuickRevisionSheet(document);
       
       // Calculate summary statistics
-      const summary = this.calculateSummary(detailedNotes, allCards, quizBank);
+      const summary = this.calculateSummary(detailedNotes, allCards, quizBank.status === 'fulfilled' ? quizBank.value : []);
       
       const revisionPack: RevisionPack = {
         id: `pack_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -191,18 +205,19 @@ export class AIStudyPackGenerator {
         quickRevisionSheet,
         detailedNotes,
         flashcardDeck: allCards,
-        quizBank,
-        glossary,
+        quizBank: quizBank.status === 'fulfilled' ? quizBank.value : [],
+        glossary: glossary.status === 'fulfilled' ? glossary.value : [],
         chapters: chapters.map(c => c.title),
         summary,
         generatedAt: new Date()
       };
       
       const processingTime = Date.now() - startTime;
+      const quizBankValue = quizBank.status === 'fulfilled' ? quizBank.value : [];
       console.log(`Study pack generated in ${processingTime}ms:`, {
         notes: detailedNotes.length,
         flashcards: allCards.length,
-        questions: quizBank.reduce((sum, pack) => sum + pack.questions.length, 0),
+        questions: quizBankValue.reduce((sum, pack) => sum + pack.questions.length, 0),
         chapters: chapters.length,
         sections: sections.length
       });
@@ -210,7 +225,7 @@ export class AIStudyPackGenerator {
       console.log('Generated content details:', {
         detailedNotes: detailedNotes.slice(0, 2), // First 2 notes
         flashcardDeck: allCards.slice(0, 2), // First 2 flashcards
-        quizBank: quizBank.slice(0, 1), // First quiz pack
+        quizBank: quizBankValue.slice(0, 1), // First quiz pack
         chapters: chapters.map(c => c.title)
       });
       
@@ -220,6 +235,50 @@ export class AIStudyPackGenerator {
       console.error('Error generating study pack:', error);
       throw new Error(`Failed to generate study pack: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // Helper method to chunk array into batches
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  // Generate detailed notes in batches for parallel processing
+  private async generateDetailedNotesBatch(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<StudyNote[]> {
+    const notes: StudyNote[] = [];
+    
+    // Process sections in parallel within the batch
+    const sectionPromises = sections.map(section => this.createStudyNote(section));
+    const results = await Promise.allSettled(sectionPromises);
+    
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        notes.push(result.value);
+      } else {
+        console.error(`Failed to generate note for section ${sections[index].id}:`, result.reason);
+        // Create fallback note
+        notes.push({
+          id: `note_${sections[index].id}`,
+          title: sections[index].title,
+          topic: sections[index].title,
+          content: sections[index].content,
+          level: 'basic' as const,
+          highlights: {
+            keyFormulas: [],
+            examTips: [],
+            conceptChecks: []
+          },
+          examples: [],
+          relatedTopics: [],
+          tags: ['fallback']
+        });
+      }
+    });
+    
+    return notes;
   }
 
   private async generateDetailedNotes(sections: DocumentSection[], chapters: Array<{ title: string; startIndex: number; endIndex: number }>): Promise<StudyNote[]> {

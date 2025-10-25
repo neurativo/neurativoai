@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
+import { motion } from 'framer-motion';
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { UsageTracker } from "@/lib/usage-tracker";
 import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
@@ -23,70 +24,105 @@ type LimitState = {
     };
 };
 
-// Progress bar component
+// Enhanced glassmorphism progress bar component
 const StudyPackProgressBar = ({ progress }: { progress: { step: number; totalSteps: number; currentStep: string; percentage: number } }) => {
 	const steps = [
-		{ id: 1, name: 'Uploading Document', icon: FileText },
-		{ id: 2, name: 'Extracting Text', icon: FileText },
-		{ id: 3, name: 'Analyzing Content', icon: Brain },
-		{ id: 4, name: 'Generating Notes', icon: BookOpen },
-		{ id: 5, name: 'Creating Flashcards', icon: Layers },
-		{ id: 6, name: 'Finalizing Study Pack', icon: CheckCircle }
+		{ id: 1, name: 'Uploading Document', icon: FileText, color: 'from-blue-500 to-cyan-500' },
+		{ id: 2, name: 'Extracting Text', icon: FileText, color: 'from-cyan-500 to-teal-500' },
+		{ id: 3, name: 'Analyzing Content', icon: Brain, color: 'from-teal-500 to-green-500' },
+		{ id: 4, name: 'Generating Notes', icon: BookOpen, color: 'from-green-500 to-yellow-500' },
+		{ id: 5, name: 'Creating Flashcards', icon: Layers, color: 'from-yellow-500 to-orange-500' },
+		{ id: 6, name: 'Finalizing Study Pack', icon: CheckCircle, color: 'from-orange-500 to-red-500' }
 	];
 
 	return (
-		<div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-			<div className="flex items-center justify-between mb-4">
-				<h3 className="text-lg font-semibold text-gray-900">Generating Your Study Pack</h3>
-				<span className="text-sm text-gray-500">{progress.percentage}%</span>
+		<div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 shadow-2xl mb-8">
+			<div className="flex items-center justify-between mb-6">
+				<div className="flex items-center gap-4">
+					<div className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl">
+						<Brain className="w-8 h-8 text-blue-400" />
+					</div>
+					<div>
+						<h3 className="text-2xl font-bold text-white/90">Generating Your Study Pack</h3>
+						<p className="text-white/70 text-sm">AI is creating your personalized learning materials</p>
+					</div>
+				</div>
+				<div className="bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10">
+					<span className="text-2xl font-bold text-white">{progress.percentage}%</span>
+				</div>
 			</div>
 			
-			{/* Progress Bar */}
-			<div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-				<div 
-					className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-					style={{ width: `${progress.percentage}%` }}
-				></div>
+			{/* Enhanced Progress Bar */}
+			<div className="relative w-full bg-white/10 backdrop-blur-sm rounded-full h-4 mb-8 overflow-hidden">
+				<motion.div 
+					className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
+					initial={{ width: 0 }}
+					animate={{ width: `${progress.percentage}%` }}
+					transition={{ duration: 0.8, ease: "easeOut" }}
+				/>
+				<div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
 			</div>
 			
 			{/* Current Step */}
-			<div className="flex items-center space-x-3 mb-4">
+			<div className="flex items-center gap-4 mb-8">
 				{progress.step > 0 ? (
-					<Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+					<div className="p-2 bg-blue-500/20 rounded-xl">
+						<Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+					</div>
 				) : (
-					<div className="w-5 h-5 rounded-full bg-gray-300"></div>
+					<div className="w-6 h-6 rounded-full bg-white/20"></div>
 				)}
-				<span className="text-sm text-gray-700">{progress.currentStep}</span>
+				<div className="bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10">
+					<span className="text-white font-medium">{progress.currentStep}</span>
+				</div>
 			</div>
 			
-			{/* Step Indicators */}
-			<div className="flex justify-between">
+			{/* Enhanced Step Indicators */}
+			<div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
 				{steps.map((step) => {
 					const Icon = step.icon;
 					const isCompleted = progress.step > step.id;
 					const isCurrent = progress.step === step.id;
 					
 					return (
-						<div key={step.id} className="flex flex-col items-center space-y-2">
-							<div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+						<motion.div 
+							key={step.id} 
+							className={`bg-white/5 backdrop-blur-sm rounded-2xl p-4 border transition-all duration-300 ${
 								isCompleted 
-									? 'bg-green-500 text-white' 
+									? 'border-green-400/50 bg-green-500/10' 
 									: isCurrent 
-									? 'bg-blue-600 text-white' 
-									: 'bg-gray-300 text-gray-600'
-							}`}>
-								{isCompleted ? (
-									<CheckCircle className="w-4 h-4" />
-								) : (
-									<Icon className="w-4 h-4" />
-								)}
+									? 'border-blue-400/50 bg-blue-500/10' 
+									: 'border-white/10'
+							}`}
+							animate={isCurrent ? { scale: 1.05 } : { scale: 1 }}
+							transition={{ duration: 0.3 }}
+						>
+							<div className="flex items-center gap-3">
+								<div className={`p-2 rounded-xl ${
+									isCompleted 
+										? 'bg-green-500/20' 
+										: isCurrent 
+										? 'bg-blue-500/20' 
+										: 'bg-white/10'
+								}`}>
+									{isCompleted ? (
+										<CheckCircle className="w-5 h-5 text-green-400" />
+									) : (
+										<Icon className={`w-5 h-5 ${isCurrent ? 'text-blue-400' : 'text-white/60'}`} />
+									)}
+								</div>
+								<div>
+									<div className={`text-sm font-semibold ${
+										isCompleted || isCurrent ? 'text-white' : 'text-white/70'
+									}`}>
+										{step.name}
+									</div>
+									{isCurrent && (
+										<div className="text-xs text-blue-300">In Progress...</div>
+									)}
+								</div>
 							</div>
-							<span className={`text-xs text-center max-w-20 ${
-								isCompleted || isCurrent ? 'text-gray-900 font-medium' : 'text-gray-500'
-							}`}>
-								{step.name}
-							</span>
-						</div>
+						</motion.div>
 					);
 				})}
 			</div>
@@ -712,9 +748,7 @@ export default function QuizPage() {
 											)}
 											
 											{documentProcessing && (
-												<div className="mt-4">
-													<StudyPackProgressBar progress={generationProgress} />
-												</div>
+												<StudyPackProgressBar progress={generationProgress} />
 											)}
 											
 											{processedDocument && (
@@ -930,34 +964,38 @@ export default function QuizPage() {
 							</div>
 						</div>
 													
-													<div className="flex space-x-4 border-b border-white/20">
+													<div className="flex space-x-2 border-b border-white/20">
 														{[
-															{ id: 'notes', label: 'Notes', count: studyPack.detailedNotes?.length || 0 },
-															{ id: 'flashcards', label: 'Flashcards', count: studyPack.flashcardDeck?.length || 0 },
-															{ id: 'quizzes', label: 'Quizzes', count: studyPack.quizBank?.length || 0 },
-															{ id: 'revision', label: 'Revision', count: 0 }
-														].map((tab) => (
-															<button
-																key={tab.id}
-																onClick={() => setActiveStudyTab(tab.id as any)}
-																className={`py-2 px-4 border-b-2 font-medium text-sm ${
-																	activeStudyTab === tab.id
-																		? 'border-purple-500 text-purple-400'
-																		: 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
-																}`}
-															>
-																{tab.label}
-																{tab.count > 0 && (
-																	<span className="ml-2 bg-white/10 text-white py-0.5 px-2 rounded-full text-xs">
-																		{tab.count}
-																	</span>
-																)}
-															</button>
-														))}
+															{ id: 'notes', label: 'Notes', icon: BookOpen, count: studyPack.detailedNotes?.length || 0, color: 'blue' },
+															{ id: 'flashcards', label: 'Flashcards', icon: Layers, count: studyPack.flashcardDeck?.length || 0, color: 'purple' },
+															{ id: 'quizzes', label: 'Quizzes', icon: Brain, count: studyPack.quizBank?.length || 0, color: 'green' },
+															{ id: 'revision', label: 'Revision', icon: FileText, count: 0, color: 'orange' }
+														].map((tab) => {
+															const Icon = tab.icon;
+															return (
+																<button
+																	key={tab.id}
+																	onClick={() => setActiveStudyTab(tab.id as any)}
+																	className={`flex items-center gap-2 py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 ${
+																		activeStudyTab === tab.id
+																			? `border-${tab.color}-500 text-${tab.color}-400 bg-${tab.color}-500/10`
+																			: 'border-transparent text-white/70 hover:text-white hover:border-white/30 hover:bg-white/5'
+																	}`}
+																>
+																	<Icon className="w-4 h-4" />
+																	{tab.label}
+																	{tab.count > 0 && (
+																		<span className={`ml-1 bg-${tab.color}-500/20 text-${tab.color}-300 py-0.5 px-2 rounded-full text-xs font-medium`}>
+																			{tab.count}
+																		</span>
+																	)}
+																</button>
+															);
+														})}
 													</div>
 													
 													{activeStudyTab === 'notes' && (
-														<div className="max-h-96 overflow-y-auto">
+														<div className="space-y-6">
 															<StudyNotes 
 																notes={studyPack.detailedNotes || []} 
 																onExplainSection={(note) => {
@@ -969,7 +1007,7 @@ export default function QuizPage() {
 													)}
 													
 													{activeStudyTab === 'flashcards' && (
-														<div className="space-y-4 max-h-96 overflow-y-auto">
+														<div className="space-y-6">
 															{/* Chapter Filter */}
 															{studyPack.chapters && studyPack.chapters.length > 0 && (
 																<div className="flex flex-wrap gap-2 mb-4">

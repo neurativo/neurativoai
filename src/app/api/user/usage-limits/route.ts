@@ -3,12 +3,14 @@ import { getSupabaseServer } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabaseServer();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
+
+    const supabase = getSupabaseServer();
 
     // Get user's current subscription
     const { data: subscription, error: subError } = await supabase
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
           features
         )
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(1)
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { data: usage, error: usageError } = await supabase
       .from('user_usage')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (usageError && usageError.code !== 'PGRST116') {

@@ -84,7 +84,7 @@ export default function DashboardPage() {
       }
       
       // Fetch notifications
-      const notifRes = await fetch('/api/user/notifications');
+      const notifRes = await fetch(`/api/user/notifications?userId=${user.id}`);
       if (notifRes.ok) {
         const notifData = await notifRes.json();
         if (notifData.success) {

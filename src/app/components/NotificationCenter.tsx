@@ -32,7 +32,20 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/user/notifications');
+      // Get user ID from Supabase
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('User not authenticated');
+        return;
+      }
+
+      const response = await fetch(`/api/user/notifications?userId=${user.id}`);
       const data = await response.json();
 
       if (data.success) {
@@ -50,6 +63,16 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
 
   const markAsRead = async (notificationId: string) => {
     try {
+      // Get user ID from Supabase
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const response = await fetch('/api/user/notifications', {
         method: 'PATCH',
         headers: {
@@ -57,7 +80,8 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
         },
         body: JSON.stringify({
           notification_id: notificationId,
-          read: true
+          read: true,
+          userId: user.id
         })
       });
 

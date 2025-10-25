@@ -206,17 +206,23 @@ export default function QuizPage() {
 			try {
 				const supabase = getSupabaseBrowser();
 				const { data: { user } } = await supabase.auth.getUser();
+				const { data: { session } } = await supabase.auth.getSession();
 				
 				if (user) {
-					// Get user's plan
-					const { data: profile } = await supabase
-						.from('profiles')
-						.select('plan')
-						.eq('id', user.id)
-						.single();
-						
-					if (profile) {
-						setUserPlan(profile.plan || 'free');
+					// Get user's plan from subscription API
+					try {
+						const res = await fetch('/api/subscriptions', {
+							headers: { Authorization: `Bearer ${session?.access_token}` }
+						});
+						if (res.ok) {
+							const subData = await res.json();
+							setUserPlan(subData?.plan || 'free');
+						} else {
+							setUserPlan('free');
+						}
+					} catch (error) {
+						console.error('Error fetching user plan:', error);
+						setUserPlan('free');
 					}
 					
 					// Get usage stats

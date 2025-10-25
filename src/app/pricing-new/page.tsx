@@ -14,20 +14,27 @@ export default function NewPricingPage() {
     const getUserData = async () => {
       const supabase = getSupabaseBrowser();
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       
       if (user) {
         setUserId(user.id);
         
-        // Get user's current plan
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('plan')
-          .eq('id', user.id)
-          .single();
-          
-        if (profile) {
-          setCurrentPlan(profile.plan || 'free');
+        // Get user's current plan from subscription API
+        let userPlan = 'free';
+        try {
+          const res = await fetch('/api/subscriptions', {
+            headers: { Authorization: `Bearer ${session?.access_token}` }
+          });
+          if (res.ok) {
+            const subData = await res.json();
+            userPlan = subData?.plan || 'free';
+          }
+        } catch (error) {
+          console.error('Error fetching user plan:', error);
+          userPlan = 'free';
         }
+          
+        setCurrentPlan(userPlan);
         
         // Get usage data
         try {

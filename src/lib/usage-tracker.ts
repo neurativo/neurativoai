@@ -16,14 +16,18 @@ export class UsageTracker {
     const supabase = getSupabaseServer();
     
     try {
-      // Get user's current plan
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('plan')
-        .eq('id', userId)
-        .single();
-        
-      if (!profile) return null;
+      // Get user's current plan from subscription API
+      let userPlan = 'free';
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/subscriptions?userId=${userId}`);
+        if (res.ok) {
+          const subData = await res.json();
+          userPlan = subData?.plan || 'free';
+        }
+      } catch (error) {
+        console.error('Error fetching user plan:', error);
+        userPlan = 'free';
+      }
       
       const today = new Date().toISOString().split('T')[0];
       const thisMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
@@ -78,7 +82,7 @@ export class UsageTracker {
         
       return {
         userId,
-        plan: profile.plan || 'free',
+        plan: userPlan,
         dailyQuizzes: dailyQuizzes || 0,
         monthlyQuizzes: monthlyQuizzes || 0,
         dailyFileUploads: dailyFileUploads || 0,

@@ -179,43 +179,43 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
   const currentCard = studyCards[currentIndex];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-purple-500/20 rounded-xl">
-            <Layers className="w-8 h-8 text-purple-400" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="p-2 sm:p-3 bg-purple-500/20 rounded-xl">
+            <Layers className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
           </div>
-          <div>
-            <h2 className="text-3xl font-bold text-white/90">Study Flashcards</h2>
-            <p className="text-white/70 text-sm">Interactive memory training</p>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl sm:text-3xl font-bold text-white/90">Study Flashcards</h2>
+            <p className="text-white/70 text-xs sm:text-sm">Interactive memory training</p>
           </div>
-          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-purple-400/30">
-            <span className="text-purple-200 font-bold text-lg">{flashcards.length}</span>
-            <span className="text-purple-300 text-sm ml-1">cards</span>
+          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm px-2 sm:px-4 py-1 sm:py-2 rounded-xl border border-purple-400/30 flex-shrink-0">
+            <span className="text-purple-200 font-bold text-sm sm:text-lg">{flashcards.length}</span>
+            <span className="text-purple-300 text-xs sm:text-sm ml-1">cards</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
             onClick={() => setShowStats(!showStats)}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 transition-all duration-200"
           >
-            <Target className="w-4 h-4" />
-            Stats
+            <Target className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Stats</span>
           </button>
           <button
             onClick={shuffleCards}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-500/20 backdrop-blur-sm text-purple-200 rounded-xl hover:bg-purple-500/30 border border-purple-400/30 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm bg-purple-500/20 backdrop-blur-sm text-purple-200 rounded-xl hover:bg-purple-500/30 border border-purple-400/30 transition-all duration-200"
           >
-            <Shuffle className="w-4 h-4" />
-            Shuffle
+            <Shuffle className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Shuffle</span>
           </button>
           <button
             onClick={resetCards}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 transition-all duration-200"
           >
-            <RotateCcw className="w-4 h-4" />
-            Reset
+            <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Reset</span>
           </button>
         </div>
       </div>
@@ -275,18 +275,18 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
         <button
           onClick={goToPrevious}
           disabled={currentIndex === 0}
-          className="flex items-center gap-2 px-6 py-3 bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-xs sm:text-sm"
         >
-          <ChevronLeft className="w-4 h-4" />
-          Previous
+          <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Previous</span>
         </button>
 
-        <div className="text-center bg-white/5 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10">
-          <div className="text-sm text-white font-medium">
+        <div className="text-center bg-white/5 backdrop-blur-sm rounded-xl px-3 sm:px-6 py-2 sm:py-3 border border-white/10 flex-1 sm:flex-none">
+          <div className="text-xs sm:text-sm text-white font-medium">
             {currentIndex + 1} of {studyCards.length}
           </div>
           <div className="text-xs text-white/60">
@@ -297,10 +297,10 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
         <button
           onClick={goToNext}
           disabled={currentIndex === studyCards.length - 1}
-          className="flex items-center gap-2 px-6 py-3 bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-white/5 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/10 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-xs sm:text-sm"
         >
-          Next
-          <ChevronRight className="w-4 h-4" />
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -309,27 +309,29 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex justify-center gap-4"
+          className="flex justify-center gap-2 sm:gap-4"
         >
           <button
             onClick={() => {
               markAsStudied(false);
               goToNext();
             }}
-            className="flex items-center gap-2 px-6 py-3 bg-red-500/20 backdrop-blur-sm text-red-200 rounded-xl hover:bg-red-500/30 border border-red-400/30 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-red-500/20 backdrop-blur-sm text-red-200 rounded-xl hover:bg-red-500/30 border border-red-400/30 transition-all duration-200 text-xs sm:text-sm"
           >
-            <XCircle className="w-4 h-4" />
-            Incorrect
+            <XCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Incorrect</span>
+            <span className="sm:hidden">✗</span>
           </button>
           <button
             onClick={() => {
               markAsStudied(true);
               goToNext();
             }}
-            className="flex items-center gap-2 px-6 py-3 bg-green-500/20 backdrop-blur-sm text-green-200 rounded-xl hover:bg-green-500/30 border border-green-400/30 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-green-500/20 backdrop-blur-sm text-green-200 rounded-xl hover:bg-green-500/30 border border-green-400/30 transition-all duration-200 text-xs sm:text-sm"
           >
-            <CheckCircle className="w-4 h-4" />
-            Correct
+            <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Correct</span>
+            <span className="sm:hidden">✓</span>
           </button>
         </motion.div>
       )}
@@ -339,9 +341,9 @@ export default function StudyFlashcards({ flashcards, onExplainCard }: StudyFlas
         <div className="text-center">
           <button
             onClick={() => onExplainCard(currentCard)}
-            className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
+            className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl mx-auto text-sm sm:text-base"
           >
-            <Sparkles className="w-5 h-5" />
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="font-semibold">AI Explain This Card</span>
           </button>
         </div>

@@ -154,18 +154,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
     <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-xl hover:shadow-2xl hover:bg-white/15 transition-all duration-300">
       {/* Header */}
       <div 
-        className="p-6 border-b border-white/20 cursor-pointer"
+        className="p-4 sm:p-6 border-b border-white/20 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <BookOpen className="w-5 h-5 text-blue-600" />
-            <div>
-            <h3 className="text-xl font-bold text-white/90">{note.title}</h3>
-            <p className="text-sm text-white/70 font-medium">{note.topic}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg sm:text-xl font-bold text-white/90 truncate">{note.title}</h3>
+              <p className="text-xs sm:text-sm text-white/70 font-medium truncate">{note.topic}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             <LevelBadge level={note.level} />
             {isExpanded ? (
               <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -178,12 +178,12 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
       
       {/* Content */}
       {isExpanded && (
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Tabs */}
-          <div className="flex space-x-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
             <button
               onClick={() => setActiveTab('content')}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
                 activeTab === 'content'
                   ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30 shadow-lg'
                   : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90 border border-white/10'
@@ -194,7 +194,7 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
             {note.highlights && (
               <button
                 onClick={() => setActiveTab('highlights')}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
                   activeTab === 'highlights'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30 shadow-lg'
                     : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90 border border-white/10'
@@ -206,7 +206,7 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
             {note.examples && note.examples.length > 0 && (
               <button
                 onClick={() => setActiveTab('examples')}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
                   activeTab === 'examples'
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30 shadow-lg'
                     : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90 border border-white/10'
@@ -219,29 +219,33 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           
           {/* Tab Content */}
           {activeTab === 'content' && (
-            <div className="prose prose-invert max-w-none leading-relaxed text-white/80">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-              >
-                {formattedContent}
-              </ReactMarkdown>
+            <div className="prose prose-invert max-w-none leading-relaxed text-white/80 prose-sm sm:prose-base">
+              <div className="overflow-x-auto">
+                <div className="prose-headings:text-white prose-headings:font-bold prose-p:text-white/80 prose-strong:text-white prose-code:text-blue-300 prose-code:bg-blue-500/20 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-800 prose-pre:border prose-pre:border-gray-700 prose-pre:overflow-x-auto prose-table:text-sm prose-th:text-white prose-td:text-white/80">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                  >
+                    {formattedContent}
+                  </ReactMarkdown>
+                </div>
+              </div>
             </div>
           )}
           
           {activeTab === 'highlights' && note.highlights && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {note.highlights.keyFormulas && note.highlights.keyFormulas.length > 0 && (
-                <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-sm rounded-2xl p-6 border border-amber-400/20 shadow-xl">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-amber-500/20 rounded-xl">
-                      <Key className="w-6 h-6 text-amber-400" />
+                <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-amber-400/20 shadow-xl">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 bg-amber-500/20 rounded-xl">
+                      <Key className="w-4 h-4 sm:w-6 sm:h-6 text-amber-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-amber-200">Key Formulas</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-amber-200">Key Formulas</h3>
                   </div>
-                  <div className="grid gap-3">
+                  <div className="grid gap-2 sm:gap-3">
                     {note.highlights.keyFormulas.map((formula, index) => (
-                      <div key={index} className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
-                        <code className="text-amber-100 font-mono text-sm leading-relaxed block">
+                      <div key={index} className="bg-white/5 backdrop-blur-sm p-3 sm:p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+                        <code className="text-amber-100 font-mono text-xs sm:text-sm leading-relaxed block break-all overflow-x-auto">
                           {formula}
                         </code>
                       </div>
@@ -251,18 +255,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
               )}
               
               {note.highlights.examTips && note.highlights.examTips.length > 0 && (
-                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm rounded-2xl p-6 border border-blue-400/20 shadow-xl">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-blue-500/20 rounded-xl">
-                      <Lightbulb className="w-6 h-6 text-blue-400" />
+                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-blue-400/20 shadow-xl">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 bg-blue-500/20 rounded-xl">
+                      <Lightbulb className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-blue-200">Exam Tips</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-blue-200">Exam Tips</h3>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {note.highlights.examTips.map((tip, index) => (
-                      <div key={index} className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 flex items-start gap-3">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-                        <p className="text-blue-100 text-sm leading-relaxed">{tip}</p>
+                      <div key={index} className="bg-white/5 backdrop-blur-sm p-3 sm:p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 flex items-start gap-2 sm:gap-3">
+                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-400 rounded-full mt-1.5 sm:mt-2 flex-shrink-0"></div>
+                        <p className="text-blue-100 text-xs sm:text-sm leading-relaxed">{tip}</p>
                       </div>
                     ))}
                   </div>
@@ -270,18 +274,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
               )}
               
               {note.highlights.conceptChecks && note.highlights.conceptChecks.length > 0 && (
-                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm rounded-2xl p-6 border border-green-400/20 shadow-xl">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-green-500/20 rounded-xl">
-                      <Target className="w-6 h-6 text-green-400" />
+                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-green-400/20 shadow-xl">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 bg-green-500/20 rounded-xl">
+                      <Target className="w-4 h-4 sm:w-6 sm:h-6 text-green-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-green-200">Concept Checks</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-green-200">Concept Checks</h3>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {note.highlights.conceptChecks.map((check, index) => (
-                      <div key={index} className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 flex items-start gap-3">
-                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
-                        <p className="text-green-100 text-sm leading-relaxed">{check}</p>
+                      <div key={index} className="bg-white/5 backdrop-blur-sm p-3 sm:p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 flex items-start gap-2 sm:gap-3">
+                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full mt-1.5 sm:mt-2 flex-shrink-0"></div>
+                        <p className="text-green-100 text-xs sm:text-sm leading-relaxed">{check}</p>
                       </div>
                     ))}
                   </div>
@@ -291,43 +295,43 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           )}
           
           {activeTab === 'examples' && note.examples && note.examples.length > 0 && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {note.examples.map((example, index) => (
-                <div key={index} className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/20 shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-purple-500/20 rounded-xl flex-shrink-0">
-                      <div className="w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                <div key={index} className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-purple-400/20 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-3 bg-purple-500/20 rounded-xl flex-shrink-0">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-purple-400 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm">
                         {index + 1}
                       </div>
                     </div>
-                    <div className="flex-1 space-y-4">
+                    <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
                       <div>
-                        <h4 className="text-xl font-bold text-purple-200 mb-2">{example.title}</h4>
-                        <p className="text-purple-100 leading-relaxed">{example.description}</p>
+                        <h4 className="text-lg sm:text-xl font-bold text-purple-200 mb-2 truncate">{example.title}</h4>
+                        <p className="text-purple-100 leading-relaxed text-sm sm:text-base">{example.description}</p>
                       </div>
                       
                       {example.code && (
-                        <div className="bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                            <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                            <span className="text-xs text-white/60 ml-2">Code Example</span>
+                        <div className="bg-black/20 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-white/10">
+                          <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+                            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-400 rounded-full"></div>
+                            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-400 rounded-full"></div>
+                            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full"></div>
+                            <span className="text-xs text-white/60 ml-1 sm:ml-2">Code Example</span>
                           </div>
                           <pre className="overflow-x-auto">
-                            <code className="text-green-300 font-mono text-sm leading-relaxed">
+                            <code className="text-green-300 font-mono text-xs sm:text-sm leading-relaxed">
                               {example.code}
                             </code>
                           </pre>
                         </div>
                       )}
                       
-                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                          <span className="text-sm font-semibold text-purple-200">Explanation</span>
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-white/10">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
+                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-purple-400 rounded-full"></div>
+                          <span className="text-xs sm:text-sm font-semibold text-purple-200">Explanation</span>
                         </div>
-                        <p className="text-purple-100 text-sm leading-relaxed">{example.explanation}</p>
+                        <p className="text-purple-100 text-xs sm:text-sm leading-relaxed">{example.explanation}</p>
                       </div>
                     </div>
                   </div>
@@ -338,18 +342,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           
           {/* AI Explain Button */}
           {onExplainSection && (
-            <div className="mt-6 pt-6 border-t border-white/20">
+            <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
               <button
                 onClick={handleAIExplain}
                 disabled={isLoadingExplanation}
-                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoadingExplanation ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                 ) : (
-                  <Sparkles className="w-5 h-5" />
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
-                <span className="font-semibold">
+                <span className="font-semibold text-sm sm:text-base">
                   {isLoadingExplanation ? 'Getting AI Explanation...' : 'AI Explain This Section'}
                 </span>
               </button>
@@ -378,30 +382,30 @@ export default function StudyNotes({ notes, onExplainSection }: StudyNotesProps)
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-500/20 rounded-xl">
-            <BookOpen className="w-8 h-8 text-blue-400" />
+    <div className="space-y-4 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="p-2 sm:p-3 bg-blue-500/20 rounded-xl">
+            <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
           </div>
-          <div>
-            <h2 className="text-3xl font-bold text-white/90">Study Notes</h2>
-            <p className="text-white/70 text-sm">Comprehensive learning materials</p>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl sm:text-3xl font-bold text-white/90 truncate">Study Notes</h2>
+            <p className="text-white/70 text-xs sm:text-sm">Comprehensive learning materials</p>
           </div>
-          <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-blue-400/30">
-            <span className="text-blue-200 font-bold text-lg">{notes.length}</span>
-            <span className="text-blue-300 text-sm ml-1">notes</span>
+          <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm px-2 sm:px-4 py-1 sm:py-2 rounded-xl border border-blue-400/30 flex-shrink-0">
+            <span className="text-blue-200 font-bold text-sm sm:text-lg">{notes.length}</span>
+            <span className="text-blue-300 text-xs sm:text-sm ml-1">notes</span>
           </div>
         </div>
-        <div className="bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10">
+        <div className="bg-white/5 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-xl border border-white/10 flex-shrink-0">
           <div className="flex items-center gap-2 text-white/80">
-            <Clock className="w-4 h-4" />
-            <span className="text-sm font-medium">{notes.length * 5} min study time</span>
+            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="text-xs sm:text-sm font-medium">{notes.length * 5} min study time</span>
           </div>
         </div>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {notes.map((note) => (
           <NoteCard 
             key={note.id} 

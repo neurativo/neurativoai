@@ -19,8 +19,8 @@ interface QuizQuestion {
   options: string[];
   correctAnswer: number;
   explanation: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  topic: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  topic?: string;
 }
 
 interface QuizPack {
@@ -29,7 +29,7 @@ interface QuizPack {
   questions: QuizQuestion[];
   totalQuestions: number;
   estimatedTime: number;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty?: 'easy' | 'medium' | 'hard';
   totalTime: number;
 }
 
@@ -39,16 +39,18 @@ interface StudyQuizzesProps {
 }
 
 // Difficulty badge component
-const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
+const DifficultyBadge = ({ difficulty }: { difficulty: string | undefined }) => {
   const colors = {
     easy: 'bg-green-100 text-green-800',
     medium: 'bg-yellow-100 text-yellow-800',
     hard: 'bg-red-100 text-red-800'
   };
   
+  const safeDifficulty = difficulty || 'medium';
+  
   return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[difficulty as keyof typeof colors] || colors.medium}`}>
-      {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+    <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[safeDifficulty as keyof typeof colors] || colors.medium}`}>
+      {safeDifficulty.charAt(0).toUpperCase() + safeDifficulty.slice(1)}
     </span>
   );
 };
@@ -261,6 +263,21 @@ const Quiz = ({
   const question = quiz.questions[currentQuestion];
   const progress = ((currentQuestion + 1) / quiz.questions.length) * 100;
 
+  // Safety check for question
+  if (!question) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Question not found. Please try again.</p>
+        <button
+          onClick={() => setCurrentQuestion(0)}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Restart Quiz
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -300,7 +317,7 @@ const Quiz = ({
           <span className="text-sm text-gray-500">Question {currentQuestion + 1} of {quiz.questions.length}</span>
           <div className="flex items-center gap-2">
             <DifficultyBadge difficulty={question.difficulty} />
-            <span className="text-sm text-gray-500">{question.topic}</span>
+            <span className="text-sm text-gray-500">{question.topic || 'General'}</span>
           </div>
         </div>
         
@@ -391,6 +408,17 @@ export default function StudyQuizzes({ quizPacks, onExplainQuestion }: StudyQuiz
     setQuizResults(savedResults);
   }, [quizPacks]);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('StudyQuizzes - quizPacks:', quizPacks);
+    if (quizPacks.length > 0) {
+      console.log('First quiz pack:', quizPacks[0]);
+      if (quizPacks[0].questions && quizPacks[0].questions.length > 0) {
+        console.log('First question:', quizPacks[0].questions[0]);
+      }
+    }
+  }, [quizPacks]);
+
   if (!quizPacks || quizPacks.length === 0) {
     return (
       <div className="text-center py-12">
@@ -478,7 +506,14 @@ export default function StudyQuizzes({ quizPacks, onExplainQuestion }: StudyQuiz
               )}
               
               <button
-                onClick={() => setSelectedQuiz(quiz)}
+                onClick={() => {
+                  console.log('Starting quiz:', quiz);
+                  if (!quiz.questions || quiz.questions.length === 0) {
+                    alert('This quiz has no questions available.');
+                    return;
+                  }
+                  setSelectedQuiz(quiz);
+                }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
                 <Play className="w-4 h-4" />

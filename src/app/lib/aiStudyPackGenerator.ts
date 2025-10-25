@@ -702,6 +702,129 @@ Format as JSON array:
     return flashcards;
   }
 
+  private async generateQuizQuestionsWithAI(content: string, chapterTitle: string): Promise<QuizQuestion[]> {
+    try {
+      if (!this.openai) {
+        throw new Error('OpenAI client not initialized');
+      }
+
+      const prompt = `Generate 3-5 multiple choice quiz questions based on this content from "${chapterTitle}":
+
+${content}
+
+Requirements:
+- Create questions that test understanding of key concepts
+- Each question should have 4 options (A, B, C, D)
+- Include one correct answer and three plausible distractors
+- Questions should be clear and specific
+- Include explanations for the correct answer
+
+Format as JSON:
+{
+  "questions": [
+    {
+      "question": "What is the main concept discussed?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0,
+      "explanation": "Explanation of why this is correct",
+      "difficulty": "medium",
+      "topic": "Key Concept"
+    }
+  ]
+}`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert quiz generator. Create educational multiple choice questions based on the provided content. Return only valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1500
+      });
+
+      const responseContent = response.choices[0]?.message?.content;
+      if (!responseContent) {
+        throw new Error('No response from AI');
+      }
+
+      // Parse the JSON response
+      const cleanContent = responseContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      const parsed = JSON.parse(cleanContent);
+      
+      if (!parsed.questions || !Array.isArray(parsed.questions)) {
+        throw new Error('Invalid response format');
+      }
+
+      // Convert to our QuizQuestion format
+      return parsed.questions.map((q: any, index: number) => ({
+        id: `ai_question_${Date.now()}_${index}`,
+        question: q.question,
+        options: q.options || [],
+        correctAnswer: q.correctAnswer || 0,
+        explanation: q.explanation || 'No explanation provided',
+        rationale: q.rationale || q.explanation || 'No rationale provided',
+        difficulty: q.difficulty || 'medium',
+        topic: q.topic || chapterTitle,
+        timeEstimate: 2,
+        tags: []
+      }));
+
+    } catch (error) {
+      console.error('Error generating AI quiz questions:', error);
+      return [];
+    }
+  }
+
+  private createFallbackQuestions(content: string, chapterTitle: string): QuizQuestion[] {
+    const questions: QuizQuestion[] = [];
+    
+    // Split content into sentences
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    
+    // Create 3-5 simple questions based on content
+    const numQuestions = Math.min(5, Math.max(3, Math.floor(sentences.length / 3)));
+    
+    for (let i = 0; i < numQuestions; i++) {
+      const sentenceIndex = Math.floor((i * sentences.length) / numQuestions);
+      const sentence = sentences[sentenceIndex]?.trim();
+      
+      if (!sentence) continue;
+      
+      // Extract key terms from the sentence
+      const words = sentence.split(/\s+/).filter(w => w.length > 4);
+      const keyTerm = words[Math.floor(Math.random() * words.length)] || 'concept';
+      
+      const question: QuizQuestion = {
+        id: `fallback_question_${Date.now()}_${i}`,
+        question: `What is mentioned about "${keyTerm}" in this content?`,
+        options: [
+          `It is discussed in detail`,
+          `It is briefly mentioned`,
+          `It is not relevant`,
+          `It is the main topic`
+        ],
+        correctAnswer: 0,
+        explanation: `This question tests understanding of the content about "${keyTerm}".`,
+        rationale: `The correct answer is based on the content analysis of "${keyTerm}" in the provided material.`,
+        difficulty: 'easy',
+        topic: chapterTitle,
+        timeEstimate: 2,
+        tags: []
+      };
+      
+      questions.push(question);
+    }
+    
+    return questions;
+  }
+
   private extractQAPairs(content: string): { question: string; answer: string }[] {
     const qaPairs: { question: string; answer: string }[] = [];
     
@@ -758,13 +881,19 @@ Format as JSON array:
       s.pageNumber >= chapter.pageNumber
     );
     
-    // Generate questions from chapter content
-    const qaPairs = this.extractQAPairs(chapter.content);
+    // Generate questions using AI
+    try {
+      const aiQuestions = await this.generateQuizQuestionsWithAI(chapter.content, chapter.title);
+      questions.push(...aiQuestions);
+    } catch (error) {
+      console.error(`Error generating AI quiz questions for chapter ${chapter.id}:`, error);
+    }
     
-    for (let i = 0; i < Math.min(qaPairs.length, this.config.maxQuestionsPerChapter); i++) {
-      const qa = qaPairs[i];
-      const question = this.createMultipleChoiceQuestion(qa, chapterSections);
-      questions.push(question);
+    // Fallback: Generate simple questions if AI fails
+    if (questions.length === 0) {
+      console.log(`No AI questions generated for ${chapter.title}, creating fallback questions`);
+      const fallbackQuestions = this.createFallbackQuestions(chapter.content, chapter.title);
+      questions.push(...fallbackQuestions);
     }
     
     return {

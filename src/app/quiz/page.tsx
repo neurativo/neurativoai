@@ -6,6 +6,8 @@ import { UsageTracker } from "@/lib/usage-tracker";
 import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
 import { Loader2, FileText, Brain, Layers, BookOpen, CheckCircle, X } from "lucide-react";
 import StudyNotes from "@/app/components/StudyNotes";
+import StudyQuizzes from "@/app/components/StudyQuizzes";
+import RevisionSheet from "@/app/components/RevisionSheet";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -1168,171 +1170,58 @@ export default function QuizPage() {
 													)}
 													
 													{activeStudyTab === 'quizzes' && (
-														<div className="space-y-4 max-h-96 overflow-y-auto">
-															{/* Chapter Filter */}
-															{studyPack.chapters && studyPack.chapters.length > 0 && (
-																<div className="flex flex-wrap gap-2 mb-4">
-																	<button
-																		onClick={() => setActiveStudyTab('quizzes')}
-																		className="px-3 py-1 rounded-full text-sm bg-purple-600 text-white"
-																	>
-																		All Chapters
-																	</button>
-																	{studyPack.chapters.map((chapter: string, index: number) => (
-																		<button
-																			key={index}
-																			onClick={() => setActiveStudyTab('quizzes')}
-																			className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300 hover:bg-gray-600"
-																		>
-																			{chapter}
-																		</button>
-																	))}
-																</div>
-															)}
-															
-															{studyPack.quizBank?.map((quiz: any, index: number) => (
-																<div key={quiz.id || index} className="border border-white/20 rounded-lg p-4">
-																	<div className="flex items-center justify-between mb-4">
-																		<div className="flex items-center gap-2">
-																			<h4 className="text-lg font-semibold text-white">{quiz.title}</h4>
-																			{quiz.chapter && (
-																				<span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
-																					{quiz.chapter}
-																				</span>
-																			)}
-																		</div>
-																		<div className="flex items-center space-x-4 text-sm text-gray-400">
-																			<span>{quiz.totalQuestions} questions</span>
-																			<span>{quiz.totalTime || quiz.estimatedTime} min</span>
-																		</div>
-																	</div>
-																	<div className="space-y-3">
-																		{quiz.questions?.slice(0, 2).map((question: any, qIndex: number) => (
-																			<div key={qIndex} className="p-3 bg-white/5 rounded">
-																				<div className="flex items-center justify-between mb-2">
-																					<h5 className="font-medium text-white">
-																						{qIndex + 1}. {question.question}
-																					</h5>
-																					<div className="flex items-center gap-2">
-																						{question.chapter && (
-																							<span className="px-2 py-1 bg-gray-600 rounded text-xs text-gray-300">
-																								{question.chapter}
-																							</span>
-																						)}
-																						<span className={`px-2 py-1 rounded text-xs ${
-																							question.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
-																							question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-																							'bg-red-100 text-red-800'
-																						}`}>
-																							{question.difficulty}
-																						</span>
-																						{question.timeEstimate && (
-																							<span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-																								{question.timeEstimate}min
-																							</span>
-																						)}
-																					</div>
-																				</div>
-																				<div className="space-y-1">
-																					{question.options?.map((option: string, oIndex: number) => (
-																						<div key={oIndex} className="flex items-center space-x-2">
-																							<span className="text-sm text-gray-400">
-																								{String.fromCharCode(65 + oIndex)}.
-																							</span>
-																							<span className={`text-sm ${
-																								oIndex === question.correctAnswer ? 'text-green-400 font-medium' : 'text-gray-300'
-																							}`}>
-																								{option}
-																							</span>
-																						</div>
-																					))}
-																				</div>
-																				{question.rationale && (
-																					<div className="mt-2 p-2 bg-blue-500/10 rounded text-xs text-blue-300">
-																						<strong>Rationale:</strong> {question.rationale}
-																					</div>
-																				)}
-																			</div>
-																		))}
-																		{quiz.questions?.length > 2 && (
-																			<p className="text-sm text-gray-500 text-center">
-																				... and {quiz.questions.length - 2} more questions
-																			</p>
-																		)}
-																	</div>
-																</div>
-															))}
+														<div className="space-y-6">
+															<StudyQuizzes 
+																quizPacks={studyPack.quizBank || []} 
+																onExplainQuestion={async (question) => {
+																	setAiExplanation({
+																		show: true,
+																		title: `Question: ${question.question}`,
+																		content: '',
+																		isLoading: true
+																	});
+																	
+																	try {
+																		const response = await fetch('/api/ai-explain', {
+																			method: 'POST',
+																			headers: { 'Content-Type': 'application/json' },
+																			body: JSON.stringify({ note: { title: question.question, topic: question.topic, content: question.explanation } })
+																		});
+																		
+																		if (response.ok) {
+																			const { explanation } = await response.json();
+																			setAiExplanation(prev => ({
+																				...prev,
+																				content: explanation,
+																				isLoading: false
+																			}));
+																		} else {
+																			setAiExplanation(prev => ({
+																				...prev,
+																				content: 'Failed to get AI explanation. Please try again.',
+																				isLoading: false
+																			}));
+																		}
+																	} catch (error) {
+																		console.error('Error getting AI explanation:', error);
+																		setAiExplanation(prev => ({
+																			...prev,
+																			content: 'Error getting AI explanation. Please try again.',
+																			isLoading: false
+																		}));
+																	}
+																}}
+															/>
 														</div>
 													)}
 													
 													{activeStudyTab === 'revision' && (
-														<div className="space-y-4">
-															{/* Quick Revision Sheet */}
-															{studyPack.quickRevisionSheet && (
-																<div className="border border-white/20 rounded-lg p-4">
-																	<h4 className="text-lg font-semibold text-white mb-3">📋 Quick Revision Sheet</h4>
-																	<div className="prose max-w-none">
-																		<pre className="whitespace-pre-wrap text-gray-300 bg-white/5 p-4 rounded text-sm leading-relaxed">
-																			{studyPack.quickRevisionSheet}
-																		</pre>
-																	</div>
-																</div>
-															)}
-															
-															{/* Glossary */}
-															{studyPack.glossary && studyPack.glossary.length > 0 && (
-																<div className="border border-white/20 rounded-lg p-4">
-																	<h4 className="text-lg font-semibold text-white mb-3">📚 Glossary ({studyPack.glossary.length} terms)</h4>
-																	<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-																		{studyPack.glossary.map((term: any, index: number) => (
-																			<div key={index} className="bg-white/5 rounded p-3">
-																				<h5 className="font-semibold text-white text-sm">{term.term}</h5>
-																				<p className="text-gray-300 text-xs mt-1">{term.definition}</p>
-																				{term.chapter && (
-																					<span className="inline-block mt-2 px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
-																						{term.chapter}
-																					</span>
-																				)}
-																			</div>
-																		))}
-																	</div>
-																</div>
-															)}
-															
-															{/* Summary Statistics */}
-															<div className="border border-white/20 rounded-lg p-4">
-																<h4 className="text-lg font-semibold text-white mb-4">📊 Study Pack Summary</h4>
-																<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-																	<div className="text-center p-4 bg-blue-500/20 rounded">
-																		<div className="text-2xl font-bold text-blue-400">{studyPack.detailedNotes?.length || 0}</div>
-																		<div className="text-sm text-gray-400">Detailed Notes</div>
-																	</div>
-																	<div className="text-center p-4 bg-purple-500/20 rounded">
-																		<div className="text-2xl font-bold text-purple-400">{studyPack.flashcardDeck?.length || 0}</div>
-																		<div className="text-sm text-gray-400">Flashcards</div>
-																	</div>
-																	<div className="text-center p-4 bg-orange-500/20 rounded">
-																		<div className="text-2xl font-bold text-orange-400">
-																			{studyPack.quizBank?.reduce((sum: number, quiz: any) => sum + (quiz.questions?.length || 0), 0) || 0}
-																		</div>
-																		<div className="text-sm text-gray-400">Quiz Questions</div>
-																	</div>
-																	<div className="text-center p-4 bg-green-500/20 rounded">
-																		<div className="text-2xl font-bold text-green-400">{studyPack.chapters?.length || 0}</div>
-																		<div className="text-sm text-gray-400">Chapters</div>
-																	</div>
-																</div>
-																
-																{/* Study Time Estimate */}
-																{studyPack.summary?.estimatedStudyTime && (
-																	<div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded">
-																		<div className="flex items-center gap-2">
-																			<span className="text-green-400">⏱️</span>
-																			<span className="text-green-300 font-medium">Estimated Study Time: {studyPack.summary.estimatedStudyTime} hours</span>
-																		</div>
-																	</div>
-																)}
-															</div>
+														<div className="space-y-6">
+															<RevisionSheet 
+																content={studyPack.quickRevisionSheet || ''}
+																glossary={studyPack.glossary || []}
+																chapters={studyPack.chapters || []}
+															/>
 														</div>
 													)}
 												</div>

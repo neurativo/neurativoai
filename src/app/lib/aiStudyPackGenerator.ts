@@ -308,21 +308,20 @@ export class AIStudyPackGenerator {
     }
 
     try {
-      const prompt = `Create comprehensive study notes from this content:
+      const prompt = `Create concise, focused study notes from this content. Focus on the most important concepts only.
 
 Title: ${section.title}
 Content: ${section.content}
 
-Please generate:
-1. A well-structured summary with key concepts
-2. Important formulas, definitions, and principles
-3. Practical examples and applications
-4. Related topics and connections
-5. Study tips and exam focus areas
+Create SHORT, focused notes (max 300 words) that cover:
+1. Key concepts and definitions
+2. Important formulas or principles
+3. One practical example
+4. Study tips
 
-Format the response as JSON with this structure:
+Format as JSON:
 {
-  "content": "Main study note content with clear structure",
+  "content": "Concise summary with key points only - keep it short and focused",
   "highlights": {
     "keyFormulas": ["formula1", "formula2"],
     "examTips": ["tip1", "tip2"],
@@ -330,10 +329,10 @@ Format the response as JSON with this structure:
   },
   "examples": [
     {
-      "title": "Example title",
-      "description": "Example description",
+      "title": "Quick Example",
+      "description": "Brief description",
       "code": "Code if applicable",
-      "explanation": "Detailed explanation"
+      "explanation": "Short explanation"
     }
   ],
   "relatedTopics": ["topic1", "topic2"],
@@ -369,7 +368,7 @@ Format the response as JSON with this structure:
         id: `note_${section.id}`,
         title: section.title,
         topic: section.title,
-        content: parsed.content || this.formatNoteContent(section.content),
+        content: typeof parsed.content === 'string' ? parsed.content : this.formatStructuredContent(parsed),
         level: parsed.level || this.determineDifficultyLevel(section.content),
         highlights: parsed.highlights || this.extractHighlights(section.content),
         examples: parsed.examples || this.generateExamples(section.content),
@@ -401,6 +400,51 @@ Format the response as JSON with this structure:
       relatedTopics: topics,
       tags: this.extractTags(section.content)
     };
+  }
+
+  private formatStructuredContent(parsed: any): string {
+    // Handle structured content from AI response
+    if (typeof parsed === 'string') return parsed;
+    
+    let formatted = '';
+    
+    // Handle summary structure
+    if (parsed.summary) {
+      if (parsed.summary.title) {
+        formatted += `## ${parsed.summary.title}\n\n`;
+      }
+      if (parsed.summary.keyConcepts && Array.isArray(parsed.summary.keyConcepts)) {
+        formatted += `### Key Concepts\n\n`;
+        parsed.summary.keyConcepts.forEach((concept: string) => {
+          formatted += `- ${concept}\n`;
+        });
+        formatted += '\n';
+      }
+    }
+    
+    // Handle important topics
+    if (parsed.importantTopics) {
+      if (parsed.importantTopics.definitions) {
+        formatted += `### Definitions\n\n`;
+        Object.entries(parsed.importantTopics.definitions).forEach(([key, value]) => {
+          formatted += `**${key}**: ${value}\n\n`;
+        });
+      }
+      if (parsed.importantTopics.principles && Array.isArray(parsed.importantTopics.principles)) {
+        formatted += `### Principles\n\n`;
+        parsed.importantTopics.principles.forEach((principle: string) => {
+          formatted += `- ${principle}\n`;
+        });
+        formatted += '\n';
+      }
+    }
+    
+    // Handle main content
+    if (parsed.content && typeof parsed.content === 'string') {
+      formatted += parsed.content;
+    }
+    
+    return formatted || 'Content not available';
   }
 
   private formatNoteContent(content: string): string {

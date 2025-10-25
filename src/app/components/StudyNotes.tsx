@@ -11,14 +11,21 @@ import {
   ChevronRight,
   Sparkles,
   Clock,
-  Target
+  Target,
+  X,
+  Loader2
 } from 'lucide-react';
 
 interface StudyNote {
   id: string;
   title: string;
   topic: string;
-  content: string | { summary?: { title?: string; keyConcepts?: string[] }; importantTopics?: { definitions?: Record<string, string>; principles?: string[] } };
+  content: string | { 
+    summary?: { title?: string; keyConcepts?: string[] }; 
+    importantTopics?: { definitions?: Record<string, string>; principles?: string[] };
+    definitions?: Record<string, string>;
+    principles?: string[];
+  };
   level: 'basic' | 'intermediate' | 'advanced';
   highlights?: {
     keyFormulas?: string[];
@@ -41,7 +48,12 @@ interface StudyNotesProps {
 }
 
 // Helper function to format note content
-const formatNoteContent = (content: string | { summary?: { title?: string; keyConcepts?: string[] }; importantTopics?: { definitions?: Record<string, string>; principles?: string[] } }): string => {
+const formatNoteContent = (content: string | { 
+  summary?: { title?: string; keyConcepts?: string[] }; 
+  importantTopics?: { definitions?: Record<string, string>; principles?: string[] };
+  definitions?: Record<string, string>;
+  principles?: string[];
+}): string => {
   if (typeof content === 'string') return content;
   
   if (content && typeof content === 'object') {
@@ -76,6 +88,23 @@ const formatNoteContent = (content: string | { summary?: { title?: string; keyCo
       return formatted;
     }
     
+    // Handle other object structures
+    if (content.definitions) {
+      let formatted = '### Definitions\n\n';
+      Object.entries(content.definitions).forEach(([key, value]) => {
+        formatted += `**${key}**: ${value}\n\n`;
+      });
+      return formatted;
+    }
+    
+    if (content.principles && Array.isArray(content.principles)) {
+      let formatted = '### Principles\n\n';
+      content.principles.forEach((principle: string) => {
+        formatted += `- ${principle}\n`;
+      });
+      return formatted;
+    }
+    
     // Fallback to JSON stringify for debugging
     return JSON.stringify(content, null, 2);
   }
@@ -102,8 +131,24 @@ const LevelBadge = ({ level }: { level: string }) => {
 const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSection?: (note: StudyNote) => void }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'content' | 'highlights' | 'examples'>('content');
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [explanation, setExplanation] = useState('');
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
   
   const formattedContent = formatNoteContent(note.content);
+  
+  const handleAIExplain = async () => {
+    if (onExplainSection) {
+      setIsLoadingExplanation(true);
+      try {
+        await onExplainSection(note);
+      } catch (error) {
+        console.error('Error getting AI explanation:', error);
+      } finally {
+        setIsLoadingExplanation(false);
+      }
+    }
+  };
   
   return (
     <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-xl hover:shadow-2xl hover:bg-white/15 transition-all duration-300">
@@ -295,11 +340,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           {onExplainSection && (
             <div className="mt-6 pt-6 border-t border-white/20">
               <button
-                onClick={() => onExplainSection(note)}
-                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl"
+                onClick={handleAIExplain}
+                disabled={isLoadingExplanation}
+                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Sparkles className="w-5 h-5" />
-                <span className="font-semibold">AI Explain This Section</span>
+                {isLoadingExplanation ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+                <span className="font-semibold">
+                  {isLoadingExplanation ? 'Getting AI Explanation...' : 'AI Explain This Section'}
+                </span>
               </button>
             </div>
           )}

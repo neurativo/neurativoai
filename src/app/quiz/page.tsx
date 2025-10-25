@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { getSupabaseBrowser } from "@/app/lib/supabaseClient";
 import { UsageTracker } from "@/lib/usage-tracker";
 import { getUserLimits, isQuizTypeAllowed, getMaxQuestionsForPlan } from "@/lib/usage-limits";
-import { Loader2, FileText, Brain, Layers, BookOpen, CheckCircle } from "lucide-react";
+import { Loader2, FileText, Brain, Layers, BookOpen, CheckCircle, X } from "lucide-react";
 import StudyNotes from "@/app/components/StudyNotes";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type PreviewQuestion = { id?: string | number; question?: string; type?: string };
 type PreviewQuiz = { id?: string; quiz?: { title?: string; description?: string; questions?: PreviewQuestion[] } };
@@ -141,6 +143,18 @@ export default function QuizPage() {
 		totalSteps: 6,
 		currentStep: '',
 		percentage: 0
+	});
+	
+	const [aiExplanation, setAiExplanation] = useState<{
+		show: boolean;
+		title: string;
+		content: string;
+		isLoading: boolean;
+	}>({
+		show: false,
+		title: '',
+		content: '',
+		isLoading: false
 	});
 	const [activeStudyTab, setActiveStudyTab] = useState<'notes' | 'flashcards' | 'quizzes' | 'revision'>('notes');
 	const [aiContent, setAiContent] = useState("");
@@ -998,9 +1012,43 @@ export default function QuizPage() {
 														<div className="space-y-6">
 															<StudyNotes 
 																notes={studyPack.detailedNotes || []} 
-																onExplainSection={(note) => {
-																	console.log('Explain section:', note);
-																	// TODO: Implement AI explanation
+																onExplainSection={async (note) => {
+																	setAiExplanation({
+																		show: true,
+																		title: note.title,
+																		content: '',
+																		isLoading: true
+																	});
+																	
+																	try {
+																		const response = await fetch('/api/ai-explain', {
+																			method: 'POST',
+																			headers: { 'Content-Type': 'application/json' },
+																			body: JSON.stringify({ note })
+																		});
+																		
+																		if (response.ok) {
+																			const { explanation } = await response.json();
+																			setAiExplanation(prev => ({
+																				...prev,
+																				content: explanation,
+																				isLoading: false
+																			}));
+																		} else {
+																			setAiExplanation(prev => ({
+																				...prev,
+																				content: 'Failed to get AI explanation. Please try again.',
+																				isLoading: false
+																			}));
+																		}
+																	} catch (error) {
+																		console.error('Error getting AI explanation:', error);
+																		setAiExplanation(prev => ({
+																			...prev,
+																			content: 'Error getting AI explanation. Please try again.',
+																			isLoading: false
+																		}));
+																	}
 																}}
 															/>
 														</div>
@@ -1489,6 +1537,62 @@ export default function QuizPage() {
 						</div>
 					</div>
 					<button className="modal-backdrop" onClick={() => setPreviewOpen(false)}>Close</button>
+				</div>
+			)}
+
+			{/* AI Explanation Modal */}
+			{aiExplanation.show && (
+				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+					<div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+						{/* Header */}
+						<div className="p-6 border-b border-white/20">
+							<div className="flex items-center justify-between">
+								<div className="flex items-center gap-3">
+									<div className="p-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl">
+										<Brain className="w-6 h-6 text-blue-400" />
+									</div>
+									<div>
+										<h3 className="text-xl font-bold text-white/90">AI Explanation</h3>
+										<p className="text-white/70 text-sm">{aiExplanation.title}</p>
+									</div>
+								</div>
+								<button
+									onClick={() => setAiExplanation(prev => ({ ...prev, show: false }))}
+									className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+								>
+									<X className="w-5 h-5 text-white/70" />
+								</button>
+							</div>
+						</div>
+						
+						{/* Content */}
+						<div className="p-6 overflow-y-auto max-h-[60vh]">
+							{aiExplanation.isLoading ? (
+								<div className="flex items-center justify-center py-12">
+									<div className="text-center">
+										<Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
+										<p className="text-white/70">AI is analyzing this section...</p>
+									</div>
+								</div>
+							) : (
+								<div className="prose prose-invert max-w-none">
+									<ReactMarkdown remarkPlugins={[remarkGfm]}>
+										{aiExplanation.content}
+									</ReactMarkdown>
+								</div>
+							)}
+						</div>
+						
+						{/* Footer */}
+						<div className="p-6 border-t border-white/20">
+							<button
+								onClick={() => setAiExplanation(prev => ({ ...prev, show: false }))}
+								className="w-full px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 transition-all duration-200"
+							>
+								Close
+							</button>
+						</div>
+					</div>
 				</div>
 			)}
 		</>

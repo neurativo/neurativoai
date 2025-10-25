@@ -1542,55 +1542,63 @@ export default function QuizPage() {
 
 			{/* AI Explanation Modal */}
 			{aiExplanation.show && (
-				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-					<div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+				<div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+					<div className="bg-white/15 backdrop-blur-2xl rounded-3xl border border-white/30 shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden">
 						{/* Header */}
-						<div className="p-6 border-b border-white/20">
+						<div className="p-8 border-b border-white/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
 							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3">
-									<div className="p-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl">
-										<Brain className="w-6 h-6 text-blue-400" />
+								<div className="flex items-center gap-4">
+									<div className="p-3 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-2xl shadow-lg">
+										<Brain className="w-7 h-7 text-blue-300" />
 									</div>
 									<div>
-										<h3 className="text-xl font-bold text-white/90">AI Explanation</h3>
-										<p className="text-white/70 text-sm">{aiExplanation.title}</p>
+										<h3 className="text-2xl font-bold text-white/95">Expert Explanation</h3>
+										<p className="text-white/80 text-sm font-medium">{aiExplanation.title}</p>
 									</div>
 								</div>
 								<button
 									onClick={() => setAiExplanation(prev => ({ ...prev, show: false }))}
-									className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+									className="p-3 hover:bg-white/10 rounded-2xl transition-all duration-200 hover:scale-105"
 								>
-									<X className="w-5 h-5 text-white/70" />
+									<X className="w-6 h-6 text-white/80" />
 								</button>
 							</div>
 						</div>
 						
 						{/* Content */}
-						<div className="p-6 overflow-y-auto max-h-[60vh]">
+						<div className="p-8 overflow-y-auto max-h-[65vh]">
 							{aiExplanation.isLoading ? (
-								<div className="flex items-center justify-center py-12">
+								<div className="flex items-center justify-center py-16">
 									<div className="text-center">
-										<Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
-										<p className="text-white/70">AI is analyzing this section...</p>
+										<div className="relative">
+											<Loader2 className="w-12 h-12 text-blue-400 animate-spin mx-auto mb-6" />
+											<div className="absolute inset-0 w-12 h-12 border-2 border-blue-400/20 rounded-full"></div>
+										</div>
+										<p className="text-white/80 text-lg font-medium">Analyzing content...</p>
+										<p className="text-white/60 text-sm mt-2">Generating expert explanation</p>
 									</div>
 								</div>
 							) : (
-								<div className="prose prose-invert max-w-none">
-									<ReactMarkdown remarkPlugins={[remarkGfm]}>
-										{aiExplanation.content}
-									</ReactMarkdown>
+								<div className="prose prose-invert max-w-none prose-lg">
+									<div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+										<ReactMarkdown remarkPlugins={[remarkGfm]}>
+											{aiExplanation.content}
+										</ReactMarkdown>
+									</div>
 								</div>
 							)}
 						</div>
 						
 						{/* Footer */}
-						<div className="p-6 border-t border-white/20">
-							<button
-								onClick={() => setAiExplanation(prev => ({ ...prev, show: false }))}
-								className="w-full px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 transition-all duration-200"
-							>
-								Close
-							</button>
+						<div className="p-8 border-t border-white/20 bg-gradient-to-r from-white/5 to-white/10">
+							<div className="flex gap-4">
+								<button
+									onClick={() => setAiExplanation(prev => ({ ...prev, show: false }))}
+									className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-2xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+								>
+									Close
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>

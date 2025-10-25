@@ -22,7 +22,7 @@ export class UsageTracker {
         const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/subscriptions?userId=${userId}`);
         if (res.ok) {
           const subData = await res.json();
-          userPlan = subData?.plan || 'free';
+          userPlan = subData?.currentPlan?.name?.toLowerCase() || 'free';
         }
       } catch (error) {
         console.error('Error fetching user plan:', error);

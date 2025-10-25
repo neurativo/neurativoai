@@ -27,7 +27,7 @@ export default function NewPricingPage() {
           });
           if (res.ok) {
             const subData = await res.json();
-            userPlan = subData?.plan || 'free';
+            userPlan = subData?.currentPlan?.name?.toLowerCase() || 'free';
           }
         } catch (error) {
           console.error('Error fetching user plan:', error);

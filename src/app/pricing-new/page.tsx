@@ -22,7 +22,7 @@ export default function NewPricingPage() {
         // Get user's current plan from subscription API
         let userPlan = 'free';
         try {
-          const res = await fetch('/api/subscriptions', {
+          const res = await fetch(`/api/subscriptions?userId=${user.id}`, {
             headers: { Authorization: `Bearer ${session?.access_token}` }
           });
           if (res.ok) {

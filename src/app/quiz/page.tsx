@@ -211,7 +211,7 @@ export default function QuizPage() {
 				if (user) {
 					// Get user's plan from subscription API
 					try {
-						const res = await fetch('/api/subscriptions', {
+						const res = await fetch(`/api/subscriptions?userId=${user.id}`, {
 							headers: { Authorization: `Bearer ${session?.access_token}` }
 						});
 						console.log('Subscription API response status:', res.status);

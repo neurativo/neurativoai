@@ -106,18 +106,18 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
   const formattedContent = formatNoteContent(note.content);
   
   return (
-    <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-xl hover:shadow-2xl hover:bg-white/15 transition-all duration-300">
       {/* Header */}
       <div 
-        className="p-4 border-b border-gray-700 cursor-pointer"
+        className="p-6 border-b border-white/20 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <BookOpen className="w-5 h-5 text-blue-600" />
             <div>
-            <h3 className="text-lg font-semibold text-white">{note.title}</h3>
-            <p className="text-sm text-gray-300">{note.topic}</p>
+            <h3 className="text-xl font-bold text-white/90">{note.title}</h3>
+            <p className="text-sm text-white/70 font-medium">{note.topic}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -133,48 +133,48 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
       
       {/* Content */}
       {isExpanded && (
-        <div className="p-4">
+        <div className="p-6">
           {/* Tabs */}
-          <div className="flex space-x-1 mb-4 border-b border-gray-200">
+          <div className="flex space-x-2 mb-6">
             <button
               onClick={() => setActiveTab('content')}
-              className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
                 activeTab === 'content'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30 shadow-lg'
+                  : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90 border border-white/10'
               }`}
             >
-              Content
+              📝 Content
             </button>
             {note.highlights && (
               <button
                 onClick={() => setActiveTab('highlights')}
-                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
                   activeTab === 'highlights'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30 shadow-lg'
+                    : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90 border border-white/10'
                 }`}
               >
-                Highlights
+                ✨ Highlights
               </button>
             )}
             {note.examples && note.examples.length > 0 && (
               <button
                 onClick={() => setActiveTab('examples')}
-                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
                   activeTab === 'examples'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30 shadow-lg'
+                    : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white/90 border border-white/10'
                 }`}
               >
-                Examples
+                💡 Examples
               </button>
             )}
           </div>
           
           {/* Tab Content */}
           {activeTab === 'content' && (
-            <div className="prose prose-invert max-w-none leading-relaxed text-gray-300">
+            <div className="prose prose-invert max-w-none leading-relaxed text-white/80">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
               >
@@ -184,69 +184,108 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           )}
           
           {activeTab === 'highlights' && note.highlights && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {note.highlights.keyFormulas && note.highlights.keyFormulas.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-lg font-semibold mb-2">
-                    <Key className="w-5 h-5 text-amber-500" />
-                    Key Formulas
+                <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 backdrop-blur-sm rounded-2xl p-6 border border-amber-400/20 shadow-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-amber-500/20 rounded-xl">
+                      <Key className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-amber-200">Key Formulas</h3>
                   </div>
-                  <ul className="space-y-2">
+                  <div className="grid gap-3">
                     {note.highlights.keyFormulas.map((formula, index) => (
-                      <li key={index} className="bg-gray-50 p-3 rounded-lg font-mono text-sm">
-                        {formula}
-                      </li>
+                      <div key={index} className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+                        <code className="text-amber-100 font-mono text-sm leading-relaxed block">
+                          {formula}
+                        </code>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
               
               {note.highlights.examTips && note.highlights.examTips.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-lg font-semibold mb-2">
-                    <Lightbulb className="w-5 h-5 text-amber-500" />
-                    Exam Tips
+                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm rounded-2xl p-6 border border-blue-400/20 shadow-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-blue-500/20 rounded-xl">
+                      <Lightbulb className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-blue-200">Exam Tips</h3>
                   </div>
-                  <ul className="space-y-2">
+                  <div className="space-y-3">
                     {note.highlights.examTips.map((tip, index) => (
-                      <li key={index} className="bg-blue-50 p-3 rounded-lg">
-                        {tip}
-                      </li>
+                      <div key={index} className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-blue-100 text-sm leading-relaxed">{tip}</p>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
               
               {note.highlights.conceptChecks && note.highlights.conceptChecks.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-lg font-semibold mb-2">
-                    <Target className="w-5 h-5 text-green-500" />
-                    Concept Checks
+                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm rounded-2xl p-6 border border-green-400/20 shadow-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-green-500/20 rounded-xl">
+                      <Target className="w-6 h-6 text-green-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-green-200">Concept Checks</h3>
                   </div>
-                  <ul className="space-y-2">
+                  <div className="space-y-3">
                     {note.highlights.conceptChecks.map((check, index) => (
-                      <li key={index} className="bg-green-50 p-3 rounded-lg">
-                        {check}
-                      </li>
+                      <div key={index} className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 flex items-start gap-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-green-100 text-sm leading-relaxed">{check}</p>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
           )}
           
           {activeTab === 'examples' && note.examples && note.examples.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {note.examples.map((example, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">{example.title}</h4>
-                  <p className="text-gray-700 mb-3">{example.description}</p>
-                  {example.code && (
-                    <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto">
-                      <code className="text-sm">{example.code}</code>
-                    </pre>
-                  )}
-                  <p className="text-gray-600 text-sm mt-2">{example.explanation}</p>
+                <div key={index} className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/20 shadow-xl hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-purple-500/20 rounded-xl flex-shrink-0">
+                      <div className="w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {index + 1}
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h4 className="text-xl font-bold text-purple-200 mb-2">{example.title}</h4>
+                        <p className="text-purple-100 leading-relaxed">{example.description}</p>
+                      </div>
+                      
+                      {example.code && (
+                        <div className="bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                            <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                            <span className="text-xs text-white/60 ml-2">Code Example</span>
+                          </div>
+                          <pre className="overflow-x-auto">
+                            <code className="text-green-300 font-mono text-sm leading-relaxed">
+                              {example.code}
+                            </code>
+                          </pre>
+                        </div>
+                      )}
+                      
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                          <span className="text-sm font-semibold text-purple-200">Explanation</span>
+                        </div>
+                        <p className="text-purple-100 text-sm leading-relaxed">{example.explanation}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -254,13 +293,13 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
           
           {/* AI Explain Button */}
           {onExplainSection && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-6 pt-6 border-t border-white/20">
               <button
                 onClick={() => onExplainSection(note)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-blue-200 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                <Sparkles className="w-4 h-4" />
-                AI Explain This Section
+                <Sparkles className="w-5 h-5" />
+                <span className="font-semibold">AI Explain This Section</span>
               </button>
             </div>
           )}
@@ -274,27 +313,39 @@ const NoteCard = ({ note, onExplainSection }: { note: StudyNote; onExplainSectio
 export default function StudyNotes({ notes, onExplainSection }: StudyNotesProps) {
   if (!notes || notes.length === 0) {
     return (
-      <div className="text-center py-12">
-        <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-white mb-2">No Notes Available</h3>
-        <p className="text-gray-400">Upload a document to generate comprehensive study notes.</p>
+      <div className="text-center py-16">
+        <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-12 border border-white/10 max-w-md mx-auto">
+          <div className="p-4 bg-blue-500/20 rounded-2xl w-fit mx-auto mb-6">
+            <BookOpen className="w-16 h-16 text-blue-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-white/90 mb-3">No Notes Available</h3>
+          <p className="text-white/70 leading-relaxed">Upload a document to generate comprehensive study notes with beautiful glassmorphism design.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-white">Study Notes</h2>
-          <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-            {notes.length}
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-blue-500/20 rounded-xl">
+            <BookOpen className="w-8 h-8 text-blue-400" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-white/90">Study Notes</h2>
+            <p className="text-white/70 text-sm">Comprehensive learning materials</p>
+          </div>
+          <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-blue-400/30">
+            <span className="text-blue-200 font-bold text-lg">{notes.length}</span>
+            <span className="text-blue-300 text-sm ml-1">notes</span>
+          </div>
         </div>
-        <div className="text-sm text-gray-400">
-          <Clock className="w-4 h-4 inline mr-1" />
-          Estimated study time: {notes.length * 5} minutes
+        <div className="bg-white/5 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10">
+          <div className="flex items-center gap-2 text-white/80">
+            <Clock className="w-4 h-4" />
+            <span className="text-sm font-medium">{notes.length * 5} min study time</span>
+          </div>
         </div>
       </div>
       
